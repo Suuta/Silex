@@ -1,0 +1,15 @@
+# Binary という名前のディレクトリ（およびその中の内容）のみを無視
+/Binary/
+
+# リポジトリ内のどこにあっても .vs ディレクトリを無視
+.vs/
+.idea/
+
+# リポジトリ内のどこにあっても .sln ファイルを無視
+**.sln
+**.vcxproj
+**.vcxproj.filters
+**.vcxproj.user
+
+# 現在のディレクトリ（.gitignore が置かれているディレクトリ）の直下の .exe ファイルだけを無視
+/*.exe
