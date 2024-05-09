@@ -66,7 +66,6 @@ namespace Silex
             static_assert(sizeof(Func) == 0, "コピーを避けるために、右辺値が渡されることを期待します");
         }
 
-
         void Execute()
         {
             byte* ptr = buffer;

@@ -66,9 +66,7 @@ namespace Silex
 
                 auto& mc = entity.GetComponent<MeshComponent>();
                 out << YAML::Key << "mesh" << YAML::Value << mc.mesh->GetAssetID();
-
                 out << YAML::Key << "castShadow" << YAML::Value << mc.castShadow;
-
                 out << YAML::Key << "material";
                 out << YAML::BeginMap;
 

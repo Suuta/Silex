@@ -10,7 +10,7 @@
 
 namespace Silex
 {
-    // グローバル Engine ポインター
+    // グローバル ポインター
     static Engine* engine = nullptr;
 
 
@@ -53,19 +53,19 @@ namespace Silex
         OS::Shutdown();
     }
 
-
     //=========================================
     // Engine
     //=========================================
     Engine* Engine::Get()
     {
-        SL_ASSERT(engine != nullptr);
         return engine;
     }
 
     bool Engine::Init()
     {
-        WindowCreateInfo info = {};
+        assimpDLL = LoadLibraryW(L"Resources/DLL/assimp-vc143-mt.dll");
+
+        WindowCreateInfo info  = {};
         info.title             = "Silex";
         info.width             = 1280;
         info.height            = 720;
@@ -150,6 +150,8 @@ namespace Silex
         data.mouseScrollEvent.Unbind();
 
         window->Destroy();
+
+        FreeLibrary(assimpDLL);
     }
 
     // OnWindowCloseイベント（Xボタン / Alt + F4）以外で、エンジンループを終了させる場合に使用

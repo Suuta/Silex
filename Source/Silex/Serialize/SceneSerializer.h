@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Scene/Scene.h"
-#include "Core/CoreType.h"
 
 
 namespace Silex

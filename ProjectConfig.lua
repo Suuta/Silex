@@ -189,6 +189,12 @@ project "Silex"
         links
         {
             "Source/External/assimp/lib/Debug/assimp-vc143-mtd.lib",
+            "delayimp",
+        }
+
+        linkoptions
+        { 
+            "/DELAYLOAD:assimp-vc143-mtd.dll", -- 遅延 DLL 読み込み
         }
 
     -- リリース
@@ -203,4 +209,10 @@ project "Silex"
         links
         {
             "Source/External/assimp/lib/Release/assimp-vc143-mt.lib",
+            "delayimp",
+        }
+
+        linkoptions
+        { 
+            "/DELAYLOAD:assimp-vc143-mt.dll", -- 遅延 DLL 読み込み
         }

@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "Core/CoreType.h"
+#include "Core/Core.h"
 #include "Core/SharedPointer.h"
 
 

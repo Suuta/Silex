@@ -1,38 +1,24 @@
 
 #pragma once
 
-#include "Engine/Module.h"
 #include "Core/SharedPointer.h"
 
 
 namespace Silex
 {
-    class EditorUI : public Module
+    class EditorUI : public Object
     {
-        SL_DECLARE_CLASS(EditorUI, Module)
-
-    public:
-
-        virtual ~EditorUI() = default;
+        SL_DECLARE_CLASS(EditorUI, Object)
 
     public:
 
         static EditorUI* Create();
 
-
-        void Init()                  override;
-        void Shutdown()              override;
-        void Render()                override;
-
-        void Update(float deltaTime) override {};
-
-    public:
+        virtual void Init();
+        virtual void Shutdown();
+        virtual void Render();
 
         virtual void BeginFrame();
         virtual void EndFrame();
-
-    private:
-
-
     };
 }

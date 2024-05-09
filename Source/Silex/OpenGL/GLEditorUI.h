@@ -13,21 +13,11 @@ namespace Silex
 
     public:
 
-        void Init()                  override;
-        void Shutdown()              override;
-        void Render()                override;
-
-        void Update(float deltaTime) override {};
-
-    public:
+        void Init()     override;
+        void Shutdown() override;
+        void Render()   override;
 
         void BeginFrame() override;
         void EndFrame()   override;
-
-    private:
-
-
     };
-
-    
 }

@@ -8,7 +8,6 @@
 #include "Core/Timer.h"
 #include "Core/Random.h"
 #include "Engine/Engine.h"
-#include "Engine/Application.h"
 #include "Renderer/Renderer.h"
 #include "Serialize/SceneSerializer.h"
 

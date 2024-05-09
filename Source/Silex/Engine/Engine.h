@@ -49,17 +49,22 @@ namespace Silex
 
     private:
 
-        Window*   window;
-        Editor*   editor;
-        EditorUI* editorUI;
+        Window*   window   = nullptr;
+        Editor*   editor   = nullptr;
+        EditorUI* editorUI = nullptr;
 
-        bool isRunning   = true;
-        bool minimized   = false;
+        bool isRunning = true;
+        bool minimized = false;
 
         float  lastFrameTime = 0.0f;
         float  deltaTime     = 0.0f;
         uint32 frameRate     = 0;
 
         std::unordered_map<const char*, float> performanceData;
+
+
+    private:
+
+        HMODULE assimpDLL = nullptr;
     };
 }

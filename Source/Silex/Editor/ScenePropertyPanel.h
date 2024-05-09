@@ -1,7 +1,6 @@
 
 #pragma once
-
-#include "Editor/EditorPanel.h"
+#include "Scene/Entity.h"
 
 
 namespace Silex

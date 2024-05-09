@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Core/Core.h"
-#include "Engine/Module.h"
 #include "Core/SharedPointer.h"
 #include "Renderer/Mesh.h"
 #include "Renderer/Shader.h"
@@ -19,16 +18,16 @@ struct GLFWwindow;
 
 namespace Silex
 {
-    class Editor : public Module
+    class Editor : public Object
     {
-        SL_DECLARE_CLASS(Editor, Module)
+        SL_DECLARE_CLASS(Editor, Object)
 
     public:
 
-        void Init()                  override;
-        void Shutdown()              override;
-        void Update(float deltaTime) override;
-        void Render()                override;
+        void Init();
+        void Shutdown();
+        void Update(float deltaTime);
+        void Render();
 
     public:
 
