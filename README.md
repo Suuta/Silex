@@ -1,19 +1,23 @@
 # Silex
 
+レンダリングの学習用に使用しているレンダラーです。<br>
 
 
-#### MIT
 
-* yaml-cpp
-* entt
-* glm
-* imgui
-* imguizmo
-* stb
-* vulkan memory allocator
+## 動作確認環境
 
-#### BSD
+* Windows 10 / 11
+* Windows SDK:  ~ 10.0.22000
+* C++ 20
 
-* assimp
 
-  
+
+## ビルド
+
+```bat
+git clone --recursive https://github.com/Suuta/Silex.git
+```
+
+プロジェクト生成ツールに [Premake](https://premake.github.io/) を使用していますが、別途インストールは必要ありません。<br>
+クローン後に ***GenerateProject.bat*** を実行して *VisualStudio* ソリューションを生成します。<br>
+生成後、ソリューションを開いてビルドをするか ***BuildProject.bat*** の実行でビルドが行われます。<br>
