@@ -174,7 +174,8 @@ project "Silex"
 
         links
         {
-            "Dwmapi.lib"
+            "Dwmapi.lib",
+            "Winmm.lib",
         }
 
     -- デバッグ

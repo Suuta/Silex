@@ -21,8 +21,8 @@ namespace Silex
         MemoryPool()  = default;
         ~MemoryPool() = default;
 
-        void Init();
-        void Shutdown();
+        void Initialize();
+        void Finalize();
 
         void* Allocate(const uint64 allocationSize);
         void  Deallocate(void* pointer);

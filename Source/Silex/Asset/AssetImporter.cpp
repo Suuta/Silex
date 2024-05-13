@@ -3,9 +3,9 @@
 
 #include "Asset/AssetImporter.h"
 #include "Serialize/AssetSerializer.h"
-#include "Renderer/Mesh.h"
-#include "Renderer/SkyLight.h"
-#include "Renderer/Texture.h"
+#include "Rendering/Mesh.h"
+#include "Rendering/SkyLight.h"
+#include "Rendering/Texture.h"
 #include "Core/Random.h"
 
 

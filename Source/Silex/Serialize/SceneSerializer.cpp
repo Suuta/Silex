@@ -4,7 +4,7 @@
 #include "Scene/Entity.h"
 #include "Serialize/SceneSerializer.h"
 #include "Serialize/Serialize.h"
-#include "Renderer/Renderer.h"
+#include "Rendering/Renderer.h"
 
 
 namespace Silex

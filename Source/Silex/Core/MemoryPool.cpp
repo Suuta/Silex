@@ -113,7 +113,7 @@ namespace Silex
     //============================================================================
     // メモリープール
     //============================================================================
-    void MemoryPool::Init()
+    void MemoryPool::Initialize()
     {
         const uint64 minPoolBlockByteSize = 32;
         const uint64 poolByteSize         = 10 * 1024 * 1024;
@@ -127,7 +127,7 @@ namespace Silex
         }
     }
 
-    void MemoryPool::Shutdown()
+    void MemoryPool::Finalize()
     {
         for (uint32 i = 0; i < pools.size(); i++)
         {

@@ -2,9 +2,9 @@
 #pragma once
 
 #include "Asset/Asset.h"
-#include "Renderer/Mesh.h"
-#include "Renderer/SkyLight.h"
-#include "Renderer/Material.h"
+#include "Rendering/Mesh.h"
+#include "Rendering/SkyLight.h"
+#include "Rendering/Material.h"
 #include <glm/gtx/quaternion.hpp>
 
 

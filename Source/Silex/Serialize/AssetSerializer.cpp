@@ -5,8 +5,8 @@
 #include "Asset/Asset.h"
 #include "Serialize/Serialize.h"
 #include "Serialize/AssetSerializer.h"
-#include "Renderer/Renderer.h"
-#include "Renderer/Material.h"
+#include "Rendering/Renderer.h"
+#include "Rendering/Material.h"
 
 /*
     MeshComponent:

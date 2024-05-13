@@ -3,9 +3,9 @@
 
 #include "Core/Core.h"
 #include "Core/SharedPointer.h"
-#include "Renderer/Mesh.h"
-#include "Renderer/Shader.h"
-#include "Renderer/Camera.h"
+#include "Rendering/Mesh.h"
+#include "Rendering/Shader.h"
+#include "Rendering/Camera.h"
 #include "Scene/SceneRenderer.h"
 #include "Editor/ScenePropertyPanel.h"
 #include "Editor/AssetBrowserPanel.h"

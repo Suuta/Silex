@@ -2,9 +2,9 @@
 #include "PCH.h"
 
 #include "Editor/ScenePropertyPanel.h"
-#include "OpenGL/GLTexture.h"
-#include "Renderer/Texture.h"
-#include "Renderer/Renderer.h"
+#include "Rendering/Texture.h"
+#include "Rendering/Renderer.h"
+#include "Rendering/OpenGL/GLTexture.h"
 
 #include <imgui/imgui_internal.h>
 #include <glm/gtc/type_ptr.hpp>

@@ -12,14 +12,14 @@ namespace Silex
     static bool s_Initialized = false;
 
 
-    void PoolAllocator::Init()
+    void PoolAllocator::Initialize()
     {
-        pool.Init();
+        pool.Initialize();
     }
 
-    void PoolAllocator::Shutdown()
+    void PoolAllocator::Finalize()
     {
-        pool.Shutdown();
+        pool.Finalize();
     }
 
     void* PoolAllocator::Allocate(uint64 sizeByte)
@@ -35,7 +35,7 @@ namespace Silex
 
 
 
-    void MemoryTracker::Init()
+    void MemoryTracker::Initialize()
     {
         if (s_Initialized)
             return;
@@ -46,7 +46,7 @@ namespace Silex
         s_Initialized = true;
     }
 
-    void MemoryTracker::Shutdown()
+    void MemoryTracker::Finalize()
     {
         s_Initialized = false;
 
@@ -60,7 +60,7 @@ namespace Silex
     {
         // Init() 呼び出し前に、静的変数がoperator new() を呼び出す可能性があるため
         if (!s_Initialized)
-            Init();
+            Initialize();
 
         {
             std::scoped_lock lock(allocationData->mutex);

@@ -53,8 +53,8 @@ namespace Silex
     {
     public:
 
-        static void Init();
-        static void Shutdown();
+        static void Initialize();
+        static void Finalize();
 
         static void* Allocate(uint64 sizeByte);
         static void  Deallocate(void* pointer);
@@ -77,8 +77,8 @@ namespace Silex
     {
     public:
 
-        static void Init();
-        static void Shutdown();
+        static void Initialize();
+        static void Finalize();
 
         static void RecordAllocate(void* allocatedPtr, size_t size, const char* typeName, const char* file, size_t line);
         static void RecordDeallocate(void* ptr);
@@ -112,19 +112,33 @@ namespace Silex
     };
 
 
-    namespace Memory
+    class Memory
     {
+    public:
+
+        static void Initialize()
+        {
+            MemoryTracker::Initialize();
+            PoolAllocator::Initialize();
+        }
+
+        static void Finalize()
+        {
+            PoolAllocator::Finalize();
+            MemoryTracker::Finalize();
+        }
+
         //=======================================
-        // コンストラクタ / デストラクタ
+        // コンストラクタ / デストラクタ 呼び出し
         //=======================================
         template<typename T, typename ... Args>
-        T* Construct(void* ptr, Args&& ... args)
+        static T* Construct(void* ptr, Args&& ... args)
         {
             return std::construct_at(static_cast<T*>(ptr), Traits::Forward<Args>(args)...);
         }
 
         template<typename T>
-        void Destruct(T* ptr)
+        static void Destruct(T* ptr)
         {
             std::destroy_at(ptr);
         }
@@ -132,12 +146,12 @@ namespace Silex
         //=======================================
         // ヒープ確保
         //=======================================
-        SL_FORCEINLINE void* Malloc(uint64 size)
+        SL_FORCEINLINE static void* Malloc(uint64 size)
         {
             return std::malloc(size);
         }
 
-        SL_FORCEINLINE void Free(void* ptr)
+        SL_FORCEINLINE static void Free(void* ptr)
         {
             std::free(ptr);
         }
@@ -146,7 +160,7 @@ namespace Silex
         // プールから確保
         //=======================================
         template<typename T, typename... Args>
-        T* Allocate(Args&& ... args)
+        static T* Allocate(Args&& ... args)
         {
             static_assert(sizeof(T) <= 1024);
 
@@ -155,57 +169,57 @@ namespace Silex
         }
 
         template<typename T>
-        void Deallocate(T* ptr)
+        static void Deallocate(T* ptr)
         {
             Memory::Destruct(ptr);
             PoolAllocator::Deallocate((void*)ptr);
         }
+    };
 
 
 #if 0
-        //=======================================
-        // カスタム new / delete
-        //=======================================
-        template<typename T, typename ... Args>
-        T* New(Args&& ... args)
-        {
-            void* ptr = Memory::Malloc(sizeof(T));
-            return new(ptr, SLEmpty()) T(Traits::Forward<Args>(args)...);
-        }
-
-        template<typename T, typename ... Args>
-        T* NewArray(size_t arraySize, Args&& ... args)
-        {
-            T* ptrHead = (T*)Memory::Malloc(sizeof(T) * arraySize);
-            T* cursor  = ptrHead;
-
-            for (uint32 i = 0; i < arraySize; i++)
-            {
-                new(cursor++, SLEmpty()) T(Traits::Forward<Args>(args)...);
-            }
-
-            return ptrHead;
-        }
-
-        template<typename T>
-        void Delete(T* ptr)
-        {
-            if (ptr)
-            {
-                std::destroy_at(ptr);
-                Memory::Free(ptr);
-            }
-        }
-
-        template<typename T>
-        void DeleteArray(T* ptr, size_t arraySize)
-        {
-            if (ptr)
-            {
-                std::destroy(&ptr[0], &ptr[arraySize - 1]);
-                Memory::Free(ptr);
-            }
-        }
-#endif
+    //=======================================
+    // カスタム new / delete
+    //=======================================
+    template<typename T, typename ... Args>
+    T* New(Args&& ... args)
+    {
+        void* ptr = Memory::Malloc(sizeof(T));
+        return new(ptr, SLEmpty()) T(Traits::Forward<Args>(args)...);
     }
+
+    template<typename T, typename ... Args>
+    T* NewArray(size_t arraySize, Args&& ... args)
+    {
+        T* ptrHead = (T*)Memory::Malloc(sizeof(T) * arraySize);
+        T* cursor = ptrHead;
+
+        for (uint32 i = 0; i < arraySize; i++)
+        {
+            new(cursor++, SLEmpty()) T(Traits::Forward<Args>(args)...);
+        }
+
+        return ptrHead;
+    }
+
+    template<typename T>
+    void Delete(T* ptr)
+    {
+        if (ptr)
+        {
+            std::destroy_at(ptr);
+            Memory::Free(ptr);
+        }
+    }
+
+    template<typename T>
+    void DeleteArray(T* ptr, size_t arraySize)
+    {
+        if (ptr)
+        {
+            std::destroy(&ptr[0], &ptr[arraySize - 1]);
+            Memory::Free(ptr);
+        }
+    }
+#endif
 }

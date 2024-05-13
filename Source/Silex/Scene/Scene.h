@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Core/SharedPointer.h"
-#include "Renderer/Camera.h"
+#include "Rendering/Camera.h"
 #include "Scene/Components.h"
 #include <entt/entt.hpp>
 

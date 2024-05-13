@@ -32,8 +32,8 @@ namespace Silex
     {
     public:
 
-        static void Init();
-        static void Shutdown();
+        static void Initialize();
+        static void Finalize();
         static void SetLogLevel(LogLevel level);
 
         static void Log(LogLevel level, const std::string& message);

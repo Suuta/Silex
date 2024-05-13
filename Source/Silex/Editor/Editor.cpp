@@ -7,8 +7,8 @@
 
 #include "Core/Timer.h"
 #include "Core/Random.h"
-#include "Engine/Engine.h"
-#include "Renderer/Renderer.h"
+#include "Core/Engine.h"
+#include "Rendering/Renderer.h"
 #include "Serialize/SceneSerializer.h"
 
 #include <imgui/imgui_internal.h>
@@ -35,7 +35,7 @@ namespace Silex
         m_SceneRenderer.Init();
 
         LOAD_PROCESS("Editor Init", 100.0f);
-        OS::Sleep(500);
+        OS::Get()->Sleep(500);
     }
 
     void Editor::Shutdown()
@@ -383,7 +383,7 @@ namespace Silex
 
     void Editor::OpenScene()
     {
-        std::string filePath = OS::OpenFile("Silex Scene (*.slsc)\0*.slsc\0");
+        std::string filePath = OS::Get()->OpenFile("Silex Scene (*.slsc)\0*.slsc\0");
         if (!filePath.empty())
         {
             OpenScene(filePath);
@@ -404,7 +404,7 @@ namespace Silex
         m_CurrentScenePath = filePath;
         m_CurrentSceneName = m_CurrentScenePath.stem().string();
 
-        Engine::Get()->GetWindow()->SetTitle(("Silex - " + m_CurrentSceneName).c_str());
+        Window::Get()->SetTitle(("Silex - " + m_CurrentSceneName).c_str());
     }
 
     void Editor::SaveScene(bool bForceSaveAs)
@@ -432,7 +432,7 @@ namespace Silex
 
     void Editor::SaveSceneAs()
     {
-        std::string filePath = OS::SaveFile("Silex Scene (*.slsc)\0*.slsc\0", "slsc");
+        std::string filePath = OS::Get()->SaveFile("Silex Scene (*.slsc)\0*.slsc\0", "slsc");
 
         SceneSerializer serializer(m_Scene.Get());
         serializer.Serialize(filePath);
@@ -440,7 +440,7 @@ namespace Silex
         m_CurrentScenePath = filePath;
         m_CurrentSceneName = m_CurrentScenePath.stem().string();
 
-        Engine::Get()->GetWindow()->SetTitle(("Silex - " + m_CurrentSceneName).c_str());
+        Window::Get()->SetTitle(("Silex - " + m_CurrentSceneName).c_str());
     }
 
     void Editor::NewScene()
@@ -454,7 +454,7 @@ namespace Silex
         m_CurrentScenePath = "";
         m_CurrentSceneName = "名称未指定";
 
-        Engine::Get()->GetWindow()->SetTitle(("Silex - " + m_CurrentSceneName).c_str());
+        Window::Get()->SetTitle(("Silex - " + m_CurrentSceneName).c_str());
     }
 
     // シーンアウトライナーでエンティティがクリックされた時のイベント

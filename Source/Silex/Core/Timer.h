@@ -4,6 +4,7 @@
 #include "Core/OS.h"
 #include <unordered_map>
 
+
 namespace Silex
 {
     class Timer
@@ -17,20 +18,20 @@ namespace Silex
 
         void Reset()
         {
-            start = OS::GetTime();
+            start = OS::Get()->GetTickCount() / (float)1'000'000;
         }
 
         float Elapsed()
         {
-            return OS::GetTime() - start;
+            return OS::Get()->GetTickCount() / (float)1'000'000 - start;
         }
 
-        float ElapsedMilliSeconds()
+        float ElapsedMilli()
         {
             return Elapsed() * 1000.0f;
         }
 
-        float ElapsedNanoSeconds()
+        float ElapsedMicron()
         {
             return Elapsed();
         }
@@ -94,7 +95,7 @@ namespace Silex
 
         ~ScopePerformanceTimer()
         {
-            float time = timer.ElapsedMilliSeconds();
+            float time = timer.ElapsedMilli();
             profiler.AddProfile(name, time);
         }
 

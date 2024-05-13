@@ -22,6 +22,22 @@ using float64 = double;
 using byte    = std::uint8_t;
 using ulong   = unsigned long;
 
+enum Result
+{
+    OK   = 0,
+    FAIL = 1,
+};
+
+struct Handle
+{
+    Handle() : handle(uint64(this))
+    {}
+
+    virtual ~Handle()
+    {};
+
+    uint64 handle = 0;
+};
 
 namespace Silex
 {

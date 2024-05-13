@@ -4,10 +4,10 @@
 #include "Asset/Asset.h"
 #include "Core/Random.h"
 #include "Editor/SplashImage.h"
-#include "Renderer/MeshFactory.h"
-#include "Renderer/Renderer.h"
-#include "Renderer/SkyLight.h"
-#include "Renderer/Texture.h"
+#include "Rendering/MeshFactory.h"
+#include "Rendering/Renderer.h"
+#include "Rendering/SkyLight.h"
+#include "Rendering/Texture.h"
 #include "Serialize/AssetSerializer.h"
 
 #include <yaml-cpp/yaml.h>

@@ -10,14 +10,14 @@ namespace Silex
     static std::mutex s_LogMutex;
 
 
-    void Logger::Init()
+    void Logger::Initialize()
     {
-        OS::SetConsoleAttribute(8);
+        OS::Get()->SetConsoleAttribute(8);
     }
 
-    void Logger::Shutdown()
+    void Logger::Finalize()
     {
-        OS::SetConsoleAttribute(8);
+        OS::Get()->SetConsoleAttribute(8);
     }
 
     void Logger::SetLogLevel(LogLevel level)
@@ -33,12 +33,12 @@ namespace Silex
 #if SL_DEBUG
             switch (level)
             {
-                case LogLevel::Fatal   : OS::OutputDebugConsole("[FATAL] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[FATAL] " + msg + "\n"); break;
-                case LogLevel::Error   : OS::OutputDebugConsole("[ERROR] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[ERROR] " + msg + "\n"); break;
-                case LogLevel::Warning : OS::OutputDebugConsole("[WARN ] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[WARN ] " + msg + "\n"); break;
-                case LogLevel::Info    : OS::OutputDebugConsole("[INFO ] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[INFO ] " + msg + "\n"); break;
-                case LogLevel::Trace   : OS::OutputDebugConsole("[TRACE] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[TRACE] " + msg + "\n"); break;
-                case LogLevel::Debug   : OS::OutputDebugConsole("[DEBUG] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[DEBUG] " + msg + "\n"); break;
+                case LogLevel::Fatal   : OS::Get()->OutputDebugConsole("[FATAL] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[FATAL] " + msg + "\n"); break;
+                case LogLevel::Error   : OS::Get()->OutputDebugConsole("[ERROR] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[ERROR] " + msg + "\n"); break;
+                case LogLevel::Warning : OS::Get()->OutputDebugConsole("[WARN ] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[WARN ] " + msg + "\n"); break;
+                case LogLevel::Info    : OS::Get()->OutputDebugConsole("[INFO ] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[INFO ] " + msg + "\n"); break;
+                case LogLevel::Trace   : OS::Get()->OutputDebugConsole("[TRACE] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[TRACE] " + msg + "\n"); break;
+                case LogLevel::Debug   : OS::Get()->OutputDebugConsole("[DEBUG] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[DEBUG] " + msg + "\n"); break;
 
                 default: break;
             }

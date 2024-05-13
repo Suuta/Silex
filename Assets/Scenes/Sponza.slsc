@@ -1,13 +1,13 @@
 Scene: Untitled
 Entities:
-  - Entity: 13043199164146875885
+  - Entity: 13127809365122313676
     InstanceComponent:
       name: Light
       active: true
     TransformComponent:
       position: [0, 0, 0]
-      rotation: [1.39626336, 0.87266463, 0]
-      scale: [0.999975264, 0.999965489, 0.999951899]
+      rotation: [1.48352981, 0.00523598772, 0.52359879]
+      scale: [1, 1, 1]
     DirectionalLightComponent:
       color: [1, 1, 1]
       enableSoftShadow: true
@@ -19,21 +19,9 @@ Entities:
       intencity: 1
       renderSky: true
       enableIBL: true
-    PostProcessComponent:
-      enableOutline: false
-      lineWidth: 1
-      outlineColor: [0, 0, 0]
-      enableFXAA: true
-      enableBloom: true
-      bloomThreshold: 1
-      bloomIntencity: 0.200000003
-      enableChromaticAberration: false
-      enableTonemap: true
-      exposure: 2
-      gammaCorrection: 1
   - Entity: 8645243547391735049
     InstanceComponent:
-      name: Empty
+      name: Sponza
       active: true
     TransformComponent:
       position: [0, 1.59192348, 0]
@@ -69,3 +57,23 @@ Entities:
         23: 12469810980531055225
         24: 14432324832759822238
         25: 489397882932276121
+  - Entity: 13043199164146875885
+    InstanceComponent:
+      name: PostProcess
+      active: true
+    TransformComponent:
+      position: [0, 0, 0]
+      rotation: [1.39626336, 0.87266463, 0]
+      scale: [0.999975264, 0.999965489, 0.999951899]
+    PostProcessComponent:
+      enableOutline: false
+      lineWidth: 1
+      outlineColor: [0, 0, 0]
+      enableFXAA: true
+      enableBloom: true
+      bloomThreshold: 1
+      bloomIntencity: 0.200000003
+      enableChromaticAberration: false
+      enableTonemap: true
+      exposure: 2
+      gammaCorrection: 1

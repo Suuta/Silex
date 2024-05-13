@@ -56,7 +56,8 @@ public:\
     static inline const char*  staticClassName = #T;\
     static inline const uint64 staticHashID    = GlobalClassDataBase::Register<T>(#T);\
 public:\
-    using Super = TSuper;
+    using Super = TSuper;\
+    using Self  = T;
 
 
 //================================================================================================================

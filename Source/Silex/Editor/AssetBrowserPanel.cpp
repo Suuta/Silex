@@ -1,8 +1,8 @@
 
 #include "PCH.h"
 #include "Editor/AssetBrowserPanel.h"
-#include "Engine/Engine.h"
-#include "Renderer/Material.h"
+#include "Core/Engine.h"
+#include "Rendering/Material.h"
 #include "Serialize/AssetSerializer.h"
 
 #include <imgui/imgui.h>
@@ -247,7 +247,7 @@ namespace Silex
             {
                 if (ImGui::MenuItem("マテリアル"))
                 {
-                    std::string filePath = OS::SaveFile("Silex Material (*.slmt)\0*.slmt\0", "slmt");
+                    std::string filePath = OS::Get()->SaveFile("Silex Material (*.slmt)\0*.slmt\0", "slmt");
                     if (!filePath.empty())
                     {
                         // アセットパスを
