@@ -1,10 +1,12 @@
 
 #include "PCH.h"
 
-#include "Core/Window.h"
 #include "Core/Timer.h"
 #include "Core/OS.h"
 #include "Asset/TextureReader.h"
+#include "Platform/Windows/WindowsWindow.h"
+#include "Rendering/RenderingDevice.h"
+#include "Rendering/Vulkan/Windows/WindowsVulkanContext.h"
 
 #ifndef GLFW_EXPOSE_NATIVE_WIN32
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -12,6 +14,7 @@
 
 #include <glfw/glfw3.h>
 #include <GLFW/glfw3native.h>
+
 
 
 namespace Silex
@@ -25,33 +28,15 @@ namespace Silex
         static void OnScroll(GLFWwindow* window, double xOffset, double yOffset);
         static void OnCursorPos(GLFWwindow* window, double x, double y);
     }
-
-    Window* Window::Create(const WindowCreateInfo& createInfo)
+    
+    //===========================================================
+    // TODO: エラーハンドリング出来るようにする（戻り値が返せる方式にする）
+    //===========================================================
+    WindowsWindow::WindowsWindow(const WindowCreateInfo& createInfo)
     {
-        return createFunction(createInfo);
-    }
+        SL_LOG_TRACE("WindowsWindow::Create");
 
-    Window* Window::Get()
-    {
-        return instance;
-    }
-
-    void Window::RegisterCreateFunction(WindowCreateFunction createFunc)
-    {
-        if (!createFunc)
-        {
-            SL_LOG_ERROR("RegisterWindowCreateFunction: param [createFunc] is null");
-        }
-
-        createFunction = createFunc;
-    }
-
-    Window::Window(const WindowCreateInfo& createInfo)
-    {
-        SL_LOG_TRACE("Window::Create");
-
-        instance = this;
-
+        instanceHandle = ::GetModuleHandleW(nullptr);
 
 #if SL_PLATFORM_OPENGL
         glfwWindowHint(GLFW_VISIBLE, FALSE);
@@ -64,7 +49,8 @@ namespace Silex
 #endif
 
         // glfwWindow 生成
-        window = glfwCreateWindow((int32)createInfo.width, (int32)createInfo.height, createInfo.title.c_str(), nullptr, nullptr);
+        window       = glfwCreateWindow((int32)createInfo.width, (int32)createInfo.height, createInfo.title.c_str(), nullptr, nullptr);
+        windowHandle = glfwGetWin32Window(window);
 
         // リサイズはレンダラー生成後はレンダラーに依存するので、初期化前にリサイズしておく
         glfwMaximizeWindow(window);
@@ -102,82 +88,130 @@ namespace Silex
         glfwSwapInterval(createInfo.vsync);
     }
 
-    Window::~Window()
+    WindowsWindow::~WindowsWindow()
     {
-        SL_LOG_TRACE("Window::Destroy");
-        Hide();
+#if NEW_RENDERER_IMPL
+        Memory::Deallocate(renderingDevice);
 
-        // glfwTerminateで呼び出されるが、明示的に呼び出し
+        renderingContext->DestroySurface(renderingSurface);
+        Memory::Deallocate(renderingContext);
+#endif
+
+        Hide();
         glfwDestroyWindow(window);
     }
 
-    glm::ivec2 Window::GetSize() const
+
+    Result WindowsWindow::SetupRenderingContext()
+    {
+        uint32 result = Result::FAIL;
+
+        // レンダリングコンテキスト生成
+        renderingContext = RenderingContext::Create();
+        if (!renderingContext)
+        {
+            return Result::FAIL;
+        }
+
+        result = renderingContext->Initialize(true);
+        if (result != OK)
+        {
+            return Result::FAIL;
+        }
+
+        // サーフェース生成
+        WindowsVulkanSurfaceData surfaceData;
+        surfaceData.instance = instanceHandle;
+        surfaceData.window = windowHandle;
+        renderingSurface = renderingContext->CreateSurface(&surfaceData);
+
+        // レンダリングデバイス生成
+        renderingDevice = Memory::Allocate<RenderingDevice>();
+        if (!renderingDevice)
+        {
+            return Result::FAIL;
+        }
+
+        result = renderingDevice->Initialize(renderingContext);
+        if (result != OK)
+        {
+            return Result::FAIL;
+        }
+    }
+
+    glm::ivec2 WindowsWindow::GetSize() const
     {
         return { windowData.width, windowData.height };
     }
 
-    glm::ivec2 Window::GetWindowPos() const
+    glm::ivec2 WindowsWindow::GetWindowPos() const
     {
         int x, y;
         glfwGetWindowPos(window, &x, &y);
         return { x, y };
     }
 
-    void Window::PumpMessage()
+    void WindowsWindow::PumpMessage()
     {
         glfwPollEvents();
     }
 
-    void Window::Maximize()
+    void WindowsWindow::Maximize()
     {
         glfwMaximizeWindow(window);
     }
 
-    void Window::Minimize()
+    void WindowsWindow::Minimize()
     {
         glfwIconifyWindow(window);
     }
 
-    void Window::Restore()
+    void WindowsWindow::Restore()
     {
         glfwRestoreWindow(window);
     }
 
-    void Window::Show()
+    void WindowsWindow::Show()
     {
         glfwShowWindow(window);
     }
 
-    void Window::Hide()
+    void WindowsWindow::Hide()
     {
         glfwHideWindow(window);
     }
 
-    const char* Window::GetTitle() const
+    const char* WindowsWindow::GetTitle() const
     {
         return windowData.title.c_str();
     }
 
-    void Window::SetTitle(const char* title)
+    void WindowsWindow::SetTitle(const char* title)
     {
         windowData.title = title;
         glfwSetWindowTitle(window, windowData.title.c_str());
     }
 
-    GLFWwindow* Window::GetGLFWWindow() const
+    GLFWwindow* WindowsWindow::GetGLFWWindow() const
     {
         return window;
     }
 
-    HWND Window::GetWindowHandle() const
+    void* WindowsWindow::GetWindowHandle() const
     {
         return glfwGetWin32Window(window);
     }
 
-    WindowData& Window::GetWindowData()
+    WindowData& WindowsWindow::GetWindowData()
     {
         return windowData;
     }
+
+    Surface* WindowsWindow::GetSurface() const
+    {
+        return renderingSurface;
+    }
+
 
     namespace Callback
     {
@@ -186,7 +220,7 @@ namespace Silex
             WindowData* data = ((WindowData*)glfwGetWindowUserPointer(window));
 
             WindowCloseEvent event;
-            data->windowCloseEvent.Execute(event);
+            data->callbacks.windowCloseEvent.Execute(event);
         }
 
         static void OnWindowSize(GLFWwindow* window, int width, int height)
@@ -196,7 +230,7 @@ namespace Silex
             WindowResizeEvent event((uint32)width, (uint32)height);
             data->width  = width;
             data->height = height;
-            data->windowResizeEvent.Execute(event);
+            data->callbacks.windowResizeEvent.Execute(event);
         }
 
         static void OnKey(GLFWwindow* window, int key, int scancode, int action, int mods)
@@ -210,7 +244,7 @@ namespace Silex
                     Input::ProcessKey((Keys)key, true);
 
                     KeyPressedEvent event((Keys)key);
-                    data->keyPressedEvent.Execute(event);
+                    data->callbacks.keyPressedEvent.Execute(event);
                     break;
                 }
                 case GLFW_RELEASE:
@@ -218,7 +252,7 @@ namespace Silex
                     Input::ProcessKey((Keys)key, false);
 
                     KeyReleasedEvent event((Keys)key);
-                    data->keyReleasedEvent.Execute(event);
+                    data->callbacks.keyReleasedEvent.Execute(event);
                     break;
                 }
 
@@ -237,7 +271,7 @@ namespace Silex
                     Input::ProcessButton((Mouse)button, true);
 
                     MouseButtonPressedEvent event(button);
-                    data->mouseButtonPressedEvent.Execute(event);
+                    data->callbacks.mouseButtonPressedEvent.Execute(event);
                     break;
                 }
                 case GLFW_RELEASE:
@@ -245,7 +279,7 @@ namespace Silex
                     Input::ProcessButton((Mouse)button, false);
 
                     MouseButtonReleasedEvent event(button);
-                    data->mouseButtonReleasedEvent.Execute(event);
+                    data->callbacks.mouseButtonReleasedEvent.Execute(event);
                     break;
                 }
 
@@ -258,7 +292,7 @@ namespace Silex
             auto& data = *((WindowData*)glfwGetWindowUserPointer(window));
 
             MouseScrollEvent event((float)xOffset, (float)yOffset);
-            data.mouseScrollEvent.Execute(event);
+            data.callbacks.mouseScrollEvent.Execute(event);
         }
 
         static void OnCursorPos(GLFWwindow* window, double x, double y)
@@ -267,7 +301,7 @@ namespace Silex
 
             auto& data = *((WindowData*)glfwGetWindowUserPointer(window));
             MouseMoveEvent event((float)x, (float)y);
-            data.mouseMoveEvent.Execute(event);
+            data.callbacks.mouseMoveEvent.Execute(event);
         }
     }
 }

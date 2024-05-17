@@ -36,20 +36,24 @@ uniform vec3  outlineColor;
 
 void main()
 {
+    // ピクセルサイズを計算
     vec2 viewportSize = textureSize(screenTexture, 0);
     float dx = (1.0 / viewportSize.x) * lineWidth;
     float dy = (1.0 / viewportSize.y) * lineWidth;
 
+    // サンプルポイント（ピクセル座標のオフセット）
     vec2 uvCenter   = TexCoords;
     vec2 uvRight    = vec2(uvCenter.x + dx, uvCenter.y);
     vec2 uvTop      = vec2(uvCenter.x,      uvCenter.y - dx);
     vec2 uvTopRight = vec2(uvCenter.x + dx, uvCenter.y - dx);
 
+    // ノーマルマップから取得
     vec3 mCenter   = texture(normalTexture, uvCenter).rgb;
     vec3 mTop      = texture(normalTexture, uvTop).rgb;
     vec3 mRight    = texture(normalTexture, uvRight).rgb;
     vec3 mTopRight = texture(normalTexture, uvTopRight).rgb;
 
+    //
     vec3 dT  = abs(mCenter - mTop);
     vec3 dR  = abs(mCenter - mRight);
     vec3 dTR = abs(mCenter - mTopRight);

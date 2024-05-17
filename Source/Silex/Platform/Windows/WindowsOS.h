@@ -16,13 +16,13 @@ namespace Silex
         void Initialize() override;
         void Finalize()   override;
 
-        uint64 GetTickCount()       override;
-        void Sleep(uint32 millisec) override;
+        uint64 GetTickSeconds()       override;
+        void   Sleep(uint32 millisec) override;
 
         std::string OpenFile(const char* filter = "All\0*.*\0")                                  override;
         std::string SaveFile(const char* filter = "All\0*.*\0", const char* extention = nullptr) override;
 
-        void SetConsoleAttribute(uint16 color) override;
+        void SetConsoleAttribute(uint16 color)                      override;
         void OutputConsole(uint8 color, const std::string& message) override;
         void OutputDebugConsole(const std::string& message)         override;
 
@@ -31,12 +31,13 @@ namespace Silex
     private:
 
         HRESULT TrySetWindowCornerStyle(HWND hWnd, bool tryRound);
+        void    CheckOSVersion();
 
     private:
 
         // コンソール
-        void*  outputHandle     = nullptr;
-        void*  errorHandle      = nullptr;
+        void* outputHandle      = nullptr;
+        void* errorHandle       = nullptr;
         uint32 defaultConsoleCP = 0;
 
         // バージョン
@@ -48,9 +49,6 @@ namespace Silex
         uint64 startTickCount = 0;
         uint64 tickPerSecond  = 0;
     };
-
-    // WindowsWindow 生成関数
-    Window* CreateWindowsWindow(const WindowCreateInfo& createInfo);
 
 
 #if 1

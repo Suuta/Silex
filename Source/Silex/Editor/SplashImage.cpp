@@ -424,7 +424,7 @@ namespace Silex
             ShowWindow(s_Wnd, SW_SHOW);
             UpdateWindow(s_Wnd);
 
-            const float fadeStartTime = (float)(OS::Get()->GetTickCount() / 1'000'000);
+            const float fadeStartTime = (float)(OS::Get()->GetTickSeconds() / 1'000'000);
             byte currentOpacityByte = 0;
 
 
@@ -446,7 +446,7 @@ namespace Silex
                 // フェード
                 if (s_AllowFading && currentOpacityByte < 255)
                 {
-                    const float timeSinceFadeStart = (float)(OS::Get()->GetTickCount() / 1'000'000) - fadeStartTime;
+                    const float timeSinceFadeStart = (float)(OS::Get()->GetTickSeconds() / 1'000'000) - fadeStartTime;
                     const float FadeAmount         = std::clamp(timeSinceFadeStart / s_FadeDuration, 0.0f, 2.0f);
                     const int32 newOpacityByte     = (int32)(255 * FadeAmount);
                     if (newOpacityByte != currentOpacityByte)

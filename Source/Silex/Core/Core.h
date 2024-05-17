@@ -9,3 +9,4 @@
 #include "Core/Memory.h"
 #include "Core/Delegate.h"
 #include "Core/Logger.h"
+#include "Core/Object.h"

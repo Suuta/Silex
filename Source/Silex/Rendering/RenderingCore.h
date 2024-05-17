@@ -5,6 +5,62 @@
 
 namespace Silex
 {
+	enum : uint32
+	{
+		INVALID_RENDER_ID = UINT32_MAX,
+	};
+
+	using Surface            = Handle;
+	using CommandQueueFamily = uint32;
+
+	using BufferHandle             = Handle;
+	using TextureHandle            = Handle;
+	using SamplerHandle            = Handle;
+	using VertexFormatHandle       = Handle;
+	using CommandQueueHandle       = Handle;
+	using CommandPoolHandle        = Handle;
+	using CommandBufferHandle      = Handle;
+	using SwapChainHandle          = Handle;
+	using FramebufferHandle        = Handle;
+	using ShaderHandle             = Handle;
+	using UniformSetHandle         = Handle;
+	using PipelineHandle           = Handle;
+	using RenderPassHandle         = Handle;
+	using FenceHandle              = Handle;
+	using SemaphoreHandle          = Handle;
+
+
+	// 各GPUのベンダーIDっぽい
+	enum DeviceVendor
+	{
+		DEVICE_VENDOR_UNKNOWN   = 0x0000,
+		DEVICE_VENDOR_AMD       = 0x1002,
+		DEVICE_VENDOR_IMGTEC    = 0x1010,
+		DEVICE_VENDOR_APPLE     = 0x106B,
+		DEVICE_VENDOR_NVIDIA    = 0x10DE,
+		DEVICE_VENDOR_ARM       = 0x13B5,
+		DEVICE_VENDOR_MICROSOFT = 0x1414,
+		DEVICE_VENDOR_QUALCOMM  = 0x5143,
+		DEVICE_VENDOR_INTEL     = 0x8086,
+	};
+
+	enum DeviceType
+	{
+		DEVICE_TYPE_UNKNOW         = 0,
+		DEVICE_TYPE_INTEGRATED_GPU = 1,
+		DEVICE_TYPE_DISCRETE_GPU   = 2,
+		DEVICE_TYPE_VIRTUAL_GPU    = 3,
+		DEVICE_TYPE_CPU            = 4,
+		DEVICE_TYPE_MAX            = 5,
+	};
+
+	struct DeviceInfo
+	{
+		std::string  name   = "Unknown";
+		DeviceVendor vendor = DEVICE_VENDOR_UNKNOWN;
+		DeviceType   type   = DEVICE_TYPE_UNKNOW;
+	};
+
 	enum RenderingFormat
 	{
 		RENDERING_FORMAT_R4G4_UNORM_PACK8,
@@ -225,6 +281,7 @@ namespace Silex
 		RENDERING_FORMAT_G16_B16_R16_3PLANE_422_UNORM,
 		RENDERING_FORMAT_G16_B16R16_2PLANE_422_UNORM,
 		RENDERING_FORMAT_G16_B16_R16_3PLANE_444_UNORM,
+
 		RENDERING_FORMAT_MAX,
 	};
 
@@ -238,8 +295,8 @@ namespace Silex
 		COMPARE_OP_NOT_EQUAL,
 		COMPARE_OP_GREATER_OR_EQUAL,
 		COMPARE_OP_ALWAYS,
-
-		COMPARE_OP_MAX
+		
+		COMPARE_OP_MAX,
 	};
 
 	enum TextureType
@@ -268,4 +325,10 @@ namespace Silex
 		TEXTURE_SAMPLES_MAX,
 	};
 
+	enum QueueFamilyBits
+	{
+		QUEUE_FAMILY_GRAPHICS_BIT = 0x1,
+		QUEUE_FAMILY_COMPUTE_BIT  = 0x2,
+		QUEUE_FAMILY_TRANSFER_BIT = 0x4,
+	};
 }

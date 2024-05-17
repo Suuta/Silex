@@ -16,7 +16,7 @@ namespace Silex
 
     Result LaunchEngine()
     {
-        // コア機能初期化
+        // OS初期化
         OS::Get()->Initialize();
 
         // スプラッシュイメージ表示
@@ -88,10 +88,13 @@ namespace Silex
 
         // ウィンドウコールバック登録
         WindowData& data = window->GetWindowData();
-        data.windowCloseEvent.Bind(this,  &Engine::OnWindowClose);
-        data.windowResizeEvent.Bind(this, &Engine::OnWindowResize);
-        data.mouseMoveEvent.Bind(this,    &Engine::OnMouseMove);
-        data.mouseScrollEvent.Bind(this,  &Engine::OnMouseScroll);
+        data.callbacks.windowCloseEvent.Bind(this,  &Engine::OnWindowClose);
+        data.callbacks.windowResizeEvent.Bind(this, &Engine::OnWindowResize);
+        data.callbacks.mouseMoveEvent.Bind(this,    &Engine::OnMouseMove);
+        data.callbacks.mouseScrollEvent.Bind(this,  &Engine::OnMouseScroll);
+
+        // レンダリングコンテキスト
+        window->SetupRenderingContext();
 
         // レンダラー
         Renderer::Get()->Init();
@@ -147,10 +150,10 @@ namespace Silex
 
         // ウィンドウイベントへのバインドを解除
         WindowData& data = window->GetWindowData();
-        data.windowCloseEvent.Unbind();
-        data.windowResizeEvent.Unbind();
-        data.mouseMoveEvent.Unbind();
-        data.mouseScrollEvent.Unbind();
+        data.callbacks.windowCloseEvent.Unbind();
+        data.callbacks.windowResizeEvent.Unbind();
+        data.callbacks.mouseMoveEvent.Unbind();
+        data.callbacks.mouseScrollEvent.Unbind();
 
         // ウィンドウ破棄
         Memory::Deallocate(window);
@@ -194,7 +197,7 @@ namespace Silex
 
     void Engine::CalcurateFrameTime()
     {
-        uint64 time = OS::Get()->GetTickCount();
+        uint64 time = OS::Get()->GetTickSeconds();
         deltaTime     = (double)(time - lastFrameTime) / 1'000'000;
         lastFrameTime = time;
 

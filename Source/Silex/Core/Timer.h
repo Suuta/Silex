@@ -18,12 +18,12 @@ namespace Silex
 
         void Reset()
         {
-            start = OS::Get()->GetTickCount() / (float)1'000'000;
+            start = OS::Get()->GetTickSeconds() / (float)1'000'000;
         }
 
         float Elapsed()
         {
-            return OS::Get()->GetTickCount() / (float)1'000'000 - start;
+            return OS::Get()->GetTickSeconds() / (float)1'000'000 - start;
         }
 
         float ElapsedMilli()

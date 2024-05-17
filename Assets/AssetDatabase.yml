@@ -56,9 +56,6 @@ AssetDatabase:
   - id: 11147824980895054222
     type: 4
     path: Assets/Models/Sponza/textures/chain_texture.png
-  - id: 15683308960457345797
-    type: 0
-    path: Assets/Shaders/IBL/Prefilter.glsl
   - id: 4830124004462620485
     type: 4
     path: Assets/Models/Sponza/textures/sponza_column_b_diff.png
@@ -74,9 +71,6 @@ AssetDatabase:
   - id: 12317231601610431157
     type: 4
     path: Assets/Models/Sponza/textures/vase_round_bump.png
-  - id: 16300356679160385945
-    type: 0
-    path: Assets/Fonts/NotoSansJP-Regular.ttf
   - id: 3694210235127600627
     type: 4
     path: Assets/Models/Sponza/textures/sponza_fabric_green_diff.png
@@ -101,9 +95,6 @@ AssetDatabase:
   - id: 7276810294546000312
     type: 4
     path: Assets/Models/Sponza/textures/sponza_column_a_bump.png
-  - id: 3232857811581549385
-    type: 0
-    path: Assets/Shaders/IBL/Equirectangular.glsl
   - id: 13631379163147525362
     type: 4
     path: Assets/Models/Sponza/textures/sponza_curtain_green_diff.png
@@ -125,9 +116,15 @@ AssetDatabase:
   - id: 18237570601603305285
     type: 4
     path: Assets/Models/Sponza/textures/sponza_roof_diff.png
+  - id: 6464234248723637491
+    type: 0
+    path: Assets/Shaders/IBL/Irradiance.glsl
   - id: 12172433304082857611
     type: 16
     path: Assets/Textures/HDR/sky.hdr
+  - id: 8332438395493187220
+    type: 0
+    path: Assets/Shaders/Sky.glsl
   - id: 15156452733328277189
     type: 4
     path: Assets/Models/Sponza/textures/lion_bump.png
@@ -143,9 +140,6 @@ AssetDatabase:
   - id: 5189874304673995132
     type: 4
     path: Assets/Editor/Progress.png
-  - id: 15287707936817935033
-    type: 0
-    path: Assets/Shaders/PostProcess/Bloom/PreDownSampling.glsl
   - id: 6152577673911934663
     type: 4
     path: Assets/Models/Sponza/textures/chain_texture_bump.png
@@ -167,9 +161,6 @@ AssetDatabase:
   - id: 14011233794498438461
     type: 4
     path: Assets/Models/Sponza/textures/sponza_arch_bump.png
-  - id: 3774361413221435214
-    type: 0
-    path: Assets/Shaders/Shadow.glsl
   - id: 14798286594192290225
     type: 4
     path: Assets/Models/Sponza/textures/sponza_ceiling_a_spec.png
@@ -182,9 +173,6 @@ AssetDatabase:
   - id: 10684700131543019302
     type: 4
     path: Assets/Models/Sponza/textures/sponza_column_c_spec.png
-  - id: 10747854951729776414
-    type: 0
-    path: Assets/Shaders/PostProcess/FXAA.glsl
   - id: 419406248981347790
     type: 4
     path: Assets/Models/Sponza/textures/sponza_thorn_bump.png
@@ -203,6 +191,9 @@ AssetDatabase:
   - id: 489397882932276121
     type: 8
     path: Assets/Materials/Sponza_Roof.slmt
+  - id: 253442996744520091
+    type: 0
+    path: Assets/Shaders/IBL/Prefilter.glsl
   - id: 14645026042721283724
     type: 4
     path: Assets/Models/Sponza/textures/sponza_thorn_spec.png
@@ -260,15 +251,9 @@ AssetDatabase:
   - id: 11741640007354057735
     type: 8
     path: Assets/Materials/Sponza_Chain.slmt
-  - id: 16866722818234454895
-    type: 0
-    path: Assets/Shaders/PostProcess/Edge.glsl
   - id: 7547940744787249615
     type: 8
     path: Assets/Materials/Sponza_Floor.slmt
-  - id: 16810544524471113851
-    type: 0
-    path: Assets/Shaders/PostProcess/ChromaticAberration.glsl
   - id: 18271540310528602810
     type: 8
     path: Assets/Materials/Sponza_Column_B.slmt
@@ -305,51 +290,66 @@ AssetDatabase:
   - id: 12894483546203256378
     type: 8
     path: Assets/Materials/Default/Test.slmt
-  - id: 10994461944875847801
+  - id: 10241934499319681165
     type: 0
     path: Assets/Editor/imgui.ini
-  - id: 17535115737172169724
+  - id: 219896229007840801
+    type: 0
+    path: Assets/Fonts/NotoSansJP-Regular.ttf
+  - id: 1587054591869186563
+    type: 0
+    path: Assets/Shaders/PostProcess/Edge.glsl
+  - id: 2299866337420177568
     type: 0
     path: Assets/Fonts/VL-Gothic-Regular.ttf
-  - id: 4752759379469417558
+  - id: 5571895746317954130
     type: 0
     path: Assets/Models/Sponza/copyright.txt
-  - id: 14530860804679018254
+  - id: 1511692678324003986
     type: 0
     path: Assets/Models/Sponza/Sponza.mtl
-  - id: 12203319890327884723
+  - id: 827220470704672486
     type: 0
     path: Assets/Shaders/DeferredLighting.glsl
-  - id: 3708280312401085686
+  - id: 2844438110037040804
     type: 0
     path: Assets/Shaders/GBuffer.glsl
-  - id: 8611554854507620005
+  - id: 18049613582002141244
     type: 0
     path: Assets/Shaders/IBL/BRDF.glsl
-  - id: 13095579239737445488
+  - id: 9614513025644238882
     type: 0
-    path: Assets/Shaders/IBL/Irradiance.glsl
-  - id: 17136237882654195800
+    path: Assets/Shaders/IBL/Equirectangular.glsl
+  - id: 11274275563786908078
+    type: 0
+    path: Assets/Shaders/Shadow.glsl
+  - id: 9626495587888894067
     type: 0
     path: Assets/Shaders/PostProcess/Bloom/Bloom.glsl
-  - id: 11223558165946177504
+  - id: 4867677345313958623
     type: 0
     path: Assets/Shaders/PostProcess/Bloom/DownSampling.glsl
-  - id: 5333296354723357053
+  - id: 3382360373080338489
+    type: 0
+    path: Assets/Shaders/PostProcess/Bloom/PreDownSampling.glsl
+  - id: 15562217089260644195
     type: 0
     path: Assets/Shaders/PostProcess/Bloom/UpSampling.glsl
-  - id: 13456272622497167512
+  - id: 5515494171018165201
+    type: 0
+    path: Assets/Shaders/PostProcess/ChromaticAberration.glsl
+  - id: 5613997605167551198
+    type: 0
+    path: Assets/Shaders/PostProcess/FXAA.glsl
+  - id: 10242755995876195552
     type: 0
     path: Assets/Shaders/PostProcess/Outline.glsl
-  - id: 12233939682676816607
+  - id: 13676622659427558794
     type: 0
     path: Assets/Shaders/PostProcess/Tonemap.glsl
-  - id: 4296304589040845800
-    type: 0
-    path: Assets/Shaders/Sky.glsl
-  - id: 17109429508546316162
+  - id: 9515798029470638474
     type: 0
     path: Assets/Textures/HDR/gimp/sky-night.xcf
-  - id: 952877071574791782
+  - id: 3805982333501593226
     type: 0
     path: Assets/Textures/HDR/gimp/sky.xcf

@@ -22,14 +22,16 @@ using float64 = double;
 using byte    = std::uint8_t;
 using ulong   = unsigned long;
 
-enum Result
+enum Result : uint32
 {
     OK   = 0,
     FAIL = 1,
 };
 
-struct Handle
+class Handle
 {
+public:
+
     Handle() : handle(uint64(this))
     {}
 

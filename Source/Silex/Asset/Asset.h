@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "Core/Object.h"
+#include "Core/Core.h"
 #include "Core/Random.h"
 #include "Asset/AssetImporter.h"
 #include "Asset/AssetCreator.h"

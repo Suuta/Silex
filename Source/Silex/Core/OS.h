@@ -28,7 +28,7 @@ namespace Silex
         virtual void Finalize()   = 0;
 
         // 時間
-        virtual uint64 GetTickCount()         = 0;
+        virtual uint64 GetTickSeconds()       = 0;
         virtual void   Sleep(uint32 millisec) = 0;
 
         // ファイル

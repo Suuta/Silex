@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/Object.h"
+#include "Core/Core.h"
 
 
 namespace Silex
