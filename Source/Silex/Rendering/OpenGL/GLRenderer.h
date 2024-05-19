@@ -9,7 +9,7 @@ namespace Silex
 {
     class GLRenderer final : public RendererPlatform
     {
-        SL_DECLARE_CLASS(GLRenderer, RendererPlatform)
+        SL_CLASS(GLRenderer, RendererPlatform)
 
     public:
 

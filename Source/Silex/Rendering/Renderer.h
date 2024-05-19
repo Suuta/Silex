@@ -14,7 +14,7 @@ namespace Silex
 
     class RendererPlatform : public Object
     {
-        SL_DECLARE_CLASS(RendererPlatform, Object)
+        SL_CLASS(RendererPlatform, Object)
 
     public:
 
@@ -51,7 +51,7 @@ namespace Silex
 
     class Renderer : public Object
     {
-        SL_DECLARE_CLASS(Renderer, Object)
+        SL_CLASS(Renderer, Object)
 
     public:
 

@@ -10,7 +10,7 @@ namespace Silex
 {
     class StorageBuffer : public Object
     {
-        SL_DECLARE_CLASS(StorageBuffer, Object)
+        SL_CLASS(StorageBuffer, Object)
 
     public:
 

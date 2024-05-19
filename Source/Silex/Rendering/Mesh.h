@@ -33,7 +33,7 @@ namespace Silex
     //============================================
     class MeshSource : public Object
     {
-        SL_DECLARE_CLASS(MeshSource, Object)
+        SL_CLASS(MeshSource, Object)
 
     public:
 

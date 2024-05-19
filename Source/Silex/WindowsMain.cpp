@@ -5,15 +5,15 @@
 
 namespace Silex
 {
-    extern Result LaunchEngine();
-    extern void   ShutdownEngine();
+    extern bool LaunchEngine();
+    extern void ShutdownEngine();
 
     int32 Main()
     {
         WindowsOS os;
 
-        Result result = LaunchEngine();
-        if (result == OK)
+        bool result = LaunchEngine();
+        if (result)
         {
             os.Run();
         }

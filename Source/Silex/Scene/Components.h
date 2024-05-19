@@ -12,7 +12,7 @@ namespace Silex
 {
     struct InstanceComponent : public Class
     {
-        SL_DECLARE_CLASS(InstanceComponent, Class)
+        SL_CLASS(InstanceComponent, Class)
 
         uint64      id;
         bool        active;
@@ -22,7 +22,7 @@ namespace Silex
 
     struct TransformComponent : public Class
     {
-        SL_DECLARE_CLASS(TransformComponent, Class)
+        SL_CLASS(TransformComponent, Class)
 
         glm::vec3 position = { 0.0f, 0.0f, 0.0f };
         glm::vec3 rotation = { 0.0f, 0.0f, 0.0f };
@@ -40,7 +40,7 @@ namespace Silex
 
     struct MeshComponent : public Class
     {
-        SL_DECLARE_CLASS(MeshComponent, Class)
+        SL_CLASS(MeshComponent, Class)
 
         Shared<Mesh>                  mesh       = nullptr;
         std::vector<Shared<Material>> materials  = {};
@@ -49,7 +49,7 @@ namespace Silex
 
     struct DirectionalLightComponent : public Class
     {
-        SL_DECLARE_CLASS(DirectionalLightComponent, Class)
+        SL_CLASS(DirectionalLightComponent, Class)
 
         bool      enableSoftShadow = false;
         bool      showCascade      = false;
@@ -61,7 +61,7 @@ namespace Silex
 
     struct SkyLightComponent : public Class
     {
-        SL_DECLARE_CLASS(SkyLightComponent, Class)
+        SL_CLASS(SkyLightComponent, Class)
 
         bool  renderSky = true;
         bool  enableIBL = true;
@@ -72,7 +72,7 @@ namespace Silex
 
     struct PostProcessComponent : public Class
     {
-        SL_DECLARE_CLASS(PostProcessComponent, Class)
+        SL_CLASS(PostProcessComponent, Class)
 
         // Outline
         bool      enableOutline  = false;

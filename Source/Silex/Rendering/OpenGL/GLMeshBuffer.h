@@ -11,7 +11,7 @@ namespace Silex
     //========================================
     class GLVertexBuffer : public VertexBuffer
     {
-        SL_DECLARE_CLASS(GLVertexBuffer, VertexBuffer)
+        SL_CLASS(GLVertexBuffer, VertexBuffer)
 
     public:
 
@@ -44,7 +44,7 @@ namespace Silex
     //========================================
     class GLIndexBuffer : public IndexBuffer
     {
-        SL_DECLARE_CLASS(GLIndexBuffer, IndexBuffer)
+        SL_CLASS(GLIndexBuffer, IndexBuffer)
 
     public:
 
@@ -73,7 +73,7 @@ namespace Silex
 #if 0
     class GLInstanceBuffer : public InstanceBuffer
     {
-        SL_DECLARE_CLASS(GLInstanceBuffer, InstanceBuffer)
+        SL_CLASS(GLInstanceBuffer, InstanceBuffer)
 
     public:
 

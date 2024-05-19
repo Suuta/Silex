@@ -60,7 +60,7 @@ namespace Silex
         vkDestroyInstance(instance, nullptr);
     }
 
-    Result VulkanContext::Initialize(bool enableValidation)
+    bool VulkanContext::Initialize(bool enableValidation)
     {
         uint32 instanceVersion = VK_API_VERSION_1_0;
 
@@ -102,9 +102,10 @@ namespace Silex
         // 要求機能が有効かどうかを確認
         for (const VkExtensionProperties& extension : instanceExtensions)
         {
-            if (requestInstanceExtensions.contains(extension.extensionName))
+            const auto& itr = requestInstanceExtensions.find(extension.extensionName);
+            if (itr != requestInstanceExtensions.end())
             {
-                enableInstanceExtensions.emplace_back(extension.extensionName);
+                enableInstanceExtensions.push_back(itr->c_str());
             }
         }
 
@@ -124,9 +125,10 @@ namespace Silex
         // 要求レイヤーが有効かどうかを確認
         for (const VkLayerProperties& property : instanceLayers)
         {
-            if (requestLayers.contains(property.layerName))
+            const auto& itr = requestLayers.find(property.layerName);
+            if (itr != requestLayers.end())
             {
-                enableLayers.emplace_back(property.layerName);
+                enableLayers.push_back(itr->c_str());
             }
         }
 
@@ -167,7 +169,7 @@ namespace Silex
         if (result != VK_SUCCESS)
         {
             SL_LOG_ERROR("vkCreateInstance: {}", VkResultToString(result));
-            return Result::FAIL;
+            return false;
         }
 
         // デバッグメッセンジャーの関数ポインタを取得
@@ -177,7 +179,7 @@ namespace Silex
         if (!vkCreateDebugUtilsMessengerEXT_PFN or !vkDestroyDebugUtilsMessengerEXT_PFN)
         {
             SL_LOG_ERROR("DebugUtilsMessengerEXT 関数が null です");
-            return Result::FAIL;
+            return false;
         }
 
         // デバッグメッセンジャー生成
@@ -185,7 +187,7 @@ namespace Silex
         if (result != VK_SUCCESS)
         {
             SL_LOG_ERROR("vkCreateDebugUtilsMessengerEXT: {}", VkResultToString(result));
-            return Result::FAIL;
+            return false;
         }
 
         // 物理デバイスの列挙
@@ -219,7 +221,7 @@ namespace Silex
         if (physicalDevice == nullptr)
         {
             SL_ASSERT("適切なGPUが見つかりませんでした");
-            return Result::FAIL;
+            return false;
         }
 
         // キューファミリーの取得
@@ -230,7 +232,29 @@ namespace Silex
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
 
 
-        return Result::OK;
+        // 要求デバイス拡張
+        requestDeviceExtensions.insert(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
+        // デバイス拡張機能のクエリ
+        uint32 deviceExtensionCount = 0;
+        result = vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, nullptr);
+
+        std::vector<VkExtensionProperties> deviceExtension(deviceExtensionCount);
+        result = vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &deviceExtensionCount, deviceExtension.data());
+
+        for (const VkExtensionProperties& property : deviceExtension)
+        {
+            const auto& itr = requestDeviceExtensions.find(property.extensionName);
+            if (itr != requestDeviceExtensions.end())
+            {
+                enableDeviceExtensions.push_back(itr->c_str());
+            }
+        }
+
+        // 物理デバイスの有効機能リスト取得
+        vkGetPhysicalDeviceFeatures(physicalDevice, &physicalDeviceFeatures);
+
+        return true;
     }
 
     RenderingAPI* VulkanContext::CreateRendringAPI()
@@ -268,7 +292,7 @@ namespace Silex
         return deviceInfo;
     }
 
-    bool VulkanContext::HasPresentSupport(Surface* surface, uint32 queueIndex) const
+    bool VulkanContext::QueueHasPresent(Surface* surface, uint32 queueIndex) const
     {
         VkSurfaceKHR vkSurface = ((VulkanSurface*)surface)->surface;
         VkBool32 supported = false;
@@ -285,5 +309,25 @@ namespace Silex
     const std::vector<VkQueueFamilyProperties>& VulkanContext::GetQueueFamilyProperties() const
     {
         return queueFamilyProperties;
+    }
+
+    const std::vector<const char*>& VulkanContext::GetEnabledInstanceExtensions() const
+    {
+        return enableInstanceExtensions;
+    }
+
+    const std::vector<const char*>& VulkanContext::GetEnabledDeviceExtensions() const
+    {
+        return enableDeviceExtensions;
+    }
+
+    const VkPhysicalDeviceFeatures& VulkanContext::GetPhysicalDeviceFeatureList() const
+    {
+        return physicalDeviceFeatures;
+    }
+
+    VkPhysicalDevice VulkanContext::GetPhysicalDevice() const
+    {
+        return physicalDevice;
     }
 }

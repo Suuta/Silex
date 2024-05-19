@@ -55,7 +55,7 @@
 // Super:     親クラス型
 //======================================================================================
 
-#define SL_DECLARE_CLASS(T, TSuper)\
+#define SL_CLASS(T, TSuper)\
 public:\
     virtual const char* GetRuntimeClassName() const override { return staticClassName; }\
     virtual      uint64 GetRuntimeHashID()    const override { return staticHashID;    }\

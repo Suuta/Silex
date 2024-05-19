@@ -22,7 +22,7 @@ namespace Silex
 
     class Scene : public Object
     {
-        SL_DECLARE_CLASS(Scene, Object)
+        SL_CLASS(Scene, Object)
 
     public:
 

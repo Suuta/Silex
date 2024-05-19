@@ -10,7 +10,7 @@ namespace Silex
 {
     class UniformBuffer : public Object
     {
-        SL_DECLARE_CLASS(UniformBuffer, Object)
+        SL_CLASS(UniformBuffer, Object)
 
     public:
 

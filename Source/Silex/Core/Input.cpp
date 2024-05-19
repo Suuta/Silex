@@ -57,7 +57,7 @@ namespace Silex
     {
     }
 
-    void Input::SetCursorMode(CursorMode mode)
+    void Input::SetCursorMode(int32 mode)
     {
         auto window = Window::Get()->GetGLFWWindow();
         glfwSetInputMode(window, GLFW_CURSOR, mode);

@@ -16,7 +16,7 @@ namespace Silex
 
     class WindowsVulkanContext final : public VulkanContext
     {
-        SL_DECLARE_CLASS(WindowsVulkanContext, VulkanContext)
+        SL_CLASS(WindowsVulkanContext, VulkanContext)
 
     public:
 

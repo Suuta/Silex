@@ -12,7 +12,7 @@ namespace Silex
     //==================================================
     class GLTexture2D : public Texture2D
     {
-        SL_DECLARE_CLASS(GLTexture2D, Texture2D)
+        SL_CLASS(GLTexture2D, Texture2D)
 
     public:
 
@@ -42,7 +42,7 @@ namespace Silex
     class GLTexture2DArray : public Texture2DArray
     {
     private:
-        SL_DECLARE_CLASS(GLTexture2DArray, Texture2DArray)
+        SL_CLASS(GLTexture2DArray, Texture2DArray)
 
     public:
 
@@ -69,7 +69,7 @@ namespace Silex
     //==================================================
     class GLTextureCube : public TextureCube
     {
-        SL_DECLARE_CLASS(GLTextureCube, TextureCube)
+        SL_CLASS(GLTextureCube, TextureCube)
 
     public:
 

@@ -30,7 +30,6 @@ namespace Silex
         // ログレベルのフィルタリング
         if (level <= logFilter)
         {
-#if SL_DEBUG
             switch (level)
             {
                 case LogLevel::Fatal   : OS::Get()->OutputDebugConsole("[FATAL] " + msg + "\n"); ConsoleLogger::Get().Log(level, "[FATAL] " + msg + "\n"); break;
@@ -42,19 +41,6 @@ namespace Silex
 
                 default: break;
             }
-#else
-            switch (level)
-            {
-                case LogLevel::Fatal   : ConsoleLogger::Get().Log(level, "[FATAL] " + msg + "\n"); break;
-                case LogLevel::Error   : ConsoleLogger::Get().Log(level, "[ERROR] " + msg + "\n"); break;
-                case LogLevel::Warning : ConsoleLogger::Get().Log(level, "[WARN ] " + msg + "\n"); break;
-                case LogLevel::Info    : ConsoleLogger::Get().Log(level, "[INFO ] " + msg + "\n"); break;
-                case LogLevel::Trace   : ConsoleLogger::Get().Log(level, "[TRACE] " + msg + "\n"); break;
-                case LogLevel::Debug   : ConsoleLogger::Get().Log(level, "[DEBUG] " + msg + "\n"); break;
-
-                default: break;
-            }
-#endif
         }
     }
 }

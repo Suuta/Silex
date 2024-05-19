@@ -51,7 +51,7 @@ namespace Silex
     //========================================
     class VertexBuffer : public Object
     {
-        SL_DECLARE_CLASS(VertexBuffer, Object)
+        SL_CLASS(VertexBuffer, Object)
 
     public:
 
@@ -78,7 +78,7 @@ namespace Silex
     //========================================
     class IndexBuffer : public Object
     {
-        SL_DECLARE_CLASS(IndexBuffer, Object)
+        SL_CLASS(IndexBuffer, Object)
 
     public:
 
@@ -103,7 +103,7 @@ namespace Silex
     //========================================
     class InstanceBuffer : public Object
     {
-        SL_DECLARE_CLASS(InstanceBuffer, Object)
+        SL_CLASS(InstanceBuffer, Object)
 
     public:
 

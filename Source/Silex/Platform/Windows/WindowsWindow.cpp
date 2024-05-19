@@ -102,21 +102,20 @@ namespace Silex
     }
 
 
-    Result WindowsWindow::SetupRenderingContext()
+    bool WindowsWindow::SetupRenderingContext()
     {
-        uint32 result = Result::FAIL;
-
         // レンダリングコンテキスト生成
         renderingContext = RenderingContext::Create();
         if (!renderingContext)
         {
-            return Result::FAIL;
+            SL_LOG_ERROR("fail to create RenderingContext");
+            return false;
         }
 
-        result = renderingContext->Initialize(true);
-        if (result != OK)
+        if (!renderingContext->Initialize(true))
         {
-            return Result::FAIL;
+            SL_LOG_ERROR("fail to initialize RenderingContext");
+            return false;
         }
 
         // サーフェース生成
@@ -124,19 +123,27 @@ namespace Silex
         surfaceData.instance = instanceHandle;
         surfaceData.window = windowHandle;
         renderingSurface = renderingContext->CreateSurface(&surfaceData);
+        if (!renderingSurface)
+        {
+            SL_LOG_ERROR("fail to CreateSurface");
+            return false;
+        }
 
         // レンダリングデバイス生成
         renderingDevice = Memory::Allocate<RenderingDevice>();
         if (!renderingDevice)
         {
-            return Result::FAIL;
+            SL_LOG_ERROR("fail to allocate RenderingDevice");
+            return false;
         }
 
-        result = renderingDevice->Initialize(renderingContext);
-        if (result != OK)
+        if (!renderingDevice->Initialize(renderingContext))
         {
-            return Result::FAIL;
+            SL_LOG_ERROR("fail to initialize RenderingDevice");
+            return false;
         }
+
+        return true;
     }
 
     glm::ivec2 WindowsWindow::GetSize() const

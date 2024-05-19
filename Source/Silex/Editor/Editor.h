@@ -20,7 +20,7 @@ namespace Silex
 {
     class Editor : public Object
     {
-        SL_DECLARE_CLASS(Editor, Object)
+        SL_CLASS(Editor, Object)
 
     public:
 

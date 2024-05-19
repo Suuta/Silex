@@ -15,14 +15,14 @@ namespace Silex
     //==================================
     class Engine : public Object
     {
-        SL_DECLARE_CLASS(Engine, Object)
+        SL_CLASS(Engine, Object)
 
     public:
 
-        Result Initialize();
-        void   Finalize();
-        bool   MainLoop();
-        void   Close();
+        bool Initialize();
+        void Finalize();
+        bool MainLoop();
+        void Close();
 
     public:
 

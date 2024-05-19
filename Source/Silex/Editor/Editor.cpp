@@ -465,6 +465,7 @@ namespace Silex
 
     void Editor::OnMouseMove(MouseMoveEvent& e)
     {
+        // スクリーン座標のため、Y座標は下向きが正の値となる
         float xoffset = e.mouseX - m_PrevCursorPosition.x;
         float yoffset = m_PrevCursorPosition.y - e.mouseY;
 

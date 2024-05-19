@@ -9,7 +9,7 @@ namespace Silex
 {
     class SkyLight : public Asset
     {
-        SL_DECLARE_CLASS(SkyLight, Asset)
+        SL_CLASS(SkyLight, Asset)
 
     public:
 

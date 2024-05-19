@@ -14,7 +14,7 @@ namespace Silex
     static Window* window = nullptr;
 
 
-    Result LaunchEngine()
+    bool LaunchEngine()
     {
         // OS初期化
         OS::Get()->Initialize();
@@ -31,12 +31,15 @@ namespace Silex
 
         // エンジン初期化
         engine = Memory::Allocate<Engine>();
-        Result result = engine->Initialize();
+        if (!engine->Initialize())
+        {
+            return false;
+        }
 
         // スプラッシュイメージ非表示
         SplashImage::Hide();
 
-        return result;
+        return true;
     }
 
     void ShutdownEngine()
@@ -64,7 +67,7 @@ namespace Silex
         return engine;
     }
 
-    Result Engine::Initialize()
+    bool Engine::Initialize()
     {
 #if SL_DEBUG
         assimpDLL = LoadLibraryW(L"Resources/DLL/assimp-vc143-mtd.dll");
@@ -82,8 +85,8 @@ namespace Silex
         window = Window::Create(info);
         if (!window)
         {
-            SL_LOG_FATAL("FAILED: Create Window");
-            return Result::FAIL;
+            SL_LOG_FATAL("FAILED: Create::Window");
+            return false;
         }
 
         // ウィンドウコールバック登録
@@ -93,8 +96,15 @@ namespace Silex
         data.callbacks.mouseMoveEvent.Bind(this,    &Engine::OnMouseMove);
         data.callbacks.mouseScrollEvent.Bind(this,  &Engine::OnMouseScroll);
 
+#if NEW_RENDERER_IMPL
+
         // レンダリングコンテキスト
-        window->SetupRenderingContext();
+        if (!window->SetupRenderingContext())
+        {
+            SL_LOG_FATAL("FAILED: SetupRenderingContext");
+            return false;
+        }
+#endif
 
         // レンダラー
         Renderer::Get()->Init();
@@ -113,7 +123,7 @@ namespace Silex
         // ウィンドウ表示
         window->Show();
 
-        return Result::OK;
+        return true;
     }
 
     bool Engine::MainLoop()

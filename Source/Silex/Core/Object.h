@@ -77,7 +77,7 @@ namespace Silex
     //========================================
     class Object : public Class
     {
-        SL_DECLARE_CLASS(Object, Class)
+        SL_CLASS(Object, Class)
 
     public:
 

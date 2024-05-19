@@ -16,7 +16,7 @@ namespace Silex
 {
     class Shader : public Object
     {
-        SL_DECLARE_CLASS(Shader, Object)
+        SL_CLASS(Shader, Object)
 
     public:
 

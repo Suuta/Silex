@@ -7,7 +7,7 @@ namespace Silex
 {
     class GLSkyLight : public SkyLight
     {
-        SL_DECLARE_CLASS(GLSkyLight, SkyLight)
+        SL_CLASS(GLSkyLight, SkyLight)
 
     public:
 

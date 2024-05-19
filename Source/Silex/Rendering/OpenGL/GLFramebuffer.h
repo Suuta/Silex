@@ -9,7 +9,7 @@ namespace Silex
 {
     class GLFramebuffer : public Framebuffer
     {
-        SL_DECLARE_CLASS(GLFramebuffer, Framebuffer)
+        SL_CLASS(GLFramebuffer, Framebuffer)
 
     public:
 

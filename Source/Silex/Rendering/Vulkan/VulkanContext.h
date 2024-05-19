@@ -58,14 +58,14 @@ namespace Silex
 
     class VulkanContext : public RenderingContext
     {
-		SL_DECLARE_CLASS(VulkanContext, RenderingContext)
+		SL_CLASS(VulkanContext, RenderingContext)
 
 	public:
 
 		VulkanContext();
 		~VulkanContext();
 
-		Result Initialize(bool enableValidation) override;
+		bool Initialize(bool enableValidation) override;
 
 		RenderingAPI* CreateRendringAPI() override;
 		void DestroyRendringAPI(RenderingAPI* api) override;
@@ -75,8 +75,13 @@ namespace Silex
 
 	public:
 
-		bool HasPresentSupport(Surface* surface, uint32 queueIndex) const;
+		bool QueueHasPresent(Surface* surface, uint32 queueIndex) const;
 		const std::vector<VkQueueFamilyProperties>& GetQueueFamilyProperties() const;
+		const std::vector<const char*>& GetEnabledInstanceExtensions() const;
+		const std::vector<const char*>& GetEnabledDeviceExtensions() const;
+		const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatureList() const;
+
+		VkPhysicalDevice GetPhysicalDevice() const;
 
 	public:
 
@@ -109,5 +114,8 @@ namespace Silex
 		// デバイス拡張
 		std::unordered_set<std::string> requestDeviceExtensions;
 		std::vector<const char*>        enableDeviceExtensions;
+
+		// デバイス機能
+		VkPhysicalDeviceFeatures physicalDeviceFeatures;
     };
 }

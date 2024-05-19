@@ -14,7 +14,7 @@ namespace Silex
         RawMouseMotion    = 0x00033005,
     };
 
-    enum CursorMode
+    enum CursorMode : int32
     {
         Normal   = 0x00034001,
         Hidden   = 0x00034002,
@@ -181,7 +181,7 @@ namespace Silex
 
     public:
 
-        static void SetCursorMode(CursorMode mode);
+        static void SetCursorMode(int32 mode);
 
         static bool IsKeyDown(Keys key);
         static bool IsKeyUp(Keys key);

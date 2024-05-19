@@ -11,7 +11,7 @@ namespace Silex
 
     class GLUniformBuffer : public UniformBuffer
     {
-        SL_DECLARE_CLASS(GLUniformBuffer, UniformBuffer)
+        SL_CLASS(GLUniformBuffer, UniformBuffer)
 
     public:
 

@@ -7,7 +7,7 @@ namespace Silex
 {
     struct Event : public Class
     {
-        SL_DECLARE_CLASS(Event, Class)
+        SL_CLASS(Event, Class)
     };
 
 
@@ -17,7 +17,7 @@ namespace Silex
     //======================================================================
     struct WindowResizeEvent : public Event
     {
-        SL_DECLARE_CLASS(WindowResizeEvent, Event)
+        SL_CLASS(WindowResizeEvent, Event)
         WindowResizeEvent(uint32 w, uint32 h) : width(w), height(h) {}
 
         uint32 width;
@@ -26,7 +26,7 @@ namespace Silex
 
     struct WindowCloseEvent : public Event
     {
-        SL_DECLARE_CLASS(WindowCloseEvent, Event)
+        SL_CLASS(WindowCloseEvent, Event)
         WindowCloseEvent() {}
     };
 
@@ -35,7 +35,7 @@ namespace Silex
     //======================================================================
     struct KeyEvent : public Event
     {
-        SL_DECLARE_CLASS(KeyEvent, Event)
+        SL_CLASS(KeyEvent, Event)
 
         KeyEvent(Keys k) : key(k) {}
         Keys key;
@@ -43,19 +43,19 @@ namespace Silex
 
     struct KeyPressedEvent : public KeyEvent
     {
-        SL_DECLARE_CLASS(KeyPressedEvent, KeyEvent)
+        SL_CLASS(KeyPressedEvent, KeyEvent)
         KeyPressedEvent(Keys key) : KeyEvent(key) {}
     };
 
     struct KeyReleasedEvent : public KeyEvent
     {
-        SL_DECLARE_CLASS(KeyReleasedEvent, KeyEvent)
+        SL_CLASS(KeyReleasedEvent, KeyEvent)
         KeyReleasedEvent(Keys key) : KeyEvent(key) {}
     };
 
     struct KeyRepeatEvent : public KeyEvent
     {
-        SL_DECLARE_CLASS(KeyRepeatEvent, KeyEvent)
+        SL_CLASS(KeyRepeatEvent, KeyEvent)
         KeyRepeatEvent(Keys key) : KeyEvent(key) {}
     };
 
@@ -65,7 +65,7 @@ namespace Silex
     //======================================================================
     struct MouseButtonEvent : public Event
     {
-        SL_DECLARE_CLASS(MouseButtonEvent, Event)
+        SL_CLASS(MouseButtonEvent, Event)
 
         MouseButtonEvent(int b) : button(b) {}
         int32 button;
@@ -73,25 +73,25 @@ namespace Silex
 
     struct MouseButtonPressedEvent : public MouseButtonEvent
     {
-        SL_DECLARE_CLASS(MouseButtonPressedEvent, MouseButtonEvent)
+        SL_CLASS(MouseButtonPressedEvent, MouseButtonEvent)
         MouseButtonPressedEvent(int button) : MouseButtonEvent(button) {}
     };
 
     struct MouseButtonReleasedEvent : public MouseButtonEvent
     {
-        SL_DECLARE_CLASS(MouseButtonReleasedEvent, MouseButtonEvent)
+        SL_CLASS(MouseButtonReleasedEvent, MouseButtonEvent)
         MouseButtonReleasedEvent(int button) : MouseButtonEvent(button) {}
     };
 
     struct MouseButtonRepeatEvent : public MouseButtonEvent
     {
-        SL_DECLARE_CLASS(MouseButtonRepeatEvent, MouseButtonEvent)
+        SL_CLASS(MouseButtonRepeatEvent, MouseButtonEvent)
         MouseButtonRepeatEvent(int button) : MouseButtonEvent(button) {}
     };
 
     struct MouseMoveEvent : public Class
     {
-        SL_DECLARE_CLASS(MouseMoveEvent, Class)
+        SL_CLASS(MouseMoveEvent, Class)
         MouseMoveEvent(float x, float y) : mouseX(x), mouseY(y) {}
 
         float mouseX;
@@ -100,7 +100,7 @@ namespace Silex
 
     struct MouseScrollEvent : public Event
     {
-        SL_DECLARE_CLASS(MouseScrollEvent, Event)
+        SL_CLASS(MouseScrollEvent, Event)
         MouseScrollEvent(float x, float y) : offsetX(x), offsetY(y) {}
 
         float offsetX;

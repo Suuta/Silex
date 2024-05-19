@@ -9,7 +9,7 @@ namespace Silex
 {
     class GLEditorUI : public EditorUI
     {
-        SL_DECLARE_CLASS(GLEditorUI, EditorUI)
+        SL_CLASS(GLEditorUI, EditorUI)
 
     public:
 

@@ -15,7 +15,7 @@ namespace Silex
 
     class Material : public Asset
     {
-        SL_DECLARE_CLASS(Material, Asset)
+        SL_CLASS(Material, Asset)
 
     public:
 

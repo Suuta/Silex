@@ -11,20 +11,24 @@ namespace Silex
 
     class RenderingDevice : public Object
     {
-        SL_DECLARE_CLASS(RenderingDevice, Object);
+        SL_CLASS(RenderingDevice, Object);
 
     public:
 
         RenderingDevice();
         ~RenderingDevice();
 
-        Result Initialize(RenderingContext* context);
+        bool Initialize(RenderingContext* context);
 
     private:
 
-        CommandQueueFamily graphicsQueueFamily;
-        CommandQueueFamily presentQueueFamily;
+        QueueFamily graphicsQueueFamily = INVALID_RENDER_ID;
+        QueueFamily presentQueueFamily  = INVALID_RENDER_ID;
 
+        CommandQueue* graphicsQueue = nullptr;
+        CommandQueue* presentQueue  = nullptr;
+
+        CommandPool* commandPool = nullptr;
 
         RenderingContext* renderingContext = nullptr;
         RenderingAPI*     renderingAPI     = nullptr;

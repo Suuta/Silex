@@ -10,7 +10,7 @@ namespace Silex
 
     class RenderingAPI : public Object
     {
-        SL_DECLARE_CLASS(RenderingAPI, Object)
+        SL_CLASS(RenderingAPI, Object)
 
     public:
 
@@ -19,8 +19,11 @@ namespace Silex
 
     public:
 
-        virtual Result             Initialize()                                                         = 0;
-        virtual CommandQueueFamily GetCommandQueueFamily(uint32 flag, Surface* surface = nullptr) const = 0;
+        virtual bool Initialize() = 0;
+
+        virtual QueueFamily GetQueueFamily(uint32 flag, Surface* surface = nullptr) const = 0;
+        virtual CommandQueue* CreateCommandQueue(QueueFamily family) = 0;
+        virtual CommandPool* CreateCommandPool(QueueFamily family, CommandBufferType type) = 0;
         
     private:
 

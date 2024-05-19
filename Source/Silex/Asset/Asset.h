@@ -34,7 +34,7 @@ namespace Silex
 
     class Asset : public Object
     {
-        SL_DECLARE_CLASS(Asset, Object)
+        SL_CLASS(Asset, Object)
 
     public:
 

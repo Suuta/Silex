@@ -10,15 +10,16 @@ namespace Silex
 		INVALID_RENDER_ID = UINT32_MAX,
 	};
 
-	using Surface            = Handle;
-	using CommandQueueFamily = uint32;
+	using QueueFamily  = uint32;
+
+	using Surface      = Handle;
+	using CommandQueue = Handle;
+	using CommandPool  = Handle;
 
 	using BufferHandle             = Handle;
 	using TextureHandle            = Handle;
 	using SamplerHandle            = Handle;
 	using VertexFormatHandle       = Handle;
-	using CommandQueueHandle       = Handle;
-	using CommandPoolHandle        = Handle;
 	using CommandBufferHandle      = Handle;
 	using SwapChainHandle          = Handle;
 	using FramebufferHandle        = Handle;
@@ -29,6 +30,12 @@ namespace Silex
 	using FenceHandle              = Handle;
 	using SemaphoreHandle          = Handle;
 
+	// コマンドバッファタイプ
+	enum CommandBufferType
+	{
+		COMMAND_BUFFER_TYPE_PRIMARY,
+		COMMAND_BUFFER_TYPE_SECONDARY,
+	};
 
 	// 各GPUのベンダーIDっぽい
 	enum DeviceVendor

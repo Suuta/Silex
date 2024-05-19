@@ -13,7 +13,7 @@ namespace Silex
 
     class RenderingContext : Object
     {
-		SL_DECLARE_CLASS(RenderingContext, Object)
+		SL_CLASS(RenderingContext, Object)
 
 	public:
 
@@ -29,7 +29,7 @@ namespace Silex
 
 	public:
 
-		virtual Result Initialize(bool enableValidation) = 0;
+		virtual bool Initialize(bool enableValidation) = 0;
 
 		// API実装
 		virtual RenderingAPI* CreateRendringAPI() = 0;

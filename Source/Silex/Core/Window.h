@@ -68,7 +68,7 @@ namespace Silex
     // ウィンドウインターフェース
     class Window : public Object
     {
-        SL_DECLARE_CLASS(Window, Object)
+        SL_CLASS(Window, Object)
 
     public:
 
@@ -100,7 +100,7 @@ namespace Silex
         }
 
         // レンダリングコンテキスト
-        virtual Result SetupRenderingContext() = 0;
+        virtual bool SetupRenderingContext() = 0;
 
         // ウィンドウメッセージ
         virtual void PumpMessage() = 0;

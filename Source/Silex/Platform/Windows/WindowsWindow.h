@@ -8,14 +8,14 @@ namespace Silex
 {
     class WindowsWindow : public Window
     {
-        SL_DECLARE_CLASS(WindowsWindow, Window)
+        SL_CLASS(WindowsWindow, Window)
 
     public:
 
         WindowsWindow(const WindowCreateInfo& createInfo);
         ~WindowsWindow();
 
-        Result SetupRenderingContext() override;
+        bool SetupRenderingContext() override;
         void PumpMessage()override;
 
         glm::ivec2 GetSize()      const override;

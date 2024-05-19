@@ -13,7 +13,7 @@ namespace Silex
     //==================================================
     class Texture : public Asset
     {
-        SL_DECLARE_CLASS(Texture, Asset)
+        SL_CLASS(Texture, Asset)
 
     public:
 
@@ -33,7 +33,7 @@ namespace Silex
     //==================================================
     class Texture2D : public Texture
     {
-        SL_DECLARE_CLASS(Texture2D, Texture)
+        SL_CLASS(Texture2D, Texture)
 
     public:
 
@@ -47,7 +47,7 @@ namespace Silex
     //==================================================
     class Texture2DArray : public Texture
     {
-        SL_DECLARE_CLASS(Texture2DArray, Texture)
+        SL_CLASS(Texture2DArray, Texture)
 
     public:
 
@@ -60,7 +60,7 @@ namespace Silex
     //==================================================
     class TextureCube : public Texture
     {
-        SL_DECLARE_CLASS(TextureCube, Texture)
+        SL_CLASS(TextureCube, Texture)
 
     public:
 

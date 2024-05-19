@@ -8,7 +8,7 @@ namespace Silex
 {
     class GLStorageBuffer : public StorageBuffer
     {
-        SL_DECLARE_CLASS(GLStorageBuffer, StorageBuffer)
+        SL_CLASS(GLStorageBuffer, StorageBuffer)
 
     public:
 

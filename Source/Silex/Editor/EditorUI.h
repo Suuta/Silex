@@ -8,7 +8,7 @@ namespace Silex
 {
     class EditorUI : public Object
     {
-        SL_DECLARE_CLASS(EditorUI, Object)
+        SL_CLASS(EditorUI, Object)
 
     public:
 

@@ -16,31 +16,64 @@ namespace Silex
 
     RenderingDevice::~RenderingDevice()
     {
+        if (renderingAPI)
+        {
+            renderingContext->DestroyRendringAPI(renderingAPI);
+        }
+
         instance = nullptr;
     }
 
-    Result RenderingDevice::Initialize(RenderingContext* context)
+    bool RenderingDevice::Initialize(RenderingContext* context)
     {
         renderingContext = context;
-        Surface* surface = Window::Get()->GetSurface();
 
         // レンダーAPI実装クラスを生成
         renderingAPI = renderingContext->CreateRendringAPI();
-        renderingAPI->Initialize();
+        if (!renderingAPI)
+        {
+            SL_LOG_ERROR("renderingAPI is null");
+            return false;
+        }
 
+        if (!renderingAPI->Initialize())
+        {
+            SL_LOG_ERROR("fail to initialize renderAPI");
+            return false;
+        }
+       
         // グラフィックスとコンピュートをサポートするキューファミリを取得
-        CommandQueueFamily family = renderingAPI->GetCommandQueueFamily(QUEUE_FAMILY_GRAPHICS_BIT | QUEUE_FAMILY_COMPUTE_BIT, surface);
+        uint32 supportQueue = QUEUE_FAMILY_GRAPHICS_BIT | QUEUE_FAMILY_COMPUTE_BIT;
+        QueueFamily family = renderingAPI->GetQueueFamily(supportQueue, Window::Get()->GetSurface());
         if (family == INVALID_RENDER_ID)
         {
-            return Result::FAIL;
+            SL_LOG_ERROR("GetQueueFamily return INVALID_RENDER_ID");
+            return false;
         }
 
         graphicsQueueFamily = family;
-        presentQueueFamily  = family;
+        presentQueueFamily = family;
 
+        // コマンドキュー生成
+        CommandQueue* queue = renderingAPI->CreateCommandQueue(graphicsQueueFamily);
+        if (!queue)
+        {
+            SL_LOG_ERROR("queue is null");
+            return false;
+        }
 
+        graphicsQueue = queue;
+        presentQueue = queue;
 
-        return Result::OK;
+        // コマンドプール生成
+        commandPool = renderingAPI->CreateCommandPool(graphicsQueueFamily, COMMAND_BUFFER_TYPE_PRIMARY);
+        if (!commandPool)
+        {
+            SL_LOG_ERROR("commandPool is null");
+            return false;
+        }
+
+        return true;
     }
 }
 
