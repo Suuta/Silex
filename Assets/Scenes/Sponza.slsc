@@ -1,24 +1,25 @@
 Scene: Untitled
 Entities:
-  - Entity: 13127809365122313676
+  - Entity: 13043199164146875885
     InstanceComponent:
-      name: Light
+      name: PostProcess
       active: true
     TransformComponent:
       position: [0, 0, 0]
-      rotation: [1.48352981, 0.00523598772, 0.52359879]
-      scale: [1, 1, 1]
-    DirectionalLightComponent:
-      color: [1, 1, 1]
-      enableSoftShadow: true
-      intencity: 2
-      showCascade: false
-      shadowDepthBias: 0.00100000005
-    SkyLightComponent:
-      sky: 12172433304082857611
-      intencity: 1
-      renderSky: true
-      enableIBL: true
+      rotation: [1.39626336, 0.87266463, 0]
+      scale: [0.999975264, 0.999965489, 0.999951899]
+    PostProcessComponent:
+      enableOutline: false
+      lineWidth: 1
+      outlineColor: [0, 0, 0]
+      enableFXAA: true
+      enableBloom: true
+      bloomThreshold: 1
+      bloomIntencity: 0.200000003
+      enableChromaticAberration: false
+      enableTonemap: true
+      exposure: 2
+      gammaCorrection: 1
   - Entity: 8645243547391735049
     InstanceComponent:
       name: Sponza
@@ -57,23 +58,22 @@ Entities:
         23: 12469810980531055225
         24: 14432324832759822238
         25: 489397882932276121
-  - Entity: 13043199164146875885
+  - Entity: 13127809365122313676
     InstanceComponent:
-      name: PostProcess
+      name: Light
       active: true
     TransformComponent:
       position: [0, 0, 0]
-      rotation: [1.39626336, 0.87266463, 0]
-      scale: [0.999975264, 0.999965489, 0.999951899]
-    PostProcessComponent:
-      enableOutline: false
-      lineWidth: 1
-      outlineColor: [0, 0, 0]
-      enableFXAA: true
-      enableBloom: true
-      bloomThreshold: 1
-      bloomIntencity: 0.200000003
-      enableChromaticAberration: false
-      enableTonemap: true
-      exposure: 2
-      gammaCorrection: 1
+      rotation: [1.48352981, 0.00523598772, 0.52359879]
+      scale: [1, 1, 1]
+    DirectionalLightComponent:
+      color: [1, 1, 1]
+      enableSoftShadow: true
+      intencity: 2
+      showCascade: false
+      shadowDepthBias: 0.00100000005
+    SkyLightComponent:
+      sky: 12172433304082857611
+      intencity: 1
+      renderSky: true
+      enableIBL: true

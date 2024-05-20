@@ -28,10 +28,8 @@ enum Result : uint32
     FAIL = 1,
 };
 
-class Handle
+struct Handle
 {
-public:
-
     Handle() : handle(uint64(this))
     {}
 

@@ -42,9 +42,19 @@ namespace Silex
     //=============================
     void AssetBrowserItem::Render(AssetBrowserPanel* panel, const glm::vec2& size)
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-        ImGui::ImageButton(ImTextureID(m_Icon ? m_Icon->GetID() : 0), { size.x, size.y }, { 0, 0 }, {1, 1}, 0);
-        ImGui::PopStyleColor();
+        bool isSelected = false;
+        AssetID selectID = 0;
+
+        if (panel->m_SelectAsset)
+            selectID = panel->m_SelectAsset->GetAssetID();
+
+        isSelected = m_ID == selectID;
+        ImVec4 color = isSelected ? ImVec4(1, 0.5, 0.0, 1) : ImVec4(0, 0, 0, 0);
+
+        ImGui::PushStyleColor(ImGuiCol_Button,        color);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color);
+        ImGui::ImageButton(ImTextureID(m_Icon ? m_Icon->GetID() : 0), { size.x - 10.0f, size.y - 10.0f }, { 0, 0 }, { 1, 1 }, 2);
+        ImGui::PopStyleColor(2);
 
         // 左クリック（選択）
         if (ImGui::IsItemHovered())
@@ -277,7 +287,7 @@ namespace Silex
 
         float thumbnailSize = 96.0f;
 
-        float panelWidth = ImGui::GetContentRegionAvail().x;
+        float panelWidth = ImGui::GetContentRegionAvail().x - ImGui::GetCurrentWindow()->ScrollbarSizes.x;
         int columnCount = (int)(panelWidth / thumbnailSize);
         if (columnCount < 1)
             columnCount = 1;
@@ -287,7 +297,7 @@ namespace Silex
         for (auto& [id, item] : m_CurrentDirectoryAssetItems)
         {
             // アイテム描画
-            item->Render(this, { thumbnailSize , thumbnailSize });
+            item->Render(this, { thumbnailSize, thumbnailSize });
         }
 
         // ディレクトリ移動要求時に移動する
@@ -351,7 +361,7 @@ namespace Silex
                     auto& database = AssetManager::Get()->GetAllAssets();
                     for (auto& [id, asset] : database)
                     {
-                        if (!asset->IsAssetOf(AssetType::Texture2D))
+                        if (asset == nullptr || !asset->IsAssetOf(AssetType::Texture2D))
                             continue;
 
                         selected = (current == id);

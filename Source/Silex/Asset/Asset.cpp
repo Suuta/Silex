@@ -217,10 +217,6 @@ namespace Silex
             metadata.Type     = (AssetType)n["type"].as<uint32>();
             metadata.FilePath = n["path"].as<std::string>();
 
-            // アセットタイプが不明
-            if (metadata.Type == AssetType::None)
-                continue;
-
             // 物理ファイルが存在しない
             if (!std::filesystem::exists(metadata.FilePath))
             {

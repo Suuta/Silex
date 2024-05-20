@@ -9,6 +9,7 @@ namespace Silex
     class RenderingAPI;
     class RenderingContext;
 
+
     class RenderingDevice : public Object
     {
         SL_CLASS(RenderingDevice, Object);

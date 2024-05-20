@@ -9,21 +9,24 @@ namespace Silex
 {
     class VulkanContext;
 
-
-    class VulkanCommandQueue : public CommandQueue
+    //=============================================
+    // Vulkan 構造体
+    //=============================================
+    struct VulkanCommandQueue : public CommandQueue
     {
-    public:
         uint32 queueIndex = INVALID_RENDER_ID;
     };
 
     struct VulkanCommandPool : public CommandQueue
     {
-    public:
         VkCommandPool     commandPool = nullptr;
         CommandBufferType type        = COMMAND_BUFFER_TYPE_PRIMARY;
     };
 
 
+    //=============================================
+    // Vulkan API 実装
+    //=============================================
     class VulkanAPI : public RenderingAPI
     {
         SL_CLASS(VulkanAPI, RenderingAPI)
