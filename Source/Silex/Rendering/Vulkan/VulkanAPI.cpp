@@ -13,6 +13,11 @@ namespace Silex
 
     VulkanAPI::~VulkanAPI()
     {
+        if (allocator)
+        {
+            vmaDestroyAllocator(allocator);
+        }
+
         if (device)
         {
             vkDestroyDevice(device, nullptr);
@@ -64,12 +69,49 @@ namespace Silex
             SL_LOG_ERROR("vkCreateDevice: {}", VkResultToString(result));
             return false;
         }
+        
+        // メモリアロケータ（VMA）生成
+        VmaAllocatorCreateInfo allocatorInfo = {};
+        allocatorInfo.physicalDevice = context->GetPhysicalDevice();
+        allocatorInfo.device         = device;
+        allocatorInfo.instance       = context->GetInstance();
 
+        result = vmaCreateAllocator(&allocatorInfo, &allocator);
+        if (result != VK_SUCCESS)
+        {
+            SL_LOG_ERROR("vmaCreateAllocator: {}", VkResultToString(result));
+            return false;
+        }
 
         return true;
     }
 
-    QueueFamily VulkanAPI::GetQueueFamily(uint32 flag, Surface* surface) const
+    CommandQueue* VulkanAPI::CreateCommandQueue(QueueFamily family, uint32 indexInFamily)
+    {
+        // queueIndex は キューファミリ内に複数キューが存在する場合のインデックスを指定する
+        VkQueue vkQueue = nullptr;
+        vkGetDeviceQueue(device, family, indexInFamily, &vkQueue);
+
+        VulkanCommandQueue* queue = Memory::Allocate<VulkanCommandQueue>();
+        queue->family = family;
+        queue->index  = indexInFamily;
+        queue->queue  = vkQueue;
+
+        return queue;
+    }
+
+    void VulkanAPI::DestroyCommandQueue(CommandQueue* queue)
+    {
+        if (queue)
+        {
+            // VkQueue に解放処理はない
+            //...
+
+            Memory::Deallocate(queue);
+        }
+    }
+
+    QueueFamily VulkanAPI::QueryQueueFamily(uint32 queueFlag, Surface* surface) const
     {
         QueueFamily familyIndex = INVALID_RENDER_ID;
 
@@ -86,7 +128,7 @@ namespace Silex
             // 独立したキューがあればそのキューの方が性能が良いとされるので、flag値が低いものが専用キューになる。
 
             // 全フラグが立っていたら（全てのキューをサポートしている場合）
-            const bool includeAll = (queueFamilyProperties[i].queueFlags & flag) == flag;
+            const bool includeAll = (queueFamilyProperties[i].queueFlags & queueFlag) == queueFlag;
             if (includeAll)
             {
                 familyIndex = i;
@@ -95,14 +137,6 @@ namespace Silex
         }
 
         return familyIndex;
-    }
-
-    CommandQueue* VulkanAPI::CreateCommandQueue(QueueFamily family)
-    {
-        VulkanCommandQueue* vkQueue = Memory::Allocate<VulkanCommandQueue>();
-        vkQueue->queueIndex = family;
-
-        return vkQueue;
     }
 
     CommandPool* VulkanAPI::CreateCommandPool(QueueFamily family, CommandBufferType type)
@@ -127,5 +161,149 @@ namespace Silex
         commandPool->type        = type;
 
         return commandPool;
+    }
+
+    void VulkanAPI::DestroyCommandPool(CommandPool* pool)
+    {
+        if (pool)
+        {
+            VulkanCommandPool* vkpool = (VulkanCommandPool*)pool;
+            vkDestroyCommandPool(device, vkpool->commandPool, nullptr);
+
+            Memory::Deallocate(pool);
+        }
+    }
+
+    CommandBuffer* VulkanAPI::CreateCommandBuffer(CommandPool* pool)
+    {
+        VulkanCommandPool* vkpool = (VulkanCommandPool*)pool;
+
+        VkCommandBufferAllocateInfo createInfo = {};
+        createInfo.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        createInfo.commandPool        = vkpool->commandPool;
+        createInfo.commandBufferCount = 1;
+        createInfo.level              = (VkCommandBufferLevel)vkpool->type;
+
+        VkCommandBuffer vkcommandbuffer = nullptr;
+        VkResult result = vkAllocateCommandBuffers(device, &createInfo, &vkcommandbuffer);
+        if (result != VK_SUCCESS)
+        {
+            SL_LOG_ERROR("vkAllocateCommandBuffers: {}", VkResultToString(result));
+            return nullptr;
+        }
+
+        VulkanCommandBuffer* cmdBuffer = Memory::Allocate<VulkanCommandBuffer>();
+        cmdBuffer->commandBuffer = vkcommandbuffer;
+
+        return cmdBuffer;
+    }
+
+    void VulkanAPI::DestroyCommandBuffer(CommandBuffer* commandBuffer)
+    {
+        if (commandBuffer)
+        {
+            // VkCommandBuffer は コマンドプールが対応するので 解放処理しない (※ vkFreeCommandBuffers は？)
+            //...
+
+            Memory::Deallocate(commandBuffer);
+        }
+    }
+
+    bool VulkanAPI::BeginCommandBuffer(CommandBuffer* commandBuffer)
+    {
+        VulkanCommandBuffer* vkcmdBuffer = (VulkanCommandBuffer*)commandBuffer;
+
+        VkCommandBufferBeginInfo beginInfo = {};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        VkResult result = vkBeginCommandBuffer(vkcmdBuffer->commandBuffer, &beginInfo);
+        if (result != VK_SUCCESS)
+        {
+            SL_LOG_ERROR("vkBeginCommandBuffer: {}", VkResultToString(result));
+            return false;
+        }
+
+        return true;
+    }
+
+    bool VulkanAPI::EndCommandBuffer(CommandBuffer* commandBuffer)
+    {
+        VulkanCommandBuffer* vkcmdBuffer = (VulkanCommandBuffer*)commandBuffer;
+
+        VkResult result = vkEndCommandBuffer((VkCommandBuffer)vkcmdBuffer->commandBuffer);
+        if (result != VK_SUCCESS)
+        {
+            SL_LOG_ERROR("vkEndCommandBuffer: {}", VkResultToString(result));
+            return false;
+        }
+
+        return true;
+    }
+
+    Semaphore* VulkanAPI::CreateSemaphore()
+    {
+        VkSemaphore vkSemaphore = nullptr;
+        VkSemaphoreCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+
+        VkResult result = vkCreateSemaphore(device, &createInfo, nullptr, &vkSemaphore);
+        if (result != VK_SUCCESS)
+        {
+            SL_LOG_ERROR("vkCreateSemaphore: {}", VkResultToString(result));
+            return nullptr;
+        }
+
+        VulkanSemaphore* semaphore = Memory::Allocate<VulkanSemaphore>();
+        semaphore->semaphore = vkSemaphore;
+
+        return semaphore;
+    }
+
+    void VulkanAPI::DestroySemaphore(Semaphore* semaphore)
+    {
+        if (semaphore)
+        {
+            VulkanSemaphore* vkSemaphore = (VulkanSemaphore*)semaphore;
+            vkDestroySemaphore(device, vkSemaphore->semaphore, nullptr);
+
+            Memory::Deallocate(semaphore);
+        }
+    }
+
+    Fence* VulkanAPI::CreateFence()
+    {
+        VkFence vkfence = VK_NULL_HANDLE;
+        VkFenceCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+        VkResult result = vkCreateFence(device, &createInfo, nullptr, &vkfence);
+        if (result != VK_SUCCESS)
+        {
+            SL_LOG_ERROR("vkCreateFence: {}", VkResultToString(result));
+            return nullptr;
+        }
+
+        VulkanFence* fence = Memory::Allocate<VulkanFence>();
+        fence->fence         = vkfence;
+        fence->queueSignaled = nullptr;
+
+        return fence;
+    }
+
+    void VulkanAPI::DestroyFence(Fence* fence)
+    {
+        if (fence)
+        {
+            VulkanFence* vkfence = (VulkanFence*)fence;
+            vkDestroyFence(device, vkfence->fence, nullptr);
+
+            Memory::Deallocate(fence);
+        }
+    }
+
+    bool VulkanAPI::WaitFence(Fence* fence)
+    {
+        return true;
     }
 }

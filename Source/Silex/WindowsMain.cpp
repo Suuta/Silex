@@ -12,14 +12,13 @@ namespace Silex
     {
         WindowsOS os;
 
-        bool result = LaunchEngine();
-        if (result)
+        if (LaunchEngine())
         {
             os.Run();
         }
 
         ShutdownEngine();
-        return result;
+        return 0;
     }
 }
 

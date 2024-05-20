@@ -7,6 +7,11 @@
 
 namespace Silex
 {
+#define VK_LAYER_KHRONOS_VALIDATION_NAME         "VK_LAYER_KHRONOS_validation"
+#define GET_VULKAN_INSTANCE_PROC(instance, func) (PFN_##func)vkGetInstanceProcAddr(instance, #func);
+#define GET_VULKAN_DEVICE_PROC(device, func)     (PFN_##func)vkGetDeviceProcAddr(device, #func);
+
+
 	//=============================================
 	// Vulkan ユーティリティ 関数
 	//=============================================
@@ -51,6 +56,7 @@ namespace Silex
 		const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatureList() const;
 
 		VkPhysicalDevice GetPhysicalDevice() const;
+		VkInstance GetInstance() const;
 
 	public:
 

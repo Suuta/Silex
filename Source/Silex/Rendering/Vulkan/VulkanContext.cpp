@@ -6,11 +6,6 @@
 
 namespace Silex
 {
-#define VK_LAYER_KHRONOS_VALIDATION_NAME "VK_LAYER_KHRONOS_validation"
-#define GET_VULKAN_INSTANCE_PROC(instance, func) (PFN_##func)vkGetInstanceProcAddr(instance, #func);
-#define GET_VULKAN_DEVICE_PROC(device, func)     (PFN_##func)vkGetDeviceProcAddr(device, #func);
-
-
     const char* VkResultToString(VkResult result)
     {
         switch (result)
@@ -366,5 +361,10 @@ namespace Silex
     VkPhysicalDevice VulkanContext::GetPhysicalDevice() const
     {
         return physicalDevice;
+    }
+
+    VkInstance VulkanContext::GetInstance() const
+    {
+        return instance;
     }
 }

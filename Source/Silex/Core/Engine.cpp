@@ -44,8 +44,11 @@ namespace Silex
 
     void ShutdownEngine()
     {
-        engine->Finalize();
-        Memory::Deallocate(engine);
+        if (engine)
+        {
+            engine->Finalize();
+            Memory::Deallocate(engine);
+        }
 
         SL_LOG_INFO("***** Shutdown Engine *****");
 
@@ -69,12 +72,6 @@ namespace Silex
 
     bool Engine::Initialize()
     {
-#if SL_DEBUG
-        assimpDLL = LoadLibraryW(L"Resources/DLL/assimp-vc143-mtd.dll");
-#else
-        assimpDLL = LoadLibraryW(L"Resources/DLL/assimp-vc143-mt.dll");
-#endif
-
         WindowCreateInfo info = {};
         info.title            = "Silex";
         info.width            = 1280;
@@ -83,11 +80,6 @@ namespace Silex
 
         // ウィンドウ
         window = Window::Create(info);
-        if (!window)
-        {
-            SL_LOG_FATAL("FAILED: Create::Window");
-            return false;
-        }
 
         // ウィンドウコールバック登録
         WindowData& data = window->GetWindowData();
@@ -96,7 +88,7 @@ namespace Silex
         data.callbacks.mouseMoveEvent.Bind(this,    &Engine::OnMouseMove);
         data.callbacks.mouseScrollEvent.Bind(this,  &Engine::OnMouseScroll);
 
-#if NEW_RENDERER_IMPL
+#if NEW_RENDERER
 
         // レンダリングコンテキスト
         if (!window->SetupRenderingContext())
@@ -152,8 +144,15 @@ namespace Silex
 
     void Engine::Finalize()
     {
-        editor->Shutdown();
-        editorUI->Shutdown();
+        if (editor)
+        {
+            editor->Shutdown();
+        }
+
+        if (editorUI)
+        {
+            editorUI->Shutdown();
+        }
 
         AssetManager::Get()->Shutdown();
         Renderer::Get()->Shutdown();
@@ -166,9 +165,10 @@ namespace Silex
         data.callbacks.mouseScrollEvent.Unbind();
 
         // ウィンドウ破棄
-        Memory::Deallocate(window);
-
-        FreeLibrary(assimpDLL);
+        if (window)
+        {
+            Memory::Deallocate(window);
+        }
     }
 
     // OnWindowCloseイベント（Xボタン / Alt + F4）以外で、エンジンループを終了させる場合に使用

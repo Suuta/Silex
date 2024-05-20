@@ -59,10 +59,5 @@ namespace Silex
         float  deltaTime     = 0.0f;
 
         std::unordered_map<const char*, float> performanceData;
-
-
-    private:
-
-        HMODULE assimpDLL = nullptr;
     };
 }

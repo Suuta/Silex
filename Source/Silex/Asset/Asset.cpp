@@ -132,7 +132,10 @@ namespace Silex
         // データベースファイルのメタデータを更新する
         s_Instance->WriteDatabaseToFile(s_AssetDatabasePath);
 
-        Memory::Deallocate(s_Instance);
+        if (s_Instance)
+        {
+            Memory::Deallocate(s_Instance);
+        }
     }
 
     bool AssetManager::HasMetadata(const std::filesystem::path& directory)

@@ -2,7 +2,9 @@
 #pragma once
 
 #include "Rendering/RenderingAPI.h"
-#include <Vulkan/vulkan.h>
+
+#include <vulkan/vulkan.h>
+#include <vulkan/vk_mem_alloc.h>
 
 
 namespace Silex
@@ -14,13 +16,31 @@ namespace Silex
     //=============================================
     struct VulkanCommandQueue : public CommandQueue
     {
-        uint32 queueIndex = INVALID_RENDER_ID;
+        VkQueue queue  = nullptr;
+        uint32  family = INVALID_RENDER_ID;
+        uint32  index  = INVALID_RENDER_ID;
     };
 
     struct VulkanCommandPool : public CommandQueue
     {
         VkCommandPool     commandPool = nullptr;
         CommandBufferType type        = COMMAND_BUFFER_TYPE_PRIMARY;
+    };
+
+    struct VulkanCommandBuffer : public CommandBuffer
+    {
+        VkCommandBuffer commandBuffer = nullptr;
+    };
+
+    struct VulkanSemaphore : public Semaphore
+    {
+        VkSemaphore semaphore = nullptr;
+    };
+
+    struct VulkanFence : public Fence
+    {
+        VkFence             fence         = nullptr;
+        VulkanCommandQueue* queueSignaled = nullptr;
     };
 
 
@@ -38,14 +58,48 @@ namespace Silex
 
         bool Initialize() override;
 
-        QueueFamily GetQueueFamily(uint32 flag, Surface* surface = nullptr) const override;
-        CommandQueue* CreateCommandQueue(QueueFamily family) override;
+        // コマンドキュー
+        CommandQueue* CreateCommandQueue(QueueFamily family, uint32 indexInFamily = 0) override;
+        void DestroyCommandQueue(CommandQueue* queue) override;
+        QueueFamily QueryQueueFamily(uint32 queueFlag, Surface* surface = nullptr) const override;
+
+        // コマンドプール
         CommandPool* CreateCommandPool(QueueFamily family, CommandBufferType type) override;
+        void DestroyCommandPool(CommandPool* pool) override;
+
+        // コマンドバッファ
+        CommandBuffer* CreateCommandBuffer(CommandPool* pool) override;
+        void DestroyCommandBuffer(CommandBuffer* commandBuffer) override;
+        bool BeginCommandBuffer(CommandBuffer* commandBuffer) override;
+        bool EndCommandBuffer(CommandBuffer* commandBuffer) override;
+
+        // セマフォ
+        Semaphore* CreateSemaphore() override;
+        void DestroySemaphore(Semaphore* semaphore) override;
+
+        // フェンス
+        Fence* CreateFence() override;
+        void DestroyFence(Fence* fence) override;
+        bool WaitFence(Fence* fence) override;
+
+
+    private:
+
+        //struct Functions
+        //{
+        //    PFN_vkCreateSwapchainKHR    CreateSwapchainKHR    = nullptr;
+        //    PFN_vkDestroySwapchainKHR   DestroySwapchainKHR   = nullptr;
+        //    PFN_vkGetSwapchainImagesKHR GetSwapchainImagesKHR = nullptr;
+        //    PFN_vkAcquireNextImageKHR   AcquireNextImageKHR   = nullptr;
+        //    PFN_vkQueuePresentKHR       QueuePresentKHR       = nullptr;
+        //};
 
     private:
 
         VulkanContext* context = nullptr;
         VkDevice       device  = nullptr;
+
+        VmaAllocator allocator = nullptr;
     };
 }
 

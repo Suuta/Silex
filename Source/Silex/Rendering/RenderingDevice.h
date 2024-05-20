@@ -23,16 +23,28 @@ namespace Silex
 
     private:
 
-        QueueFamily graphicsQueueFamily = INVALID_RENDER_ID;
-        QueueFamily presentQueueFamily  = INVALID_RENDER_ID;
+        struct FrameData
+        {
+            CommandPool*   commandPool   = nullptr;
+            CommandBuffer* commandBuffer = nullptr;
+            Semaphore*     semaphore     = nullptr;
+            Fence*         fence         = nullptr;
+        };
 
-        CommandQueue* graphicsQueue = nullptr;
-        CommandQueue* presentQueue  = nullptr;
+        std::vector<FrameData> frameData  = {};
+        uint64                 frameIndex = 0;
 
-        CommandPool* commandPool = nullptr;
+        SwapChain* swapchain = nullptr;
+
+    private:
 
         RenderingContext* renderingContext = nullptr;
         RenderingAPI*     renderingAPI     = nullptr;
+
+        QueueFamily   graphicsQueueFamily = INVALID_RENDER_ID;
+        CommandQueue* graphicsQueue       = nullptr;
+
+    private:
 
         static inline RenderingDevice* instance = nullptr;
     };

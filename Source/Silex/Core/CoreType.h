@@ -33,6 +33,9 @@ struct Handle
     Handle() : handle(uint64(this))
     {}
 
+    Handle(void* ptr) : handle(uint64(ptr))
+    {}
+
     virtual ~Handle()
     {};
 

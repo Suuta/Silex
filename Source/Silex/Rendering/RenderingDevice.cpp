@@ -16,10 +16,16 @@ namespace Silex
 
     RenderingDevice::~RenderingDevice()
     {
-        if (renderingAPI)
+        renderingAPI->DestroyCommandQueue(graphicsQueue);
+
+        for (uint32 i = 0; i < frameData.size(); i++)
         {
-            renderingContext->DestroyRendringAPI(renderingAPI);
+            renderingAPI->DestroyCommandPool(frameData[i].commandPool);
+            renderingAPI->DestroySemaphore(frameData[i].semaphore);
+            renderingAPI->DestroyFence(frameData[i].fence);
         }
+
+        renderingContext->DestroyRendringAPI(renderingAPI);
 
         instance = nullptr;
     }
@@ -44,7 +50,7 @@ namespace Silex
        
         // グラフィックスとコンピュートをサポートするキューファミリを取得
         uint32 supportQueue = QUEUE_FAMILY_GRAPHICS_BIT | QUEUE_FAMILY_COMPUTE_BIT;
-        QueueFamily family = renderingAPI->GetQueueFamily(supportQueue, Window::Get()->GetSurface());
+        QueueFamily family = renderingAPI->QueryQueueFamily(supportQueue, Window::Get()->GetSurface());
         if (family == INVALID_RENDER_ID)
         {
             SL_LOG_ERROR("GetQueueFamily return INVALID_RENDER_ID");
@@ -52,7 +58,6 @@ namespace Silex
         }
 
         graphicsQueueFamily = family;
-        presentQueueFamily = family;
 
         // コマンドキュー生成
         CommandQueue* queue = renderingAPI->CreateCommandQueue(graphicsQueueFamily);
@@ -63,14 +68,42 @@ namespace Silex
         }
 
         graphicsQueue = queue;
-        presentQueue = queue;
 
-        // コマンドプール生成
-        commandPool = renderingAPI->CreateCommandPool(graphicsQueueFamily, COMMAND_BUFFER_TYPE_PRIMARY);
-        if (!commandPool)
+        // フレームデータ生成
+        frameData.resize(2);
+        for (uint32 i = 0; i < frameData.size(); i++)
         {
-            SL_LOG_ERROR("commandPool is null");
-            return false;
+            // コマンドプール生成
+            frameData[i].commandPool = renderingAPI->CreateCommandPool(graphicsQueueFamily, COMMAND_BUFFER_TYPE_PRIMARY);
+            if (!frameData[i].commandPool)
+            {
+                SL_LOG_ERROR("commandPool is null");
+                return false;
+            }
+
+            // コマンドバッファ生成
+            frameData[i].commandBuffer = renderingAPI->CreateCommandBuffer(frameData[i].commandPool);
+            if (!frameData[i].commandBuffer)
+            {
+                SL_LOG_ERROR("commandBuffer is null");
+                return false;
+            }
+
+            // セマフォ生成
+            frameData[i].semaphore = renderingAPI->CreateSemaphore();
+            if (!frameData[i].semaphore)
+            {
+                SL_LOG_ERROR("semaphore is null");
+                return false;
+            }
+
+            // フェンス生成
+            frameData[i].fence = renderingAPI->CreateFence();
+            if (!frameData[i].fence)
+            {
+                SL_LOG_ERROR("fence is null");
+                return false;
+            }
         }
 
         return true;

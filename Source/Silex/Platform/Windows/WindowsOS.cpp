@@ -9,8 +9,19 @@
 #include <dwmapi.h>
 
 
+#if SL_RELEASE
+#define ASSIMP_DLL_NAME L"Resources/DLL/assimp-vc143-mt.dll"
+#else
+#define ASSIMP_DLL_NAME L"Resources/DLL/assimp-vc143-mtd.dll"
+#endif
+
+
 namespace Silex
 {
+    // Assimp DLL
+    static HMODULE assimpDLL = nullptr;
+
+
     std::wstring ToUTF16(const std::string& utf8)
     {
         if (utf8.empty())
@@ -87,6 +98,8 @@ namespace Silex
         // コンソールの標準入出力ハンドル取得
         outputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 #endif
+        // Assimp DLL ロード
+        assimpDLL = LoadLibraryW(ASSIMP_DLL_NAME);
 
         // Windows OS バージョンを取得
         CheckOSVersion();
@@ -112,13 +125,16 @@ namespace Silex
 
         ::glfwTerminate();
         ::timeEndPeriod(1);
+
+        // Assimp DLL 解放
+        FreeLibrary(assimpDLL);
     }
 
     uint64 WindowsOS::GetTickSeconds()
     {
-        //===========================================================
+        //==============================================================
         // OS::Initialize からの経過時間をマイクロ秒(μs)で返す
-        //-----------------------------------------------------------
+        //--------------------------------------------------------------
         // 実際にはOS起動時からのクロックカウントを、秒間クロック数で除算して
         // 経過時間を 秒(sec) でもとめる。また、uint64では小数点以下繰り上げ
         // なので、1,000,000 倍してマイクロ秒にしている。
@@ -135,7 +151,7 @@ namespace Silex
         // 本来のuint64 の精度で計算できる
         //
         // UINT64_MAX / 10,000,000 / (60 * 60 * 24) * 365.25 = 58,454年
-        //===========================================================
+        //==============================================================
 
         uint64 tick;
         ::QueryPerformanceCounter((LARGE_INTEGER*)&tick);

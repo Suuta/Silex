@@ -34,9 +34,6 @@
 
 namespace Silex
 {
-    // テスト: Material ディレクトリをルートとして扱う
-    //static const char* s_MaterialDirectoryPath = "Materials/";
-
     //=============================
     // AssetBrowserItem
     //=============================
@@ -53,8 +50,9 @@ namespace Silex
 
         ImGui::PushStyleColor(ImGuiCol_Button,        color);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color);
+        ImGui::PushStyleColor(ImGuiCol_ButtonActive,  color);
         ImGui::ImageButton(ImTextureID(m_Icon ? m_Icon->GetID() : 0), { size.x - 10.0f, size.y - 10.0f }, { 0, 0 }, { 1, 1 }, 2);
-        ImGui::PopStyleColor(2);
+        ImGui::PopStyleColor(3);
 
         // 左クリック（選択）
         if (ImGui::IsItemHovered())

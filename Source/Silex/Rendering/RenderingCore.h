@@ -12,23 +12,23 @@ namespace Silex
 
 	using QueueFamily  = uint32;
 
-	using Surface      = Handle;
-	using CommandQueue = Handle;
-	using CommandPool  = Handle;
+	using Surface       = Handle;
+	using CommandQueue  = Handle;
+	using CommandPool   = Handle;
+	using CommandBuffer = Handle;
+	using Fence         = Handle;
+	using Semaphore     = Handle;
+	using SwapChain     = Handle;
 
 	using BufferHandle             = Handle;
 	using TextureHandle            = Handle;
 	using SamplerHandle            = Handle;
 	using VertexFormatHandle       = Handle;
-	using CommandBufferHandle      = Handle;
-	using SwapChainHandle          = Handle;
 	using FramebufferHandle        = Handle;
 	using ShaderHandle             = Handle;
 	using UniformSetHandle         = Handle;
 	using PipelineHandle           = Handle;
 	using RenderPassHandle         = Handle;
-	using FenceHandle              = Handle;
-	using SemaphoreHandle          = Handle;
 
 	// コマンドバッファタイプ
 	enum CommandBufferType

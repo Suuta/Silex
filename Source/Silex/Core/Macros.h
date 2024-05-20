@@ -14,7 +14,7 @@
 //============================================
 // 新レンダラー実装コード 部分有効化
 //============================================
-#define NEW_RENDERER_IMPL 1
+#define NEW_RENDERER 1
 //============================================
 
 
@@ -95,14 +95,6 @@ inline void* operator new  (size_t, void* where, SLEmpty) noexcept { return wher
 inline void* operator new[](size_t, void* where, SLEmpty) noexcept { return where; }
 inline void  operator delete  (void*, void*, SLEmpty) noexcept { return; }
 inline void  operator delete[](void*, void*, SLEmpty) noexcept { return; }
-
-
-//=============================================
-// stb_image.h 利用のためのマクロ
-//=============================================
-#ifndef STB_IMAGE_IMPLEMENTATION
-#define STB_IMAGE_IMPLEMENTATION
-#endif
 
 
 #define FOR(num) for(uint64 i = 0; i < num; i++)

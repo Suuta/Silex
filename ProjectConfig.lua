@@ -94,6 +94,9 @@ project "Silex"
 
         -- ImGuizmo
         "Source/External/ImGuizmo/ImGuizmo.cpp",
+        
+        -- Vulkan Memory Allocator
+        "Source/External/vulkan/vk_mem_alloc.cpp"
     }
 
     includedirs
@@ -102,8 +105,7 @@ project "Silex"
         "Source/%{prj.name}/Core/PCH",
         "Resources",
         "Source/External",
-        "Source/External/Vulkan/include",
-        "Source/External/VulkanMemoryAllocator",
+        "Source/External/vulkan/include",
         "Source/External/yaml-cpp/include",
         "Source/External/glad/include",
         "Source/External/glfw/include",
@@ -120,7 +122,6 @@ project "Silex"
     defines
     {
         "YAML_CPP_STATIC_DEFINE",
-        "STB_IMAGE_IMPLEMENTATION",
     }
 
     buildoptions
@@ -154,9 +155,10 @@ project "Silex"
     ----------------------------------------------------
     filter "files:Source/External/yaml-cpp/src/**.cpp" flags { "NoPCH" }
     filter "files:Source/External/imgui/**.cpp"        flags { "NoPCH" }
-    filter "files:Source/External/ImGuizmo/**.cpp"     flags { "NoPCH" }
-    filter "files:Source/External/GLFW/src/**.c"       flags { "NoPCH" }
+    filter "files:Source/External/imguizmo/**.cpp"     flags { "NoPCH" }
+    filter "files:Source/External/glfw/src/**.c"       flags { "NoPCH" }
     filter "files:Source/External/glad/src/**.c"       flags { "NoPCH" }
+    filter "files:Source/External/vulkan/**.cpp"       flags { "NoPCH" }
 
     -- Windows
     ----------------------------------------------------

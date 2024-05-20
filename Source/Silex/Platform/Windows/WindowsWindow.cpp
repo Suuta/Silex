@@ -90,9 +90,8 @@ namespace Silex
 
     WindowsWindow::~WindowsWindow()
     {
-#if NEW_RENDERER_IMPL
+#if NEW_RENDERER
         Memory::Deallocate(renderingDevice);
-
         renderingContext->DestroySurface(renderingSurface);
         Memory::Deallocate(renderingContext);
 #endif
@@ -106,11 +105,6 @@ namespace Silex
     {
         // レンダリングコンテキスト生成
         renderingContext = RenderingContext::Create();
-        if (!renderingContext)
-        {
-            SL_LOG_ERROR("fail to create RenderingContext");
-            return false;
-        }
 
         if (!renderingContext->Initialize(true))
         {
@@ -131,11 +125,6 @@ namespace Silex
 
         // レンダリングデバイス生成
         renderingDevice = Memory::Allocate<RenderingDevice>();
-        if (!renderingDevice)
-        {
-            SL_LOG_ERROR("fail to allocate RenderingDevice");
-            return false;
-        }
 
         if (!renderingDevice->Initialize(renderingContext))
         {
