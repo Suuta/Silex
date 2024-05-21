@@ -347,9 +347,3 @@ AssetDatabase:
   - id: 6860333394593523657
     type: 0
     path: Assets/Shaders/Sky.glsl
-  - id: 8949331306909795244
-    type: 0
-    path: Assets/Textures/HDR/gimp/sky-night.xcf
-  - id: 7413616997703215225
-    type: 0
-    path: Assets/Textures/HDR/gimp/sky.xcf

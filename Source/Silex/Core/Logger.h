@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Core/CoreType.h"
-#include "Core/Assert.h"
 #include <format>
 #include <string>
 
@@ -45,4 +44,4 @@ namespace Silex
 #define SL_LOG_TRACE(...) Silex::Logger::Log(Silex::LogLevel::Trace,   std::format(__VA_ARGS__))
 #define SL_LOG_DEBUG(...) Silex::Logger::Log(Silex::LogLevel::Debug,   std::format(__VA_ARGS__))
 
-#define SL_LOG(level, ...) { Silex::Logger::Log(level, std::format(__VA_ARGS__)); }
+#define SL_LOG(level, ...) Silex::Logger::Log(level, std::format(__VA_ARGS__));

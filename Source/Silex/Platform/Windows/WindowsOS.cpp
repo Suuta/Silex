@@ -237,6 +237,11 @@ namespace Silex
         ::OutputDebugStringW(ToUTF16(message).c_str());
     }
 
+    int32 WindowsOS::Alert(const std::wstring& message)
+    {
+        return MessageBoxW(NULL, message.c_str(), L"Error", MB_OK | MB_ICONERROR);
+    }
+
     // Windows 11 以降　ウィンドウ角丸のスタイルの設定
     HRESULT WindowsOS::TrySetWindowCornerStyle(HWND hWnd, bool tryRound)
     {

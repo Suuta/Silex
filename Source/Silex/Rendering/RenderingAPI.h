@@ -35,11 +35,9 @@ namespace Silex
         virtual bool EndCommandBuffer(CommandBuffer* commandBuffer) = 0;
 
         // セマフォ
-#ifdef CreateSemaphore
-#undef CreateSemaphore
         virtual Semaphore* CreateSemaphore() = 0;
         virtual void DestroySemaphore(Semaphore* semaphore) = 0;
-#endif
+
         // フェンス
         virtual Fence* CreateFence() = 0;
         virtual void DestroyFence(Fence* fence) = 0;

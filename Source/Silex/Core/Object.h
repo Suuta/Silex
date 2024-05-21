@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Core/OS.h"
 #include "Core/Logger.h"
 #include "Core/TypeInfo.h"
 #include <atomic>

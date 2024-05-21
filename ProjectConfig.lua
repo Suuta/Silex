@@ -93,10 +93,10 @@ project "Silex"
         "Source/External/imgui/backends/imgui_impl_vulkan.cpp",
 
         -- ImGuizmo
-        "Source/External/_imguizmo/ImGuizmo.cpp",
+        "Source/External/imguizmo/ImGuizmo.cpp",
         
         -- Vulkan Memory Allocator
-        "Source/External/vulkanSDK/vk_mem_alloc.cpp"
+        "Source/External/vulkan/vk_mem_alloc.cpp"
     }
 
     includedirs
@@ -105,7 +105,7 @@ project "Silex"
         "Source/%{prj.name}/Core/PCH",
         "Resources",
         "Source/External",
-        "Source/External/vulkanSDK/include",
+        "Source/External/vulkan/include",
         "Source/External/yaml-cpp/include",
         "Source/External/glad/include",
         "Source/External/glfw/include",
@@ -116,7 +116,7 @@ project "Silex"
 
     links
     {
-        "Source/External/VulkanSDK/Lib/Vulkan-1.lib",
+        "Source/External/vulkan/Lib/vulkan-1.lib",
     }
 
     defines
@@ -155,10 +155,10 @@ project "Silex"
     ----------------------------------------------------
     filter "files:Source/External/yaml-cpp/src/**.cpp" flags { "NoPCH" }
     filter "files:Source/External/imgui/**.cpp"        flags { "NoPCH" }
-    filter "files:Source/External/_imguizmo/**.cpp"    flags { "NoPCH" }
+    filter "files:Source/External/imguizmo/**.cpp"     flags { "NoPCH" }
     filter "files:Source/External/glfw/src/**.c"       flags { "NoPCH" }
     filter "files:Source/External/glad/src/**.c"       flags { "NoPCH" }
-    filter "files:Source/External/vulkanSDK/**.cpp"    flags { "NoPCH" }
+    filter "files:Source/External/vulkan/**.cpp"       flags { "NoPCH" }
 
     -- Windows
     ----------------------------------------------------

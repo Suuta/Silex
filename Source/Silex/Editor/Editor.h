@@ -11,7 +11,7 @@
 #include "Editor/AssetBrowserPanel.h"
 
 #include <imgui/imgui.h>
-#include <_imguizmo/ImGuizmo.h>
+#include <imguizmo/ImGuizmo.h>
 
 
 struct GLFWwindow;

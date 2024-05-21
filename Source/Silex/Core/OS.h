@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Core/Core.h"
+#include "Core/CoreType.h"
 
 
 namespace Silex
@@ -26,6 +26,7 @@ namespace Silex
 
         virtual void Initialize() = 0;
         virtual void Finalize()   = 0;
+        virtual void Run()        = 0;
 
         // 時間
         virtual uint64 GetTickSeconds()       = 0;
@@ -40,10 +41,14 @@ namespace Silex
         virtual void OutputConsole(uint8 color, const std::string& message) = 0;
         virtual void OutputDebugConsole(const std::string& message)         = 0;
 
-        virtual void Run() = 0;
+        // メッセージ
+        virtual int32 Alert(const std::wstring& message) = 0;
 
     protected:
 
         static inline OS* instance;
     };
 }
+
+
+#define SL_ALERT(...) Silex::OS::Get()->Alert(std::format(__VA_ARGS__));

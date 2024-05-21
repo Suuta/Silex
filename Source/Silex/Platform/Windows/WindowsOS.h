@@ -15,6 +15,9 @@ namespace Silex
 
         void Initialize() override;
         void Finalize()   override;
+        void Run()        override;
+
+    public:
 
         uint64 GetTickSeconds()       override;
         void   Sleep(uint32 millisec) override;
@@ -26,7 +29,7 @@ namespace Silex
         void OutputConsole(uint8 color, const std::string& message) override;
         void OutputDebugConsole(const std::string& message)         override;
 
-        void Run() override;
+        int32 Alert(const std::wstring& message) override;
 
     private:
 
