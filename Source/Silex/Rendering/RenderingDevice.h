@@ -23,6 +23,7 @@ namespace Silex
 
     private:
 
+        // フレームデータ
         struct FrameData
         {
             CommandPool*   commandPool   = nullptr;
@@ -34,8 +35,6 @@ namespace Silex
         std::vector<FrameData> frameData  = {};
         uint64                 frameIndex = 0;
 
-        SwapChain* swapchain = nullptr;
-
     private:
 
         RenderingContext* renderingContext = nullptr;
@@ -43,6 +42,8 @@ namespace Silex
 
         QueueFamily   graphicsQueueFamily = INVALID_RENDER_ID;
         CommandQueue* graphicsQueue       = nullptr;
+
+        SwapChain* swapchain = nullptr;
 
     private:
 

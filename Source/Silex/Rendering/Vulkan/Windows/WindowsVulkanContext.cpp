@@ -20,21 +20,28 @@ namespace Silex
         createInfo.hinstance = data->instance;
         createInfo.hwnd      = data->window;
 
-        VulkanSurface* surface = Memory::Allocate<VulkanSurface>();
-        VkResult res = vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &surface->surface);
+        VkSurfaceKHR vkSurface = nullptr;
+        VkResult res = vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &vkSurface);
         if (res != VK_SUCCESS)
         {
             SL_LOG_ERROR("vkCreateWin32SurfaceKHR: {}", VkResultToString(res));
+            return nullptr;
         }
+
+        VulkanSurface* surface = Memory::Allocate<VulkanSurface>();
+        surface->surface = vkSurface;
 
         return surface;
     }
 
     void WindowsVulkanContext::DestroySurface(Surface* surface)
     {
-        VulkanSurface* vkSurface = (VulkanSurface*)surface;
-        vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
+        if (surface)
+        {
+            VulkanSurface* vkSurface = (VulkanSurface*)surface;
+            vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
 
-        Memory::Deallocate(vkSurface);
+            Memory::Deallocate(vkSurface);
+        }
     }
 }

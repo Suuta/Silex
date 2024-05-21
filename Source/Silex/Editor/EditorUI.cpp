@@ -5,7 +5,7 @@
 
 #include <glfw/glfw3.h>
 #include <imgui/imgui.h>
-#include <ImGuizmo/ImGuizmo.h>
+#include <_imguizmo/ImGuizmo.h>
 
 
 namespace Silex

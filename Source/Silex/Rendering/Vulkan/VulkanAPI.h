@@ -4,7 +4,7 @@
 #include "Rendering/RenderingAPI.h"
 
 #include <vulkan/vulkan.h>
-#include <vulkan/vk_mem_alloc.h>
+#include <vulkanSDK/vk_mem_alloc.h>
 
 
 namespace Silex

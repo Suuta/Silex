@@ -105,7 +105,6 @@ namespace Silex
     {
         // レンダリングコンテキスト生成
         renderingContext = RenderingContext::Create();
-
         if (!renderingContext->Initialize(true))
         {
             SL_LOG_ERROR("fail to initialize RenderingContext");
@@ -115,7 +114,8 @@ namespace Silex
         // サーフェース生成
         WindowsVulkanSurfaceData surfaceData;
         surfaceData.instance = instanceHandle;
-        surfaceData.window = windowHandle;
+        surfaceData.window   = windowHandle;
+
         renderingSurface = renderingContext->CreateSurface(&surfaceData);
         if (!renderingSurface)
         {
@@ -125,7 +125,6 @@ namespace Silex
 
         // レンダリングデバイス生成
         renderingDevice = Memory::Allocate<RenderingDevice>();
-
         if (!renderingDevice->Initialize(renderingContext))
         {
             SL_LOG_ERROR("fail to initialize RenderingDevice");

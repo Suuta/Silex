@@ -36,12 +36,6 @@ namespace Silex
 
         // レンダーAPI実装クラスを生成
         renderingAPI = renderingContext->CreateRendringAPI();
-        if (!renderingAPI)
-        {
-            SL_LOG_ERROR("renderingAPI is null");
-            return false;
-        }
-
         if (!renderingAPI->Initialize())
         {
             SL_LOG_ERROR("fail to initialize renderAPI");
@@ -50,24 +44,20 @@ namespace Silex
        
         // グラフィックスとコンピュートをサポートするキューファミリを取得
         uint32 supportQueue = QUEUE_FAMILY_GRAPHICS_BIT | QUEUE_FAMILY_COMPUTE_BIT;
-        QueueFamily family = renderingAPI->QueryQueueFamily(supportQueue, Window::Get()->GetSurface());
-        if (family == INVALID_RENDER_ID)
+        graphicsQueueFamily = renderingAPI->QueryQueueFamily(supportQueue, Window::Get()->GetSurface());
+        if (graphicsQueueFamily == INVALID_RENDER_ID)
         {
             SL_LOG_ERROR("GetQueueFamily return INVALID_RENDER_ID");
             return false;
         }
 
-        graphicsQueueFamily = family;
-
         // コマンドキュー生成
-        CommandQueue* queue = renderingAPI->CreateCommandQueue(graphicsQueueFamily);
-        if (!queue)
+        graphicsQueue = renderingAPI->CreateCommandQueue(graphicsQueueFamily);
+        if (!graphicsQueue)
         {
             SL_LOG_ERROR("queue is null");
             return false;
         }
-
-        graphicsQueue = queue;
 
         // フレームデータ生成
         frameData.resize(2);
