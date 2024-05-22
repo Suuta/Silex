@@ -5,6 +5,13 @@
 
 namespace Silex
 {
+    enum OSMessageType
+    {
+        OS_MESSEGA_TYPE_INFO,
+        OS_MESSEGA_TYPE_ALERT,
+    };
+
+
     class OS
     {
     public:
@@ -42,13 +49,10 @@ namespace Silex
         virtual void OutputDebugConsole(const std::string& message)         = 0;
 
         // メッセージ
-        virtual int32 Alert(const std::wstring& message) = 0;
+        virtual int32 Message(OSMessageType type, const std::wstring& message) = 0;
 
     protected:
 
         static inline OS* instance;
     };
 }
-
-
-#define SL_ALERT(...) Silex::OS::Get()->Alert(std::format(__VA_ARGS__));

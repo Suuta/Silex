@@ -246,6 +246,7 @@ namespace Silex
         VkSemaphore vkSemaphore = nullptr;
         VkSemaphoreCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        createInfo.pNext = nullptr;
 
         VkResult result = vkCreateSemaphore(device, &createInfo, nullptr, &vkSemaphore);
         if (result != VK_SUCCESS)

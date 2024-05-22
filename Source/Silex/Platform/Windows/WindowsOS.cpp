@@ -88,8 +88,9 @@ namespace Silex
     void WindowsOS::Initialize()
     {
 #if SL_DEBUG
+
         // メモリリークトラッカ有効化
-        SL_TRACK_CRT_MEMORY_LEAK();
+        _CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
 
         // コンソールのエンコードを UTF8 にする
         defaultConsoleCP = GetConsoleOutputCP();
@@ -97,6 +98,7 @@ namespace Silex
 
         // コンソールの標準入出力ハンドル取得
         outputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+
 #endif
         // Assimp DLL ロード
         assimpDLL = LoadLibraryW(ASSIMP_DLL_NAME);
@@ -109,7 +111,9 @@ namespace Silex
         ::QueryPerformanceFrequency((LARGE_INTEGER*)&tickPerSecond);
         ::QueryPerformanceCounter((LARGE_INTEGER*)&startTickCount);
 
-        // glfw 初期化
+        //========================================================
+        // glfw初期化  ※実装内容確定後、WinAPI に置き換え
+        //========================================================
         ::glfwInit();
 
         // 各プラットフォーム生成関数を登録
@@ -237,9 +241,10 @@ namespace Silex
         ::OutputDebugStringW(ToUTF16(message).c_str());
     }
 
-    int32 WindowsOS::Alert(const std::wstring& message)
+    int32 WindowsOS::Message(OSMessageType type, const std::wstring& message)
     {
-        return MessageBoxW(NULL, message.c_str(), L"Error", MB_OK | MB_ICONERROR);
+        uint32 messageType = type == OS_MESSEGA_TYPE_ALERT ? MB_OK | MB_ICONERROR : MB_OK | MB_ICONINFORMATION;
+        return MessageBoxW(NULL, message.c_str(), L"Error", messageType);
     }
 
     // Windows 11 以降　ウィンドウ角丸のスタイルの設定

@@ -12,7 +12,7 @@ namespace Silex
     {
         Fatal,
         Error,
-        Warning,
+        Warn,
         Info,
         Trace,
         Debug,
@@ -35,13 +35,3 @@ namespace Silex
         static inline LogLevel logFilter = LogLevel::Debug;
     };
 }
-
-
-#define SL_LOG_FATAL(...) Silex::Logger::Log(Silex::LogLevel::Fatal,   std::format(__VA_ARGS__))
-#define SL_LOG_ERROR(...) Silex::Logger::Log(Silex::LogLevel::Error,   std::format(__VA_ARGS__))
-#define SL_LOG_WARN(...)  Silex::Logger::Log(Silex::LogLevel::Warning, std::format(__VA_ARGS__))
-#define SL_LOG_INFO(...)  Silex::Logger::Log(Silex::LogLevel::Info,    std::format(__VA_ARGS__))
-#define SL_LOG_TRACE(...) Silex::Logger::Log(Silex::LogLevel::Trace,   std::format(__VA_ARGS__))
-#define SL_LOG_DEBUG(...) Silex::Logger::Log(Silex::LogLevel::Debug,   std::format(__VA_ARGS__))
-
-#define SL_LOG(level, ...) Silex::Logger::Log(level, std::format(__VA_ARGS__));

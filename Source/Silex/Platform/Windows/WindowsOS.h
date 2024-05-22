@@ -29,7 +29,7 @@ namespace Silex
         void OutputConsole(uint8 color, const std::string& message) override;
         void OutputDebugConsole(const std::string& message)         override;
 
-        int32 Alert(const std::wstring& message) override;
+        int32 Message(OSMessageType type, const std::wstring& message) override;
 
     private:
 

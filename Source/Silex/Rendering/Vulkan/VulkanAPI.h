@@ -82,18 +82,6 @@ namespace Silex
         void DestroyFence(Fence* fence) override;
         bool WaitFence(Fence* fence) override;
 
-
-    private:
-
-        //struct Functions
-        //{
-        //    PFN_vkCreateSwapchainKHR    CreateSwapchainKHR    = nullptr;
-        //    PFN_vkDestroySwapchainKHR   DestroySwapchainKHR   = nullptr;
-        //    PFN_vkGetSwapchainImagesKHR GetSwapchainImagesKHR = nullptr;
-        //    PFN_vkAcquireNextImageKHR   AcquireNextImageKHR   = nullptr;
-        //    PFN_vkQueuePresentKHR       QueuePresentKHR       = nullptr;
-        //};
-
     private:
 
         VulkanContext* context = nullptr;
@@ -101,5 +89,37 @@ namespace Silex
 
         VmaAllocator allocator = nullptr;
     };
+
+
+    // VkInstance
+    // VkPhysicalDevice
+    // VkDevice
+
+    // VkQueue
+    // VkCommandPool
+    // VkCommandBuffer
+    // VkSemaphore
+    // VkFence
+
+    // VkBuffer
+    // VkImage
+    // VkBufferView
+    // VkImageView
+    // VkSampler
+
+    // VkFramebuffer
+    // VkRenderPass
+
+    // VkShaderModule
+    // VkPipelineCache
+    // VkPipelineLayout
+    // VkPipeline
+    // VkDescriptorSetLayout
+    // VkDescriptorSet
+    // VkDescriptorPool
+
+    // VkDeviceMemory
+    // VkEvent
+    // VkQueryPool
 }
 

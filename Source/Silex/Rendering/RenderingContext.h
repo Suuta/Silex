@@ -17,11 +17,13 @@ namespace Silex
 
 	public:
 
+		// コンテキスト生成
 		static RenderingContext* Create()
 		{
 			return createFunction();
 		}
 
+		// コンテキスト生成用関数の登録
 		static void ResisterCreateFunction(RenderingContextCreateFunction func)
 		{
 			createFunction = func;
@@ -29,6 +31,7 @@ namespace Silex
 
 	public:
 
+		// 初期化
 		virtual bool Initialize(bool enableValidation) = 0;
 
 		// API実装
@@ -47,6 +50,7 @@ namespace Silex
 
 	private:
 
+		// コンテキスト生成関数ポインタ
 		static inline RenderingContextCreateFunction createFunction;
     };
 }

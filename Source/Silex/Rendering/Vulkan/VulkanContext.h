@@ -11,12 +11,10 @@ namespace Silex
 #define GET_VULKAN_INSTANCE_PROC(instance, func) (PFN_##func)vkGetInstanceProcAddr(instance, #func);
 #define GET_VULKAN_DEVICE_PROC(device, func)     (PFN_##func)vkGetDeviceProcAddr(device, #func);
 
-
 	//=============================================
 	// Vulkan ユーティリティ 関数
 	//=============================================
 	const char* VkResultToString(VkResult result);
-
 
 	//=============================================
 	// Vulkan 構造体
@@ -25,7 +23,6 @@ namespace Silex
 	{
 		VkSurfaceKHR surface = nullptr;
 	};
-
 
 	//=============================================
 	// Vulkan コンテキスト
@@ -39,17 +36,28 @@ namespace Silex
 		VulkanContext();
 		~VulkanContext();
 
+		// 各プラットフォームの Vulkanサーフェース 拡張機能名を取得
+		virtual const char* GetPlatformSurfaceExtensionName() = 0;
+
+	public:
+
+		// 初期化
 		bool Initialize(bool enableValidation) override;
 
+		// API実装
 		RenderingAPI* CreateRendringAPI() override;
 		void DestroyRendringAPI(RenderingAPI* api) override;
 
+		// プレゼント命令のサポート
 		bool DeviceCanPresent(Surface* surface) const override;
+
+		// デバイス情報
 		const DeviceInfo& GetDeviceInfo() const override;
 
 	public:
 
 		bool QueueHasPresent(Surface* surface, uint32 queueIndex) const;
+
 		const std::vector<VkQueueFamilyProperties>& GetQueueFamilyProperties() const;
 		const std::vector<const char*>& GetEnabledInstanceExtensions() const;
 		const std::vector<const char*>& GetEnabledDeviceExtensions() const;
@@ -58,12 +66,9 @@ namespace Silex
 		VkPhysicalDevice GetPhysicalDevice() const;
 		VkInstance GetInstance() const;
 
-	public:
-
-		virtual const char* GetPlatformSurfaceExtensionName() = 0;
-
 	protected:
 
+		// デバイス情報
 		DeviceInfo deviceInfo;
 
 		// インスタンス

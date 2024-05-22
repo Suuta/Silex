@@ -100,16 +100,13 @@ namespace Silex
         glfwDestroyWindow(window);
     }
 
-
     bool WindowsWindow::SetupRenderingContext()
     {
         // レンダリングコンテキスト生成
         renderingContext = RenderingContext::Create();
-        if (!renderingContext->Initialize(true))
-        {
-            SL_LOG_ERROR("fail to initialize RenderingContext");
-            return false;
-        }
+        
+        bool result = renderingContext->Initialize(true);
+        SL_CHECK_RETURN(!result, false);
 
         // サーフェース生成
         WindowsVulkanSurfaceData surfaceData;
@@ -117,19 +114,12 @@ namespace Silex
         surfaceData.window   = windowHandle;
 
         renderingSurface = renderingContext->CreateSurface(&surfaceData);
-        if (!renderingSurface)
-        {
-            SL_LOG_ERROR("fail to CreateSurface");
-            return false;
-        }
+        SL_CHECK_RETURN(!renderingSurface, false);
 
         // レンダリングデバイス生成
         renderingDevice = Memory::Allocate<RenderingDevice>();
-        if (!renderingDevice->Initialize(renderingContext))
-        {
-            SL_LOG_ERROR("fail to initialize RenderingDevice");
-            return false;
-        }
+        result = renderingDevice->Initialize(renderingContext);
+        SL_CHECK_RETURN(!result, false);
 
         return true;
     }

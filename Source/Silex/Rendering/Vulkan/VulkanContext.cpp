@@ -208,7 +208,7 @@ namespace Silex
         vkCreateDebugUtilsMessengerEXT_PFN  = GET_VULKAN_INSTANCE_PROC(instance, vkCreateDebugUtilsMessengerEXT);
         vkDestroyDebugUtilsMessengerEXT_PFN = GET_VULKAN_INSTANCE_PROC(instance, vkDestroyDebugUtilsMessengerEXT);
 
-        if (!vkCreateDebugUtilsMessengerEXT_PFN or !vkDestroyDebugUtilsMessengerEXT_PFN)
+        if (!vkCreateDebugUtilsMessengerEXT_PFN || !vkDestroyDebugUtilsMessengerEXT_PFN)
         {
             SL_LOG_ERROR("DebugUtilsMessengerEXT 関数が null です");
             return false;

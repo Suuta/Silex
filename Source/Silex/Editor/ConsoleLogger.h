@@ -58,12 +58,12 @@ namespace Silex
                 
                 switch(entry.Level)
                 {
-                    case LogLevel::Fatal   : color = ImVec4(0.8f, 0.0f, 0.8f, 1.0f); break;
-                    case LogLevel::Error   : color = ImVec4(0.8f, 0.2f, 0.2f, 1.0f); break;
-                    case LogLevel::Warning : color = ImVec4(0.8f, 0.6f, 0.0f, 1.0f); break;
-                    case LogLevel::Info    : color = ImVec4(0.0f, 0.6f, 0.0f, 1.0f); break;
-                    case LogLevel::Trace   : color = ImVec4(0.5f, 0.5f, 0.5f, 1.0f); break;
-                    case LogLevel::Debug   : color = ImVec4(0.0f, 0.5f, 0.8f, 1.0f); break;
+                    case LogLevel::Fatal : color = ImVec4(0.8f, 0.0f, 0.8f, 1.0f); break;
+                    case LogLevel::Error : color = ImVec4(0.8f, 0.2f, 0.2f, 1.0f); break;
+                    case LogLevel::Warn  : color = ImVec4(0.8f, 0.6f, 0.0f, 1.0f); break;
+                    case LogLevel::Info  : color = ImVec4(0.0f, 0.6f, 0.0f, 1.0f); break;
+                    case LogLevel::Trace : color = ImVec4(0.5f, 0.5f, 0.5f, 1.0f); break;
+                    case LogLevel::Debug : color = ImVec4(0.0f, 0.5f, 0.8f, 1.0f); break;
                 
                     default: color = ImVec4(1, 1, 1, 1); break;
                 }
