@@ -9,6 +9,9 @@ namespace Silex
     class RenderingAPI;
     class RenderingContext;
 
+    // TODO: エディターの設定項目として扱える形にする
+    const uint32 swapchainBufferCount = 3;
+
 
     class RenderingDevice : public Object
     {
@@ -20,6 +23,7 @@ namespace Silex
         ~RenderingDevice();
 
         bool Initialize(RenderingContext* context);
+        bool CreateSwapChain();
 
     private:
 
@@ -38,7 +42,7 @@ namespace Silex
     private:
 
         RenderingContext* renderingContext = nullptr;
-        RenderingAPI*     renderingAPI     = nullptr;
+        RenderingAPI*     api     = nullptr;
 
         QueueFamily   graphicsQueueFamily = INVALID_RENDER_ID;
         CommandQueue* graphicsQueue       = nullptr;

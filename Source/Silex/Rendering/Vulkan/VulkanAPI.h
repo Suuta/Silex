@@ -9,7 +9,8 @@
 
 namespace Silex
 {
-    class VulkanContext;
+    class  VulkanContext;
+    struct VulkanSurface;
 
     //=============================================
     // Vulkan 構造体
@@ -39,10 +40,38 @@ namespace Silex
 
     struct VulkanFence : public Fence
     {
-        VkFence             fence         = nullptr;
-        VulkanCommandQueue* queueSignaled = nullptr;
+        VkFence fence = nullptr;
     };
 
+    struct VulkanRenderPass : public RenderPass
+    {
+        VkRenderPass renderpass = nullptr;
+    };
+
+    struct VulkanSwapChain : public SwapChain
+    {
+        VulkanSurface* surface = nullptr;
+
+        VkSwapchainKHR  swapchain  = nullptr;
+        VkFormat        format     = VK_FORMAT_UNDEFINED;
+        VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+
+        VkRenderPass               renderpass = nullptr;
+        std::vector<VkFramebuffer> framebuffers;
+        std::vector<VkImage>       images;
+        std::vector<VkImageView>   views;
+    };
+
+    // デバイス拡張機能関数
+    struct DeviceExtensionFunctions
+    {
+        PFN_vkCreateSwapchainKHR    vkCreateSwapchainKHR    = nullptr;
+        PFN_vkDestroySwapchainKHR   vkDestroySwapchainKHR   = nullptr;
+        PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR = nullptr;
+        PFN_vkAcquireNextImageKHR   vkAcquireNextImageKHR   = nullptr;
+        PFN_vkQueuePresentKHR       vkQueuePresentKHR       = nullptr;
+        PFN_vkCreateRenderPass2KHR  vkCreateRenderPass2KHR  = nullptr;
+    };
 
     //=============================================
     // Vulkan API 実装
@@ -82,7 +111,13 @@ namespace Silex
         void DestroyFence(Fence* fence) override;
         bool WaitFence(Fence* fence) override;
 
+        // スワップチェイン
+        SwapChain* CreateSwapChain(Surface* surface) override;
+        bool ResizeSwapChain(SwapChain* swapchain, uint32 requestFramebufferCount) override;
+
     private:
+
+        DeviceExtensionFunctions extensions;
 
         VulkanContext* context = nullptr;
         VkDevice       device  = nullptr;

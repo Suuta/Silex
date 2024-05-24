@@ -6,6 +6,13 @@
 
 namespace Silex
 {
+    struct WindowsWindowHandle
+    {
+        HWND      windowHandle = nullptr;
+        HINSTANCE instanceHandle = nullptr;
+    };
+
+
     class WindowsWindow : public Window
     {
         SL_CLASS(WindowsWindow, Window)
@@ -44,12 +51,10 @@ namespace Silex
         Surface*          renderingSurface = nullptr;
 
         // ウィンドウデータ
-        WindowData  windowData;
         GLFWwindow* window;
 
         // Windows 固有ハンドル
-        HWND      windowHandle   = nullptr;
-        HINSTANCE instanceHandle = nullptr;
+        WindowsWindowHandle handle;
     };
 }
 

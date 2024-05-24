@@ -401,17 +401,17 @@ namespace Silex
             s_TextRects[SplashTextType::AppName].left          = 100;
             s_TextRects[SplashTextType::AppName].right         = bm.bmWidth - 20;
 
-            // バージョン情報
-            s_TextRects[SplashTextType::VersionInfo].top       = bm.bmHeight - 50;
-            s_TextRects[SplashTextType::VersionInfo].bottom    = bm.bmHeight - 30;
-            s_TextRects[SplashTextType::VersionInfo].left      = 100;
-            s_TextRects[SplashTextType::VersionInfo].right     = bm.bmWidth - 20;
-
             // プログレステキスト
             s_TextRects[SplashTextType::StartupProgress].top    = bm.bmHeight - 30;
             s_TextRects[SplashTextType::StartupProgress].bottom = bm.bmHeight - 10;
             s_TextRects[SplashTextType::StartupProgress].left   = 100;
             s_TextRects[SplashTextType::StartupProgress].right  = bm.bmWidth - 20;
+
+            // バージョン情報
+            s_TextRects[SplashTextType::VersionInfo].top       = bm.bmHeight - 50;
+            s_TextRects[SplashTextType::VersionInfo].bottom    = bm.bmHeight - 30;
+            s_TextRects[SplashTextType::VersionInfo].left      = 100;
+            s_TextRects[SplashTextType::VersionInfo].right     = bm.bmWidth - 20;
 
             // コピーライト表示
             s_TextRects[SplashTextType::CopyrightInfo].top      = bm.bmHeight - 25;
@@ -478,10 +478,9 @@ namespace Silex
         s_AllowFading = bFading;
         s_AppName     = TEXT("Silex");
 
-        StartSetSplashText(SplashTextType::StartupProgress, L"Initialize Renderer...");
         StartSetSplashText(SplashTextType::AppName,         L"Silex");
         StartSetSplashText(SplashTextType::VersionInfo,     L"1.0");
-        StartSetSplashText(SplashTextType::CopyrightInfo,   L"@ Sugiyama Shota");
+        StartSetSplashText(SplashTextType::StartupProgress, L"Initialize Renderer...");
 
 #if 1
         s_GuardWnd = CreateWindowExA(

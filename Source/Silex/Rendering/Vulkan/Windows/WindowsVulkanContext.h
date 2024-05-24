@@ -6,26 +6,23 @@
 
 namespace Silex
 {
-    // Windows vkSurface に必要な情報
-    struct WindowsVulkanSurfaceData
-    {
-        HINSTANCE instance;
-        HWND      window;
-    };
-
-
     class WindowsVulkanContext final : public VulkanContext
     {
         SL_CLASS(WindowsVulkanContext, VulkanContext)
 
     public:
 
-        WindowsVulkanContext()  {}
-        ~WindowsVulkanContext() {}
+        WindowsVulkanContext(void* platformHandle);
+        ~WindowsVulkanContext();
 
         // サーフェース
         const char* GetPlatformSurfaceExtensionName() override final;
-        Surface*    CreateSurface(void* platformData) override final;
+        Surface*    CreateSurface()                   override final;
         void        DestroySurface(Surface* surface)  override final;
+
+    private:
+
+        HINSTANCE instanceHandle;
+        HWND      windowHandle;
     };
 }

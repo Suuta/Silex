@@ -198,29 +198,17 @@ namespace Silex
         instanceInfo.pNext                   = &debugMessengerInfo;
 
         result = vkCreateInstance(&instanceInfo, nullptr, &instance);
-        if (result != VK_SUCCESS)
-        {
-            SL_LOG_ERROR("vkCreateInstance: {}", VkResultToString(result));
-            return false;
-        }
+        SL_CHECK_VKRESULT(result, false);
 
         // デバッグメッセンジャーの関数ポインタを取得
         vkCreateDebugUtilsMessengerEXT_PFN  = GET_VULKAN_INSTANCE_PROC(instance, vkCreateDebugUtilsMessengerEXT);
         vkDestroyDebugUtilsMessengerEXT_PFN = GET_VULKAN_INSTANCE_PROC(instance, vkDestroyDebugUtilsMessengerEXT);
-
-        if (!vkCreateDebugUtilsMessengerEXT_PFN || !vkDestroyDebugUtilsMessengerEXT_PFN)
-        {
-            SL_LOG_ERROR("DebugUtilsMessengerEXT 関数が null です");
-            return false;
-        }
+        SL_CHECK(!vkCreateDebugUtilsMessengerEXT_PFN, false);
+        SL_CHECK(!vkDestroyDebugUtilsMessengerEXT_PFN, false);
 
         // デバッグメッセンジャー生成
         result = vkCreateDebugUtilsMessengerEXT_PFN(instance, &debugMessengerInfo, nullptr, &debugMessenger);
-        if (result != VK_SUCCESS)
-        {
-            SL_LOG_ERROR("vkCreateDebugUtilsMessengerEXT: {}", VkResultToString(result));
-            return false;
-        }
+        SL_CHECK_VKRESULT(result, false);
 
         // 物理デバイスの列挙
         uint32 physicalDeviceCount = 0;
@@ -263,9 +251,9 @@ namespace Silex
         queueFamilyProperties.resize(queueFamilyPropertiesCount);
         vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyPropertiesCount, queueFamilyProperties.data());
 
-
         // 要求デバイス拡張
         requestDeviceExtensions.insert(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        requestDeviceExtensions.insert(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
 
         // デバイス拡張機能のクエリ
         uint32 deviceExtensionCount = 0;
@@ -307,10 +295,7 @@ namespace Silex
         {
             VkBool32 supported = false;
             VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, vkSurface, &supported);
-            if (result != VK_SUCCESS)
-            {
-                SL_LOG_ERROR("vkGetPhysicalDeviceSurfaceSupportKHR: {}", VkResultToString(result));
-            }
+            SL_CHECK_VKRESULT(result, false);
 
             if (supported)
                 return true;
@@ -330,10 +315,7 @@ namespace Silex
         VkBool32 supported = false;
 
         VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueIndex, vkSurface, &supported);
-        if (result != VK_SUCCESS)
-        {
-            SL_LOG_ERROR("vkGetPhysicalDeviceSurfaceSupportKHR: {}", VkResultToString(result));
-        }
+        SL_CHECK_VKRESULT(result, false);
 
         return supported;
     }

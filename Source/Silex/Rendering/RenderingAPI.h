@@ -42,5 +42,9 @@ namespace Silex
         virtual Fence* CreateFence() = 0;
         virtual void DestroyFence(Fence* fence) = 0;
         virtual bool WaitFence(Fence* fence) = 0;
+
+        // スワップチェイン
+        virtual SwapChain* CreateSwapChain(Surface* surface) = 0;
+        virtual bool ResizeSwapChain(SwapChain* swapchain, uint32 requestFramebufferCount) = 0;
     };
 }

@@ -56,9 +56,9 @@ namespace Silex
     }
 
     // Windows VulkanContext
-    static RenderingContext* CreateVulkanRenderContext()
+    static RenderingContext* CreateVulkanRenderContext(void* platformHandle)
     {
-        return Memory::Allocate<WindowsVulkanContext>();
+        return Memory::Allocate<WindowsVulkanContext>(platformHandle);
     }
 
 

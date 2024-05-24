@@ -72,31 +72,26 @@ namespace Silex
 
     bool Engine::Initialize()
     {
+        bool result = false;
+
         WindowCreateInfo info = {};
-        info.title            = "Silex";
-        info.width            = 1280;
-        info.height           = 720;
-        info.vsync            = false;
+        info.title  = "Silex";
+        info.width  = 1280;
+        info.height = 720;
+        info.vsync  = false;
 
         // ウィンドウ
         window = Window::Create(info);
 
-        // ウィンドウコールバック登録
-        WindowData& data = window->GetWindowData();
-        data.callbacks.windowCloseEvent.Bind(this,  &Engine::OnWindowClose);
-        data.callbacks.windowResizeEvent.Bind(this, &Engine::OnWindowResize);
-        data.callbacks.mouseMoveEvent.Bind(this,    &Engine::OnMouseMove);
-        data.callbacks.mouseScrollEvent.Bind(this,  &Engine::OnMouseScroll);
-
-#if NEW_RENDERER
+        // コールバック登録
+        window->BindWindowCloseEvent(this,  &Engine::OnWindowClose);
+        window->BindWindowResizeEvent(this, &Engine::OnWindowResize);
+        window->BindMouseMoveEvent(this,    &Engine::OnMouseMove);
+        window->BindMouseScrollEvent(this,  &Engine::OnMouseScroll);
 
         // レンダリングコンテキスト
-        if (!window->SetupRenderingContext())
-        {
-            SL_LOG_FATAL("FAILED: SetupRenderingContext");
-            return false;
-        }
-#endif
+        result = window->SetupRenderingContext();
+        SL_CHECK(!result, false);
 
         // レンダラー
         Renderer::Get()->Init();
@@ -156,13 +151,6 @@ namespace Silex
 
         AssetManager::Get()->Shutdown();
         Renderer::Get()->Shutdown();
-
-        // ウィンドウイベントへのバインドを解除
-        WindowData& data = window->GetWindowData();
-        data.callbacks.windowCloseEvent.Unbind();
-        data.callbacks.windowResizeEvent.Unbind();
-        data.callbacks.mouseMoveEvent.Unbind();
-        data.callbacks.mouseScrollEvent.Unbind();
 
         // ウィンドウ破棄
         if (window)

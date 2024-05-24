@@ -11,6 +11,10 @@
 #error "描画APIは1つのみ指定可能です"
 #endif
 
+// 結合マクロ
+#define COMBINE(x, y) x##y
+#define SL_COMBINE(x, y) COMBINE(x, y)
+
 // __VA_ARGS__ の再帰展開を正しく展開させるため?
 #define SL_EXPAND(x) x
 
@@ -21,24 +25,20 @@
 #define SL_ARG3(_1, _2, _3, ...) _3
 
 
-//===========================================================================================================================
-// 固有マクロ
-//===========================================================================================================================
-#ifdef _MSC_VER
+// プラットフォーム固有
+#if _MSC_VER
     #define SL_DEBUG_BREAK() __debugbreak();
-    #define SL_INLINE        __inline
     #define SL_FORCEINLINE   __forceinline
     #define SL_FUNCNAME      __FUNCTION__
     #define SL_FUNCSIG       __FUNCSIG__
-
-    #ifdef CreateSemaphore
-    #undef CreateSemaphore
-    #endif
+#else
+    #define SL_DEBUG_BREAK() __builtin_trap();
+    #define SL_FORCEINLINE   __attribute__((__always_inline__))
+    #define SL_FUNCNAME      __FUNCTION__
+    #define SL_FUNCSIG       __PRETTY_FUNCTION__
 #endif
 
-//===========================================================================================================================
-// ログ
-//===========================================================================================================================
+// コンソールログ
 #define SL_LOG_FATAL(...) Silex::Logger::Log(Silex::LogLevel::Fatal, std::format(__VA_ARGS__))
 #define SL_LOG_ERROR(...) Silex::Logger::Log(Silex::LogLevel::Error, std::format(__VA_ARGS__))
 #define SL_LOG_WARN(...)  Silex::Logger::Log(Silex::LogLevel::Warn,  std::format(__VA_ARGS__))
@@ -46,14 +46,16 @@
 #define SL_LOG_TRACE(...) Silex::Logger::Log(Silex::LogLevel::Trace, std::format(__VA_ARGS__))
 #define SL_LOG_DEBUG(...) Silex::Logger::Log(Silex::LogLevel::Debug, std::format(__VA_ARGS__))
 
+// プラットフォーム固有メッセージダイアログ
 #define SL_MESSAGE_INFO(...)  Silex::OS::Get()->Message(OS_MESSEGA_TYPE_INFO,  std::format(__VA_ARGS__))
 #define SL_MESSAGE_ALERT(...) Silex::OS::Get()->Message(OS_MESSEGA_TYPE_ALERT, std::format(__VA_ARGS__))
 
-//===========================================================================================================================
-// エラーハンドリング
-//===========================================================================================================================
-#define SL_LOG_LOCATION(fn, file, line) Silex::Logger::Log(Silex::LogLevel::Error, std::format("{}, {}, {}", fn, file, line))
-#define SL_CHECK_RETURN(expr, retval)   if (expr) { SL_LOG_LOCATION(__FUNCTION__, __FILE__, __LINE__); return retval; }
+// エラー
+#define SL_LOG_LOCATION()            SL_LOG_ERROR("{}, {}, {}",            __FUNCTION__, __FILE__, __LINE__);
+#define SL_LOG_LOCATION_ERROR(error) SL_LOG_ERROR("{}: {}, {}, {}", error, __FUNCTION__, __FILE__, __LINE__);
+
+// エラーチェック
+#define SL_CHECK(expr, retval) if (expr) { SL_LOG_LOCATION(); return retval; }
 
 //===========================================================================================================================
 // アサーション
@@ -97,8 +99,9 @@ public:\
     static inline const uint64 staticHashID    = GlobalClassDataBase::Register<T>(#T);\
     using Super = TSuper;
 
+#if 0
 //============================================================================================================================
-// グローバル new / delete 演算子オーバーライト
+// グローバル new / delete 演算子オーバーライト ※プールアロケータ実装に伴い未使用となっている (追跡するメモリーなし)
 //----------------------------------------------------------------------------------------------------------------------------
 // new    演算子: operator new() + T()     // new    に追加の引数を渡すと対応する operator new が呼ばれる
 // delete 演算子: ~T() + operator delete() // delete は追加の引数を渡せない
@@ -107,20 +110,15 @@ public:\
 // std::destruct_at(ptr);     // ≒ ptr->~T(); デストラクタ
 // operator delete(ptr, ...); // ≒ free(ptr); 解放
 //============================================================================================================================
+#define SL_NEW          new
+#define SL_NEW_ARRAY    new
+#define SL_DELETE       delete
+#define SL_DELETE_ARRAY delete[]
+#define SL_PLACEMENT_NEW(location) new(location)
 
-//----------------------------------------------------------------------------------------------------------------------------
-// プールアロケータ実装に伴い未使用となっている (追跡するメモリーなし)
-//----------------------------------------------------------------------------------------------------------------------------
-//#define SL_NEW          new
-//#define SL_NEW_ARRAY    new
-//#define SL_DELETE       delete
-//#define SL_DELETE_ARRAY delete[]
-//
-//#define SL_PLACEMENT_NEW(location) new(location)
-//----------------------------------------------------------------------------------------------------------------------------
-
-// struct SLEmpty {};
-// inline void* operator new  (size_t, void* where, SLEmpty) noexcept { return where; }
-// inline void* operator new[](size_t, void* where, SLEmpty) noexcept { return where; }
-// inline void  operator delete  (void*, void*, SLEmpty) noexcept { return; }
-// inline void  operator delete[](void*, void*, SLEmpty) noexcept { return; }
+struct SLEmpty {};
+inline void* operator new  (size_t, void* where, SLEmpty) noexcept { return where; }
+inline void* operator new[](size_t, void* where, SLEmpty) noexcept { return where; }
+inline void  operator delete  (void*, void*, SLEmpty) noexcept { return; }
+inline void  operator delete[](void*, void*, SLEmpty) noexcept { return; }
+#endif
