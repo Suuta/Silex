@@ -48,19 +48,25 @@ namespace Silex
         VkRenderPass renderpass = nullptr;
     };
 
+    struct VulkanFramebuffer : public FramebufferHandle
+    {
+        VkFramebuffer framebuffer = nullptr;
+    };
+
     struct VulkanSwapChain : public SwapChain
     {
-        VulkanSurface* surface = nullptr;
+        VulkanSurface*    surface    = nullptr;
+        VulkanRenderPass* renderpass = nullptr;
 
         VkSwapchainKHR  swapchain  = nullptr;
         VkFormat        format     = VK_FORMAT_UNDEFINED;
         VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
-        VkRenderPass               renderpass = nullptr;
         std::vector<VkFramebuffer> framebuffers;
         std::vector<VkImage>       images;
         std::vector<VkImageView>   views;
     };
+
 
     // デバイス拡張機能関数
     struct DeviceExtensionFunctions
@@ -72,6 +78,7 @@ namespace Silex
         PFN_vkQueuePresentKHR       vkQueuePresentKHR       = nullptr;
         PFN_vkCreateRenderPass2KHR  vkCreateRenderPass2KHR  = nullptr;
     };
+
 
     //=============================================
     // Vulkan API 実装
@@ -113,15 +120,34 @@ namespace Silex
 
         // スワップチェイン
         SwapChain* CreateSwapChain(Surface* surface) override;
-        bool ResizeSwapChain(SwapChain* swapchain, uint32 requestFramebufferCount) override;
+        bool ResizeSwapChain(SwapChain* swapchain, uint32 requestFramebufferCount, VSyncMode mode) override;
+        FramebufferHandle* GetSwapChainNextFramebuffer() override;
+        RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) override;
+        RenderingFormat GetSwapChainFormat(SwapChain* swapchain) override;
+        void DestroySwapChain(SwapChain* swapchain) override;
+
+        // レンダーパス
+        RenderPass* CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies) override;
+        void DestroyRenderPass(RenderPass* renderpass) override;
 
     private:
 
+        VkSampleCountFlagBits _GetSupportedSampleCounts(TextureSamples samples);
+
+
+
+    private:
+
+        // デバイス拡張機能関数
         DeviceExtensionFunctions extensions;
 
+        // レンダリングコンテキスト
         VulkanContext* context = nullptr;
-        VkDevice       device  = nullptr;
 
+        // 論理デバイス
+        VkDevice device = nullptr;
+
+        // アロケータ
         VmaAllocator allocator = nullptr;
     };
 

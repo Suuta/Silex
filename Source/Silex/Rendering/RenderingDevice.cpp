@@ -16,6 +16,8 @@ namespace Silex
 
     RenderingDevice::~RenderingDevice()
     {
+        api->DestroySwapChain(swapchain);
+
         for (uint32 i = 0; i < frameData.size(); i++)
         {
             api->DestroyCommandPool(frameData[i].commandPool);
@@ -72,12 +74,14 @@ namespace Silex
 
     bool RenderingDevice::CreateSwapChain()
     {
+        bool result = false;
         Surface* surface = Window::Get()->GetSurface();
 
         swapchain = api->CreateSwapChain(surface);
         SL_CHECK(!swapchain, false);
 
-        api->ResizeSwapChain(swapchain, swapchainBufferCount);
+        result = api->ResizeSwapChain(swapchain, swapchainBufferCount, VSYNC_MODE_DISABLED);
+        SL_CHECK(!result, false);
 
         return true;
     }

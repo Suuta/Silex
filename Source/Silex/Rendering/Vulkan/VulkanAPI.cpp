@@ -6,6 +6,255 @@
 
 namespace Silex
 {
+    static const VkFormat VulkanFormats[] =
+    {
+        VK_FORMAT_UNDEFINED,
+        VK_FORMAT_R4G4_UNORM_PACK8,
+        VK_FORMAT_R4G4B4A4_UNORM_PACK16,
+        VK_FORMAT_B4G4R4A4_UNORM_PACK16,
+        VK_FORMAT_R5G6B5_UNORM_PACK16,
+        VK_FORMAT_B5G6R5_UNORM_PACK16,
+        VK_FORMAT_R5G5B5A1_UNORM_PACK16,
+        VK_FORMAT_B5G5R5A1_UNORM_PACK16,
+        VK_FORMAT_A1R5G5B5_UNORM_PACK16,
+        VK_FORMAT_R8_UNORM,
+        VK_FORMAT_R8_SNORM,
+        VK_FORMAT_R8_USCALED,
+        VK_FORMAT_R8_SSCALED,
+        VK_FORMAT_R8_UINT,
+        VK_FORMAT_R8_SINT,
+        VK_FORMAT_R8_SRGB,
+        VK_FORMAT_R8G8_UNORM,
+        VK_FORMAT_R8G8_SNORM,
+        VK_FORMAT_R8G8_USCALED,
+        VK_FORMAT_R8G8_SSCALED,
+        VK_FORMAT_R8G8_UINT,
+        VK_FORMAT_R8G8_SINT,
+        VK_FORMAT_R8G8_SRGB,
+        VK_FORMAT_R8G8B8_UNORM,
+        VK_FORMAT_R8G8B8_SNORM,
+        VK_FORMAT_R8G8B8_USCALED,
+        VK_FORMAT_R8G8B8_SSCALED,
+        VK_FORMAT_R8G8B8_UINT,
+        VK_FORMAT_R8G8B8_SINT,
+        VK_FORMAT_R8G8B8_SRGB,
+        VK_FORMAT_B8G8R8_UNORM,
+        VK_FORMAT_B8G8R8_SNORM,
+        VK_FORMAT_B8G8R8_USCALED,
+        VK_FORMAT_B8G8R8_SSCALED,
+        VK_FORMAT_B8G8R8_UINT,
+        VK_FORMAT_B8G8R8_SINT,
+        VK_FORMAT_B8G8R8_SRGB,
+        VK_FORMAT_R8G8B8A8_UNORM,
+        VK_FORMAT_R8G8B8A8_SNORM,
+        VK_FORMAT_R8G8B8A8_USCALED,
+        VK_FORMAT_R8G8B8A8_SSCALED,
+        VK_FORMAT_R8G8B8A8_UINT,
+        VK_FORMAT_R8G8B8A8_SINT,
+        VK_FORMAT_R8G8B8A8_SRGB,
+        VK_FORMAT_B8G8R8A8_UNORM,
+        VK_FORMAT_B8G8R8A8_SNORM,
+        VK_FORMAT_B8G8R8A8_USCALED,
+        VK_FORMAT_B8G8R8A8_SSCALED,
+        VK_FORMAT_B8G8R8A8_UINT,
+        VK_FORMAT_B8G8R8A8_SINT,
+        VK_FORMAT_B8G8R8A8_SRGB,
+        VK_FORMAT_A8B8G8R8_UNORM_PACK32,
+        VK_FORMAT_A8B8G8R8_SNORM_PACK32,
+        VK_FORMAT_A8B8G8R8_USCALED_PACK32,
+        VK_FORMAT_A8B8G8R8_SSCALED_PACK32,
+        VK_FORMAT_A8B8G8R8_UINT_PACK32,
+        VK_FORMAT_A8B8G8R8_SINT_PACK32,
+        VK_FORMAT_A8B8G8R8_SRGB_PACK32,
+        VK_FORMAT_A2R10G10B10_UNORM_PACK32,
+        VK_FORMAT_A2R10G10B10_SNORM_PACK32,
+        VK_FORMAT_A2R10G10B10_USCALED_PACK32,
+        VK_FORMAT_A2R10G10B10_SSCALED_PACK32,
+        VK_FORMAT_A2R10G10B10_UINT_PACK32,
+        VK_FORMAT_A2R10G10B10_SINT_PACK32,
+        VK_FORMAT_A2B10G10R10_UNORM_PACK32,
+        VK_FORMAT_A2B10G10R10_SNORM_PACK32,
+        VK_FORMAT_A2B10G10R10_USCALED_PACK32,
+        VK_FORMAT_A2B10G10R10_SSCALED_PACK32,
+        VK_FORMAT_A2B10G10R10_UINT_PACK32,
+        VK_FORMAT_A2B10G10R10_SINT_PACK32,
+        VK_FORMAT_R16_UNORM,
+        VK_FORMAT_R16_SNORM,
+        VK_FORMAT_R16_USCALED,
+        VK_FORMAT_R16_SSCALED,
+        VK_FORMAT_R16_UINT,
+        VK_FORMAT_R16_SINT,
+        VK_FORMAT_R16_SFLOAT,
+        VK_FORMAT_R16G16_UNORM,
+        VK_FORMAT_R16G16_SNORM,
+        VK_FORMAT_R16G16_USCALED,
+        VK_FORMAT_R16G16_SSCALED,
+        VK_FORMAT_R16G16_UINT,
+        VK_FORMAT_R16G16_SINT,
+        VK_FORMAT_R16G16_SFLOAT,
+        VK_FORMAT_R16G16B16_UNORM,
+        VK_FORMAT_R16G16B16_SNORM,
+        VK_FORMAT_R16G16B16_USCALED,
+        VK_FORMAT_R16G16B16_SSCALED,
+        VK_FORMAT_R16G16B16_UINT,
+        VK_FORMAT_R16G16B16_SINT,
+        VK_FORMAT_R16G16B16_SFLOAT,
+        VK_FORMAT_R16G16B16A16_UNORM,
+        VK_FORMAT_R16G16B16A16_SNORM,
+        VK_FORMAT_R16G16B16A16_USCALED,
+        VK_FORMAT_R16G16B16A16_SSCALED,
+        VK_FORMAT_R16G16B16A16_UINT,
+        VK_FORMAT_R16G16B16A16_SINT,
+        VK_FORMAT_R16G16B16A16_SFLOAT,
+        VK_FORMAT_R32_UINT,
+        VK_FORMAT_R32_SINT,
+        VK_FORMAT_R32_SFLOAT,
+        VK_FORMAT_R32G32_UINT,
+        VK_FORMAT_R32G32_SINT,
+        VK_FORMAT_R32G32_SFLOAT,
+        VK_FORMAT_R32G32B32_UINT,
+        VK_FORMAT_R32G32B32_SINT,
+        VK_FORMAT_R32G32B32_SFLOAT,
+        VK_FORMAT_R32G32B32A32_UINT,
+        VK_FORMAT_R32G32B32A32_SINT,
+        VK_FORMAT_R32G32B32A32_SFLOAT,
+        VK_FORMAT_R64_UINT,
+        VK_FORMAT_R64_SINT,
+        VK_FORMAT_R64_SFLOAT,
+        VK_FORMAT_R64G64_UINT,
+        VK_FORMAT_R64G64_SINT,
+        VK_FORMAT_R64G64_SFLOAT,
+        VK_FORMAT_R64G64B64_UINT,
+        VK_FORMAT_R64G64B64_SINT,
+        VK_FORMAT_R64G64B64_SFLOAT,
+        VK_FORMAT_R64G64B64A64_UINT,
+        VK_FORMAT_R64G64B64A64_SINT,
+        VK_FORMAT_R64G64B64A64_SFLOAT,
+        VK_FORMAT_B10G11R11_UFLOAT_PACK32,
+        VK_FORMAT_E5B9G9R9_UFLOAT_PACK32,
+        VK_FORMAT_D16_UNORM,
+        VK_FORMAT_X8_D24_UNORM_PACK32,
+        VK_FORMAT_D32_SFLOAT,
+        VK_FORMAT_S8_UINT,
+        VK_FORMAT_D16_UNORM_S8_UINT,
+        VK_FORMAT_D24_UNORM_S8_UINT,
+        VK_FORMAT_D32_SFLOAT_S8_UINT,
+        VK_FORMAT_BC1_RGB_UNORM_BLOCK,
+        VK_FORMAT_BC1_RGB_SRGB_BLOCK,
+        VK_FORMAT_BC1_RGBA_UNORM_BLOCK,
+        VK_FORMAT_BC1_RGBA_SRGB_BLOCK,
+        VK_FORMAT_BC2_UNORM_BLOCK,
+        VK_FORMAT_BC2_SRGB_BLOCK,
+        VK_FORMAT_BC3_UNORM_BLOCK,
+        VK_FORMAT_BC3_SRGB_BLOCK,
+        VK_FORMAT_BC4_UNORM_BLOCK,
+        VK_FORMAT_BC4_SNORM_BLOCK,
+        VK_FORMAT_BC5_UNORM_BLOCK,
+        VK_FORMAT_BC5_SNORM_BLOCK,
+        VK_FORMAT_BC6H_UFLOAT_BLOCK,
+        VK_FORMAT_BC6H_SFLOAT_BLOCK,
+        VK_FORMAT_BC7_UNORM_BLOCK,
+        VK_FORMAT_BC7_SRGB_BLOCK,
+        VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK,
+        VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK,
+        VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK,
+        VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK,
+        VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK,
+        VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK,
+        VK_FORMAT_EAC_R11_UNORM_BLOCK,
+        VK_FORMAT_EAC_R11_SNORM_BLOCK,
+        VK_FORMAT_EAC_R11G11_UNORM_BLOCK,
+        VK_FORMAT_EAC_R11G11_SNORM_BLOCK,
+        VK_FORMAT_ASTC_4x4_UNORM_BLOCK,
+        VK_FORMAT_ASTC_4x4_SRGB_BLOCK,
+        VK_FORMAT_ASTC_5x4_UNORM_BLOCK,
+        VK_FORMAT_ASTC_5x4_SRGB_BLOCK,
+        VK_FORMAT_ASTC_5x5_UNORM_BLOCK,
+        VK_FORMAT_ASTC_5x5_SRGB_BLOCK,
+        VK_FORMAT_ASTC_6x5_UNORM_BLOCK,
+        VK_FORMAT_ASTC_6x5_SRGB_BLOCK,
+        VK_FORMAT_ASTC_6x6_UNORM_BLOCK,
+        VK_FORMAT_ASTC_6x6_SRGB_BLOCK,
+        VK_FORMAT_ASTC_8x5_UNORM_BLOCK,
+        VK_FORMAT_ASTC_8x5_SRGB_BLOCK,
+        VK_FORMAT_ASTC_8x6_UNORM_BLOCK,
+        VK_FORMAT_ASTC_8x6_SRGB_BLOCK,
+        VK_FORMAT_ASTC_8x8_UNORM_BLOCK,
+        VK_FORMAT_ASTC_8x8_SRGB_BLOCK,
+        VK_FORMAT_ASTC_10x5_UNORM_BLOCK,
+        VK_FORMAT_ASTC_10x5_SRGB_BLOCK,
+        VK_FORMAT_ASTC_10x6_UNORM_BLOCK,
+        VK_FORMAT_ASTC_10x6_SRGB_BLOCK,
+        VK_FORMAT_ASTC_10x8_UNORM_BLOCK,
+        VK_FORMAT_ASTC_10x8_SRGB_BLOCK,
+        VK_FORMAT_ASTC_10x10_UNORM_BLOCK,
+        VK_FORMAT_ASTC_10x10_SRGB_BLOCK,
+        VK_FORMAT_ASTC_12x10_UNORM_BLOCK,
+        VK_FORMAT_ASTC_12x10_SRGB_BLOCK,
+        VK_FORMAT_ASTC_12x12_UNORM_BLOCK,
+        VK_FORMAT_ASTC_12x12_SRGB_BLOCK,
+        VK_FORMAT_G8B8G8R8_422_UNORM,
+        VK_FORMAT_B8G8R8G8_422_UNORM,
+        VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM,
+        VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
+        VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM,
+        VK_FORMAT_G8_B8R8_2PLANE_422_UNORM,
+        VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM,
+        VK_FORMAT_R10X6_UNORM_PACK16,
+        VK_FORMAT_R10X6G10X6_UNORM_2PACK16,
+        VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16,
+        VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16,
+        VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16,
+        VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,
+        VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,
+        VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16,
+        VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16,
+        VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16,
+        VK_FORMAT_R12X4_UNORM_PACK16,
+        VK_FORMAT_R12X4G12X4_UNORM_2PACK16,
+        VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16,
+        VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16,
+        VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16,
+        VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,
+        VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,
+        VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16,
+        VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16,
+        VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16,
+        VK_FORMAT_G16B16G16R16_422_UNORM,
+        VK_FORMAT_B16G16R16G16_422_UNORM,
+        VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM,
+        VK_FORMAT_G16_B16R16_2PLANE_420_UNORM,
+        VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM,
+        VK_FORMAT_G16_B16R16_2PLANE_422_UNORM,
+        VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM,
+    };
+
+
+
+
+    static const VkImageType VulkanImageTypes[] =
+    {
+        VK_IMAGE_TYPE_1D,
+        VK_IMAGE_TYPE_2D,
+        VK_IMAGE_TYPE_3D,
+        VK_IMAGE_TYPE_2D,
+        VK_IMAGE_TYPE_1D,
+        VK_IMAGE_TYPE_2D,
+        VK_IMAGE_TYPE_2D,
+    };
+
+    static const VkSampleCountFlagBits VulkanSampleCounts[] =
+    {
+        VK_SAMPLE_COUNT_1_BIT,
+        VK_SAMPLE_COUNT_2_BIT,
+        VK_SAMPLE_COUNT_4_BIT,
+        VK_SAMPLE_COUNT_8_BIT,
+        VK_SAMPLE_COUNT_16_BIT,
+        VK_SAMPLE_COUNT_32_BIT,
+        VK_SAMPLE_COUNT_64_BIT,
+    };
+
+
     VulkanAPI::VulkanAPI(VulkanContext* context)
         : context(context)
     {
@@ -50,6 +299,10 @@ namespace Silex
             }
         }
 
+        // デバイス機能を取得
+        VkPhysicalDeviceFeatures features;
+        vkGetPhysicalDeviceFeatures(context->GetPhysicalDevice(), &features);
+
         // 拡張機能ポインタチェイン
         void* createInfoNext = nullptr;
 
@@ -61,7 +314,7 @@ namespace Silex
         deviceCreateInfo.pQueueCreateInfos       = queueCreateInfos.data();
         deviceCreateInfo.enabledExtensionCount   = context->GetEnabledDeviceExtensions().size();
         deviceCreateInfo.ppEnabledExtensionNames = context->GetEnabledDeviceExtensions().data();
-        deviceCreateInfo.pEnabledFeatures        = &context->GetPhysicalDeviceFeatureList();
+        deviceCreateInfo.pEnabledFeatures        = &features;
 
         VkResult result = vkCreateDevice(context->GetPhysicalDevice(), &deviceCreateInfo, nullptr, &device);
         SL_CHECK_VKRESULT(result, false);
@@ -72,7 +325,6 @@ namespace Silex
         extensions.vkGetSwapchainImagesKHR = GET_VULKAN_DEVICE_PROC(device, vkGetSwapchainImagesKHR);
         extensions.vkAcquireNextImageKHR   = GET_VULKAN_DEVICE_PROC(device, vkAcquireNextImageKHR);
         extensions.vkQueuePresentKHR       = GET_VULKAN_DEVICE_PROC(device, vkQueuePresentKHR);
-        extensions.vkCreateRenderPass2KHR  = GET_VULKAN_DEVICE_PROC(device, vkCreateRenderPass2KHR);
 
         // メモリアロケータ（VMA）生成
         VmaAllocatorCreateInfo allocatorInfo = {};
@@ -335,6 +587,12 @@ namespace Silex
 
         SL_CHECK(format == VK_FORMAT_UNDEFINED, nullptr);
 
+    //--------------------------------------------------------------------------------------------------------
+    // --- NOTE ---
+    // VulkanSwapChain が VulkanRenderPassを保持し、GetSwapChainRenderPassによって RenderPassインターフェースを
+    // 返す必要があり、RenderPass オブジェクトを生成するために、Vulkan実装内でありながらも抽象化コードを使用している
+    //--------------------------------------------------------------------------------------------------------
+#if 0
         VkAttachmentDescription2KHR attachment = {};
         attachment.sType          = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2_KHR;
         attachment.format         = format;
@@ -365,19 +623,36 @@ namespace Silex
         passInfo.pSubpasses      = &subpass;
 
         VkRenderPass renderPass = nullptr;
-        result = extensions.vkCreateRenderPass2KHR(device, &passInfo, nullptr, &renderPass);
+        result = vkCreateRenderPass2(device, &passInfo, nullptr, &renderPass);
         SL_CHECK_VKRESULT(result, nullptr);
+#endif
+
+        Attachment attachments;
+        attachments.format         = (RenderingFormat)format;
+        attachments.samples        = TEXTURE_SAMPLES_1;
+        attachments.initialLayout  = TEXTURE_LAYOUT_UNDEFINED;
+        attachments.finalLayout    = TEXTURE_LAYOUT_PRESENT_SRC;
+        attachments.loadOp         = ATTACHMENT_LOAD_OP_CLEAR;
+        attachments.storeOp        = ATTACHMENT_STORE_OP_STORE;
+
+        AttachmentReference reference;
+        reference.attachment = 0;
+        reference.layout     = TEXTURE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        reference.aspect     = TEXTURE_ASPECT_COLOR_BIT;
+
+        Subpass subpasses;
+        subpasses.colorReferences.push_back(reference);
 
         VulkanSwapChain* swapchain = Memory::Allocate<VulkanSwapChain>();
         swapchain->surface    = ((VulkanSurface*)surface);
         swapchain->format     = format;
         swapchain->colorspace = colorspace;
-        swapchain->renderpass = renderPass;
+        swapchain->renderpass = (VulkanRenderPass*)CreateRenderPass(1, &attachments, 1, &subpasses, 0, nullptr);
 
         return swapchain;
     }
 
-    bool VulkanAPI::ResizeSwapChain(SwapChain* swapchain, uint32 requestFramebufferCount)
+    bool VulkanAPI::ResizeSwapChain(SwapChain* swapchain, uint32 requestFramebufferCount, VSyncMode mode)
     {
         VkPhysicalDevice physicalDevice = context->GetPhysicalDevice();
         VulkanSwapChain* vkSwapchain = (VulkanSwapChain*)swapchain;
@@ -418,15 +693,11 @@ namespace Silex
         result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface->surface, &presentModeCount, presentModes.data());
         SL_CHECK_VKRESULT(result, false);
 
-        VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
-        switch (surface->vsyncMode)
-        {
-            default:;
-            case VSYNC_MODE_DISABLED: presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;    break;
-            case VSYNC_MODE_MAILBOX:  presentMode = VK_PRESENT_MODE_MAILBOX_KHR;      break;
-            case VSYNC_MODE_ENABLED:  presentMode = VK_PRESENT_MODE_FIFO_KHR;         break;
-            case VSYNC_MODE_ADAPTIVE: presentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR; break;
-        }
+        // VSYNC_MODE_DISABLED: VK_PRESENT_MODE_IMMEDIATE_KHR
+        // VSYNC_MODE_MAILBOX : VK_PRESENT_MODE_MAILBOX_KHR
+        // VSYNC_MODE_ENABLED : VK_PRESENT_MODE_FIFO_KHR
+        // VSYNC_MODE_ADAPTIVE: VK_PRESENT_MODE_FIFO_RELAXED_KHR
+        VkPresentModeKHR presentMode = (VkPresentModeKHR)mode;
 
         bool findRequestMode = false;
         for (uint32 i = 0; i < presentModes.size(); i++)
@@ -434,6 +705,7 @@ namespace Silex
             if (presentMode == presentModes[i])
             {
                 findRequestMode = true;
+                surface->vsyncMode = (VSyncMode)presentMode;
                 break;
             }
         }
@@ -479,13 +751,13 @@ namespace Silex
         }
 
         // フレームバッファ数決定（現状: 3）
-        uint32 imageCount = std::clamp(requestFramebufferCount, surfaceCapabilities.minImageCount, surfaceCapabilities.maxImageCount);
+        uint32 requestImageCount = std::clamp(requestFramebufferCount, surfaceCapabilities.minImageCount, surfaceCapabilities.maxImageCount);
 
-        // 生成情報
+        // スワップチェイン生成
         VkSwapchainCreateInfoKHR swapCreateInfo = {};
         swapCreateInfo.sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         swapCreateInfo.surface          = surface->surface;
-        swapCreateInfo.minImageCount    = imageCount;
+        swapCreateInfo.minImageCount    = requestImageCount;
         swapCreateInfo.imageFormat      = vkSwapchain->format;
         swapCreateInfo.imageColorSpace  = vkSwapchain->colorspace;
         swapCreateInfo.imageExtent      = extent;
@@ -503,7 +775,270 @@ namespace Silex
         result = extensions.vkCreateSwapchainKHR(device, &swapCreateInfo, nullptr, &vkSwapchain->swapchain);
         SL_CHECK_VKRESULT(result, false);
 
+        // イメージ取得
+        uint32 imageCount = 0;
+        result = extensions.vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, nullptr);
+        SL_CHECK_VKRESULT(result, false);
+
+        vkSwapchain->images.resize(imageCount);
+        result = extensions.vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, vkSwapchain->images.data());
+        SL_CHECK_VKRESULT(result, false);
+
+        // イメージビュー生成
+        VkImageViewCreateInfo viewCreateInfo = {};
+        viewCreateInfo.sType                       = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewCreateInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
+        viewCreateInfo.format                      = vkSwapchain->format;
+        viewCreateInfo.components.r                = VK_COMPONENT_SWIZZLE_R;
+        viewCreateInfo.components.g                = VK_COMPONENT_SWIZZLE_G;
+        viewCreateInfo.components.b                = VK_COMPONENT_SWIZZLE_B;
+        viewCreateInfo.components.a                = VK_COMPONENT_SWIZZLE_A;
+        viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewCreateInfo.subresourceRange.levelCount = 1;
+        viewCreateInfo.subresourceRange.layerCount = 1;
+
+        for (uint32 i = 0; i < imageCount; i++)
+        {
+            VkImageView view = nullptr;
+            viewCreateInfo.image = vkSwapchain->images[i];
+
+            result = vkCreateImageView(device, &viewCreateInfo, nullptr, &view);
+            SL_CHECK_VKRESULT(result, false);
+
+            vkSwapchain->views.push_back(view);
+        }
+
+        // フレームバッファ生成
+        VkFramebufferCreateInfo framebufferCreateInfo = {};
+        framebufferCreateInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.renderPass      = vkSwapchain->renderpass->renderpass;
+        framebufferCreateInfo.attachmentCount = 1;
+        framebufferCreateInfo.width           = surface->width;
+        framebufferCreateInfo.height          = surface->height;
+        framebufferCreateInfo.layers          = 1;
+
+        for (uint32 i = 0; i < imageCount; i++)
+        {
+            VkFramebuffer framebuffer = nullptr;
+            framebufferCreateInfo.pAttachments = &vkSwapchain->views[i];
+
+            result = vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &framebuffer);
+            SL_CHECK_VKRESULT(result, false);
+
+            vkSwapchain->framebuffers.push_back(framebuffer);
+        }
+
         return true;
+    }
+
+    FramebufferHandle* VulkanAPI::GetSwapChainNextFramebuffer()
+    {
+        return nullptr;
+    }
+
+    RenderPass* VulkanAPI::GetSwapChainRenderPass(SwapChain* swapchain)
+    {
+        return nullptr;
+    }
+
+    RenderingFormat VulkanAPI::GetSwapChainFormat(SwapChain* swapchain)
+    {
+        return RenderingFormat();
+    }
+
+    void VulkanAPI::DestroySwapChain(SwapChain* swapchain)
+    {
+        if (swapchain)
+        {
+            VulkanSwapChain* vkSwapchain = (VulkanSwapChain*)swapchain;
+
+            // フレームバッファ破棄
+            for (uint32 i = 0; i < vkSwapchain->framebuffers.size(); i++)
+                vkDestroyFramebuffer(device, vkSwapchain->framebuffers[i], nullptr);
+
+            // イメージビュー破棄
+            for (uint32 i = 0; i < vkSwapchain->images.size(); i++)
+                vkDestroyImageView(device, vkSwapchain->views[i], nullptr);
+
+            // イメージはスワップチェイン側が管理しているので破棄しない
+            // ...
+
+            // スワップチェイン破棄
+            extensions.vkDestroySwapchainKHR(device, vkSwapchain->swapchain, nullptr);
+
+            //レンダーパス破棄
+            vkDestroyRenderPass(device, vkSwapchain->renderpass->renderpass, nullptr);
+
+            Memory::Deallocate(swapchain);
+        }
+    }
+
+
+
+    VkSampleCountFlagBits VulkanAPI::_GetSupportedSampleCounts(TextureSamples samples)
+    {
+        VkPhysicalDeviceProperties properties;
+        vkGetPhysicalDeviceProperties(context->GetPhysicalDevice(), &properties);
+
+        VkSampleCountFlags sampleFlags = properties.limits.framebufferColorSampleCounts & properties.limits.framebufferDepthSampleCounts;
+
+        // フラグが一致すれば、そのサンプル数を使用する
+        if (sampleFlags & VulkanSampleCounts[samples])
+        {
+            return VulkanSampleCounts[samples];
+        }
+        else
+        {
+            // 一致しなければ、一致するまでサンプル数を下げながら、一致するサンプル数にフォールバック
+            VkSampleCountFlagBits sampleBits = VulkanSampleCounts[samples];
+            while (sampleBits > VK_SAMPLE_COUNT_1_BIT)
+            {
+                if (sampleFlags & sampleBits)
+                    return sampleBits;
+
+                sampleBits = (VkSampleCountFlagBits)(sampleBits >> 1);
+            }
+        }
+
+        return VK_SAMPLE_COUNT_1_BIT;
+    }
+
+    RenderPass* VulkanAPI::CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies)
+    {
+        // アタッチメント
+        std::vector<VkAttachmentDescription2> vkAttachments(numAttachments);
+        for (uint32 i = 0; i < numAttachments; i++)
+        {
+            vkAttachments[i] = {};
+            vkAttachments[i].sType          = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2_KHR;
+            vkAttachments[i].format         = VulkanFormats[attachments[i].format];
+            vkAttachments[i].samples        = _GetSupportedSampleCounts(attachments[i].samples);
+            vkAttachments[i].loadOp         = (VkAttachmentLoadOp)attachments[i].loadOp;
+            vkAttachments[i].storeOp        = (VkAttachmentStoreOp)attachments[i].storeOp;
+            vkAttachments[i].stencilLoadOp  = (VkAttachmentLoadOp)attachments[i].stencilLoadOp;
+            vkAttachments[i].stencilStoreOp = (VkAttachmentStoreOp)attachments[i].stencilStoreOp;
+            vkAttachments[i].initialLayout  = (VkImageLayout)attachments[i].initialLayout;
+            vkAttachments[i].finalLayout    = (VkImageLayout)attachments[i].finalLayout;
+        }
+
+        // アタッチメント参照
+        std::vector<VkAttachmentReference2> inputAttachmentRefs = {};
+        std::vector<VkAttachmentReference2> colorAttachmentRefs = {};
+        std::vector<VkAttachmentReference2> resolveAttachmentRef = {};
+        std::vector<VkAttachmentReference2> depthstencilAttachmentRef = {};
+
+        // サブパス
+        std::vector<VkSubpassDescription2> vkSubpasses(numSubpasses);
+        for (uint32 i = 0; i < numSubpasses; i++)
+        {
+            // 入力アタッチメント参照
+            for (uint32 j = 0; j < subpasses[i].inputReferences.size(); j++)
+            {
+                VkAttachmentReference2 attachment = {};
+                attachment.sType      = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
+                attachment.attachment = subpasses[i].inputReferences[j].attachment;
+                attachment.layout     = (VkImageLayout)subpasses[i].inputReferences[j].layout;
+                attachment.aspectMask = (VkImageAspectFlags)subpasses[i].inputReferences[j].aspect;
+
+                inputAttachmentRefs.push_back(attachment);
+            }
+
+            // カラーアタッチメント参照
+            for (uint32 j = 0; j < subpasses[i].colorReferences.size(); j++)
+            {
+                VkAttachmentReference2 attachment = {};
+                attachment.sType      = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
+                attachment.attachment = subpasses[i].colorReferences[j].attachment;
+                attachment.layout     = (VkImageLayout)subpasses[i].colorReferences[j].layout;
+                attachment.aspectMask = (VkImageAspectFlags)subpasses[i].colorReferences[j].aspect;
+
+                colorAttachmentRefs.push_back(attachment);
+            }
+
+            // マルチサンプル解決アタッチメント参照
+            if (subpasses[i].resolveReferences.attachment != INVALID_RENDER_ID)
+            {
+                VkAttachmentReference2 attachment = {};
+                attachment.sType      = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
+                attachment.attachment = subpasses[i].resolveReferences.attachment;
+                attachment.layout     = (VkImageLayout)subpasses[i].resolveReferences.layout;
+                attachment.aspectMask = (VkImageAspectFlags)subpasses[i].resolveReferences.aspect;
+
+                resolveAttachmentRef.push_back(attachment);
+            }
+
+            // 深度ステンシルアタッチメント参照
+            if (subpasses[i].depthstencilReference.attachment != INVALID_RENDER_ID)
+            {
+                VkAttachmentReference2 attachment = {};
+                attachment = {};
+                attachment.sType      = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2;
+                attachment.attachment = subpasses[i].depthstencilReference.attachment;
+                attachment.layout     = (VkImageLayout)subpasses[i].depthstencilReference.layout;
+                attachment.aspectMask = (VkImageAspectFlags)subpasses[i].depthstencilReference.aspect;
+
+                depthstencilAttachmentRef.push_back(attachment);
+            }
+
+            vkSubpasses[i] = {};
+            vkSubpasses[i].sType                   = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2_KHR;
+            vkSubpasses[i].pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
+            vkSubpasses[i].viewMask                = 0;
+            vkSubpasses[i].inputAttachmentCount    = inputAttachmentRefs.size();
+            vkSubpasses[i].pInputAttachments       = inputAttachmentRefs.data();
+            vkSubpasses[i].colorAttachmentCount    = colorAttachmentRefs.size();
+            vkSubpasses[i].pColorAttachments       = colorAttachmentRefs.data();
+            vkSubpasses[i].pResolveAttachments     = resolveAttachmentRef.data();
+            vkSubpasses[i].pDepthStencilAttachment = depthstencilAttachmentRef.data();
+            vkSubpasses[i].preserveAttachmentCount = subpasses[i].preserveAttachments.size();
+            vkSubpasses[i].pPreserveAttachments    = subpasses[i].preserveAttachments.data();
+        }
+
+        // サブパス依存関係
+        std::vector<VkSubpassDependency2> vkSubpassDependencies(numSubpassDependencies);
+        for (uint32 i = 0; i < numSubpassDependencies; i++)
+        {
+            vkSubpassDependencies[i] = {};
+            vkSubpassDependencies[i].sType         = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2;
+            vkSubpassDependencies[i].srcSubpass    = subpassDependencies[i].srcSubpass;
+            vkSubpassDependencies[i].dstSubpass    = subpassDependencies[i].dstSubpass;
+            vkSubpassDependencies[i].srcStageMask  = (VkPipelineStageFlags)subpassDependencies[i].srcStages;
+            vkSubpassDependencies[i].dstStageMask  = (VkPipelineStageFlags)subpassDependencies[i].dstStages;
+            vkSubpassDependencies[i].srcAccessMask = (VkAccessFlags)subpassDependencies[i].srcAccess;
+            vkSubpassDependencies[i].dstAccessMask = (VkAccessFlags)subpassDependencies[i].dstAccess;
+        }
+
+        // レンダーパス生成
+        VkRenderPassCreateInfo2 createInfo = {};
+        createInfo.sType                   = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2;
+        createInfo.attachmentCount         = vkAttachments.size();
+        createInfo.pAttachments            = vkAttachments.data();
+        createInfo.subpassCount            = vkSubpasses.size();
+        createInfo.pSubpasses              = vkSubpasses.data();
+        createInfo.dependencyCount         = vkSubpassDependencies.size();
+        createInfo.pDependencies           = vkSubpassDependencies.data();
+        createInfo.correlatedViewMaskCount = 0;
+        createInfo.pCorrelatedViewMasks    = nullptr;
+
+        VkRenderPass vkRenderPass = nullptr;
+        VkResult result = vkCreateRenderPass2(device, &createInfo, nullptr, &vkRenderPass);
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        VulkanRenderPass* renderpass = Memory::Allocate<VulkanRenderPass>();
+        renderpass->renderpass = vkRenderPass;
+
+        return renderpass;
+    }
+
+    void VulkanAPI::DestroyRenderPass(RenderPass* renderpass)
+    {
+        if (renderpass)
+        {
+            VulkanRenderPass* vkRenderpass = (VulkanRenderPass*)renderpass;
+            vkDestroyRenderPass(device, vkRenderpass->renderpass, nullptr);
+
+            Memory::Deallocate(renderpass);
+        }
     }
 
 

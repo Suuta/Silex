@@ -19,10 +19,14 @@ namespace Silex
 
     public:
 
-        WindowsWindow(const WindowCreateInfo& createInfo);
+        WindowsWindow(const char* title, uint32 width, uint32 height);
         ~WindowsWindow();
 
+        bool Initialize() override;
+        void Finalize()   override;
+
         bool SetupRenderingContext() override;
+        void CleanupRenderingContext() override;
         void PumpMessage()override;
 
         glm::ivec2 GetSize()      const override;
@@ -37,9 +41,9 @@ namespace Silex
         virtual const char* GetTitle() const            override;
         virtual void        SetTitle(const char* title) override;
 
-        void*       GetWindowHandle() const override;
-        GLFWwindow* GetGLFWWindow()   const override;
-        WindowData& GetWindowData()   override;
+        void*             GetWindowHandle() const override;
+        GLFWwindow*       GetGLFWWindow()   const override;
+        const WindowData& GetWindowData()   const override;
 
         Surface* GetSurface() const override;
 
@@ -51,7 +55,8 @@ namespace Silex
         Surface*          renderingSurface = nullptr;
 
         // ウィンドウデータ
-        GLFWwindow* window;
+        GLFWwindow* window = nullptr;
+        WindowData  windowData;
 
         // Windows 固有ハンドル
         WindowsWindowHandle handle;

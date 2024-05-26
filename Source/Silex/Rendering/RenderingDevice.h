@@ -42,7 +42,7 @@ namespace Silex
     private:
 
         RenderingContext* renderingContext = nullptr;
-        RenderingAPI*     api     = nullptr;
+        RenderingAPI*     api              = nullptr;
 
         QueueFamily   graphicsQueueFamily = INVALID_RENDER_ID;
         CommandQueue* graphicsQueue       = nullptr;

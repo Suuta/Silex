@@ -56,8 +56,7 @@ namespace Silex
             case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:  SL_LOG_WARN("{}",  message); break;
             case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:    SL_LOG_ERROR("{}", message); break;
 
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_FLAG_BITS_MAX_ENUM_EXT:
-                break;
+            default: break;
         }
 
         return VK_FALSE;
@@ -233,7 +232,7 @@ namespace Silex
                 deviceInfo.vendor = (DeviceVendor)property.vendorID;
                 deviceInfo.type   = (DeviceType)property.deviceType;
 
-                physicalDevice = pd;
+                physicalDevice       = pd;
                 break;
             }
         }
@@ -270,9 +269,6 @@ namespace Silex
                 enableDeviceExtensions.push_back(itr->c_str());
             }
         }
-
-        // 物理デバイスの有効機能リスト取得
-        vkGetPhysicalDeviceFeatures(physicalDevice, &physicalDeviceFeatures);
 
         return true;
     }
@@ -333,11 +329,6 @@ namespace Silex
     const std::vector<const char*>& VulkanContext::GetEnabledDeviceExtensions() const
     {
         return enableDeviceExtensions;
-    }
-
-    const VkPhysicalDeviceFeatures& VulkanContext::GetPhysicalDeviceFeatureList() const
-    {
-        return physicalDeviceFeatures;
     }
 
     VkPhysicalDevice VulkanContext::GetPhysicalDevice() const

@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Rendering/RenderingCore.h"
+#include "Core/Window.h"
 
 
 namespace Silex
@@ -45,6 +46,15 @@ namespace Silex
 
         // スワップチェイン
         virtual SwapChain* CreateSwapChain(Surface* surface) = 0;
-        virtual bool ResizeSwapChain(SwapChain* swapchain, uint32 requestFramebufferCount) = 0;
+        virtual bool ResizeSwapChain(SwapChain* swapchain, uint32 requestFramebufferCount, VSyncMode mode) = 0;
+        virtual FramebufferHandle* GetSwapChainNextFramebuffer() = 0;
+        virtual RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) = 0;
+        virtual RenderingFormat GetSwapChainFormat(SwapChain* swapchain) = 0;
+        virtual void DestroySwapChain(SwapChain* swapchain) = 0;
+
+        // レンダーパス
+        virtual RenderPass* CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies) = 0;
+        virtual void DestroyRenderPass(RenderPass* renderpass) = 0;
+
     };
 }

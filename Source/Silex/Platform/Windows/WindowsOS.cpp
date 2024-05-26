@@ -50,9 +50,9 @@ namespace Silex
 
 
     // Windows Window
-    static Window* CreateWindowsWindow(const WindowCreateInfo& createInfo)
+    static Window* CreateWindowsWindow(const char* title, uint32 width, uint32 height)
     {
-        return Memory::Allocate<WindowsWindow>(createInfo);
+        return Memory::Allocate<WindowsWindow>(title, width, height);
     }
 
     // Windows VulkanContext

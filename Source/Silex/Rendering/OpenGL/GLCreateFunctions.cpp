@@ -13,8 +13,6 @@
 
 namespace Silex
 {
-#if SL_PLATFORM_OPENGL
-
     //========================================
     // レンダラー
     //========================================
@@ -111,6 +109,4 @@ namespace Silex
     {
         return CreateShared<GLSkyLight>(filePath);
     }
-
-#endif
 }

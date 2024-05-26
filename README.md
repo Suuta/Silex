@@ -8,7 +8,7 @@
 
 * Windows 10 / 11
 * Windows SDK:  ~ 10.0.22000
-* C++ 20
+* MSVC - C++ 20
 
 
 

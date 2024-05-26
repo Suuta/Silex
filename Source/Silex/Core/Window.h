@@ -37,7 +37,7 @@ namespace Silex
     class  RenderingDevice;
     struct WindowCreateInfo;
 
-    using WindowCreateFunction = Window* (*)(const WindowCreateInfo&);
+    using WindowCreateFunction = Window* (*)(const char* title, uint32 width, uint32 height);
 
     SL_DECLARE_DELEGATE(WindowCloseDelegate,         void, WindowCloseEvent&)
     SL_DECLARE_DELEGATE(WindowResizeDelegate,        void, WindowResizeEvent&)
@@ -48,13 +48,9 @@ namespace Silex
     SL_DECLARE_DELEGATE(MouseScrollDelegate,         void, MouseScrollEvent&)
     SL_DECLARE_DELEGATE(MouseMoveDelegate,           void, MouseMoveEvent&)
 
-    // ウィンドウデータ
-    struct WindowData
+    // イベントコールバック
+    struct WindowEventCallback
     {
-        std::string                 title;
-        uint32                      width;
-        uint32                      height;
-
         WindowCloseDelegate         windowCloseEvent;
         WindowResizeDelegate        windowResizeEvent;
         KeyPressedDelegate          keyPressedEvent;
@@ -65,13 +61,14 @@ namespace Silex
         MouseMoveDelegate           mouseMoveEvent;
     };
 
-    // ウィンドウ生成情報
-    struct WindowCreateInfo
+    // ウィンドウデータ
+    struct WindowData
     {
-        std::string title  = {};
-        uint32      width  = 1280;
-        uint32      height = 720;
-        bool        vsync  = true;
+        std::string title  = "";
+        uint32      width  = 0;
+        uint32      height = 0;
+
+        WindowEventCallback* callbacks = nullptr;
     };
 
     // ウィンドウインターフェース
@@ -81,9 +78,9 @@ namespace Silex
 
     public:
 
-        static Window* Create(const WindowCreateInfo& createInfo)
+        static Window* Create(const char* title, uint32 width, uint32 height)
         {
-            return createFunction(createInfo);
+            return createFunction(title, width, height);
         }
 
         static Window* Get()
@@ -101,8 +98,12 @@ namespace Silex
         Window()  { instance = this;    }
         ~Window() { instance = nullptr; }
 
+        virtual bool Initialize() = 0;
+        virtual void Finalize()   = 0;
+
         // レンダリングコンテキスト
         virtual bool SetupRenderingContext() = 0;
+        virtual void CleanupRenderingContext() = 0;
 
         // ウィンドウメッセージ
         virtual void PumpMessage() = 0;
@@ -123,10 +124,10 @@ namespace Silex
         virtual void        SetTitle(const char* title) = 0;
 
         // ウィンドウデータ
-        virtual void*       GetWindowHandle() const = 0;
-        virtual GLFWwindow* GetGLFWWindow() const   = 0;
-        virtual WindowData& GetWindowData()         = 0;
-        virtual Surface*    GetSurface() const      = 0;
+        virtual void*             GetWindowHandle() const = 0;
+        virtual GLFWwindow*       GetGLFWWindow()   const = 0;
+        virtual const WindowData& GetWindowData()   const = 0;
+        virtual Surface*          GetSurface()      const = 0;
 
     public:
 
@@ -181,7 +182,7 @@ namespace Silex
 
     protected:
 
-        WindowData windowData;
+        WindowEventCallback* callbacks = nullptr;
 
         static inline Window*              instance;
         static inline WindowCreateFunction createFunction;
@@ -194,111 +195,111 @@ namespace Silex
     void Window::BindWindowCloseEvent(T* instance, F memberFunc)
     {
         static_assert(Traits::IsSame<F, void(T::*)(WindowCloseEvent&)>());
-        windowData.windowCloseEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
+        callbacks->windowCloseEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
     }
 
     template<typename T>
     inline void Window::BindWindowCloseEvent(T&& func)
     {
         static_assert(Traits::IsSame<T, void(*)(WindowCloseEvent&)>());
-        windowData.windowCloseEvent.Bind(Traits::Forward<T>(func));
+        callbacks->windowCloseEvent.Bind(Traits::Forward<T>(func));
     }
 
     template <typename T, typename F>
     void Window::BindWindowResizeEvent(T* instance, F memberFunc)
     {
         static_assert(Traits::IsSame<F, void(T::*)(WindowResizeEvent&)>());
-        windowData.windowResizeEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
+        callbacks->windowResizeEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
     }
 
     template<typename T>
     inline void Window::BindWindowResizeEvent(T&& func)
     {
         static_assert(Traits::IsSame<T, void(*)(WindowResizeEvent&)>());
-        windowData.windowResizeEvent.Bind(Traits::Forward<T>(func));
+        callbacks->windowResizeEvent.Bind(Traits::Forward<T>(func));
     }
 
     template <typename T, typename F>
     void Window::BindKeyPressedEvent(T* instance, F memberFunc)
     {
         static_assert(Traits::IsSame<F, void(T::*)(KeyPressedEvent&)>());
-        windowData.keyPressedEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
+        callbacks->keyPressedEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
     }
 
     template<typename T>
     inline void Window::BindKeyPressedEvent(T&& func)
     {
         static_assert(Traits::IsSame<T, void(*)(KeyPressedEvent&)>());
-        windowData.keyPressedEvent.Bind(Traits::Forward<T>(func));
+        callbacks->keyPressedEvent.Bind(Traits::Forward<T>(func));
     }
 
     template <typename T, typename F>
     void Window::BindKeyReleasedEvent(T* instance, F memberFunc)
     {
         static_assert(Traits::IsSame<F, void(T::*)(KeyReleasedEvent&)>());
-        windowData.keyReleasedEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
+        callbacks->keyReleasedEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
     }
 
     template<typename T>
     inline void Window::BindKeyReleasedEvent(T&& func)
     {
         static_assert(Traits::IsSame<T, void(*)(KeyReleasedEvent&)>());
-        windowData.keyReleasedEvent.Bind(Traits::Forward<T>(func));
+        callbacks->keyReleasedEvent.Bind(Traits::Forward<T>(func));
     }
 
     template<typename T, typename F>
     inline void Window::BindMouseButtonPressedEvent(T* instance, F memberFunc)
     {
         static_assert(Traits::IsSame<F, void(T::*)(MouseButtonPressedEvent&)>());
-        windowData.mouseButtonPressedEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
+        callbacks->mouseButtonPressedEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
     }
 
     template<typename T>
     inline void Window::BindMouseButtonPressedEvent(T&& func)
     {
         static_assert(Traits::IsSame<T, void(*)(MouseButtonPressedEvent&)>());
-        windowData.mouseButtonPressedEvent.Bind(Traits::Forward<T>(func));
+        callbacks->mouseButtonPressedEvent.Bind(Traits::Forward<T>(func));
     }
 
     template<typename T, typename F>
     inline void Window::BindMouseButtonReleasedEvent(T* instance, F memberFunc)
     {
         static_assert(Traits::IsSame<F, void(T::*)(MouseButtonReleasedEvent&)>());
-        windowData.mouseButtonReleasedEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
+        callbacks->mouseButtonReleasedEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
     }
 
     template<typename T>
     inline void Window::BindMouseButtonReleasedEvent(T&& func)
     {
         static_assert(Traits::IsSame<T, void(*)(MouseButtonReleasedEvent&)>());
-        windowData.mouseButtonReleasedEvent.Bind(Traits::Forward<T>(func));
+        callbacks->mouseButtonReleasedEvent.Bind(Traits::Forward<T>(func));
     }
 
     template<typename T, typename F>
     inline void Window::BindMouseScrollEvent(T* instance, F memberFunc)
     {
         static_assert(Traits::IsSame<F, void(T::*)(MouseScrollEvent&)>());
-        windowData.mouseScrollEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
+        callbacks->mouseScrollEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
     }
 
     template<typename T>
     inline void Window::BindMouseScrollEvent(T&& func)
     {
         static_assert(Traits::IsSame<T, void(*)(MouseScrollEvent&)>());
-        windowData.mouseScrollEvent.Bind(Traits::Forward<T>(func));
+        callbacks->mouseScrollEvent.Bind(Traits::Forward<T>(func));
     }
 
     template<typename T, typename F>
     inline void Window::BindMouseMoveEvent(T* instance, F memberFunc)
     {
         static_assert(Traits::IsSame<F, void(T::*)(MouseMoveEvent&)>());
-        windowData.mouseMoveEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
+        callbacks->mouseMoveEvent.Bind(SL_BIND_MEMBER_FN(instance, memberFunc));
     }
 
     template<typename T>
     inline void Window::BindMouseMoveEvent(T&& func)
     {
         static_assert(Traits::IsSame<T, void(*)(MouseMoveEvent&)>());
-        windowData.mouseMoveEvent.Bind(Traits::Forward<T>(func));
+        callbacks->mouseMoveEvent.Bind(Traits::Forward<T>(func));
     }
 }

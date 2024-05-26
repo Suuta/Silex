@@ -72,6 +72,7 @@ namespace Silex
 
     enum RenderingFormat
     {
+        RENDERING_FORMAT_UNDEFINE,
         RENDERING_FORMAT_R4G4_UNORM_PACK8,
         RENDERING_FORMAT_R4G4B4A4_UNORM_PACK16,
         RENDERING_FORMAT_B4G4R4A4_UNORM_PACK16,
@@ -294,18 +295,52 @@ namespace Silex
         RENDERING_FORMAT_MAX,
     };
 
-    enum CompareOp
+    enum QueueFamilyBits
     {
-        COMPARE_OP_NEVER,
-        COMPARE_OP_LESS,
-        COMPARE_OP_EQUAL,
-        COMPARE_OP_LESS_OR_EQUAL,
-        COMPARE_OP_GREATER,
-        COMPARE_OP_NOT_EQUAL,
-        COMPARE_OP_GREATER_OR_EQUAL,
-        COMPARE_OP_ALWAYS,
+        QUEUE_FAMILY_GRAPHICS_BIT = 0x1,
+        QUEUE_FAMILY_COMPUTE_BIT  = 0x2,
+        QUEUE_FAMILY_TRANSFER_BIT = 0x4,
+    };
 
-        COMPARE_OP_MAX,
+    enum PipelineStageBits
+    {
+        PIPELINE_STAGE_TOP_OF_PIPE_BIT                    = (1 << 0),
+        PIPELINE_STAGE_DRAW_INDIRECT_BIT                  = (1 << 1),
+        PIPELINE_STAGE_VERTEX_INPUT_BIT                   = (1 << 2),
+        PIPELINE_STAGE_VERTEX_SHADER_BIT                  = (1 << 3),
+        PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT    = (1 << 4),
+        PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT = (1 << 5),
+        PIPELINE_STAGE_GEOMETRY_SHADER_BIT                = (1 << 6),
+        PIPELINE_STAGE_FRAGMENT_SHADER_BIT                = (1 << 7),
+        PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT           = (1 << 8),
+        PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT            = (1 << 9),
+        PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT        = (1 << 10),
+        PIPELINE_STAGE_COMPUTE_SHADER_BIT                 = (1 << 11),
+        PIPELINE_STAGE_TRANSFER_BIT                       = (1 << 12),
+        PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT                 = (1 << 13),
+        PIPELINE_STAGE_ALL_GRAPHICS_BIT                   = (1 << 15),
+        PIPELINE_STAGE_ALL_COMMANDS_BIT                   = (1 << 16),
+    };
+
+    enum BarrierAccessBits
+    {
+        BARRIER_ACCESS_INDIRECT_COMMAND_READ_BIT          = (1 << 0),
+        BARRIER_ACCESS_INDEX_READ_BIT                     = (1 << 1),
+        BARRIER_ACCESS_VERTEX_ATTRIBUTE_READ_BIT          = (1 << 2),
+        BARRIER_ACCESS_UNIFORM_READ_BIT                   = (1 << 3),
+        BARRIER_ACCESS_INPUT_ATTACHMENT_READ_BIT          = (1 << 4),
+        BARRIER_ACCESS_SHADER_READ_BIT                    = (1 << 5),
+        BARRIER_ACCESS_SHADER_WRITE_BIT                   = (1 << 6),
+        BARRIER_ACCESS_COLOR_ATTACHMENT_READ_BIT          = (1 << 7),
+        BARRIER_ACCESS_COLOR_ATTACHMENT_WRITE_BIT         = (1 << 8),
+        BARRIER_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT  = (1 << 9),
+        BARRIER_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT = (1 << 10),
+        BARRIER_ACCESS_TRANSFER_READ_BIT                  = (1 << 11),
+        BARRIER_ACCESS_TRANSFER_WRITE_BIT                 = (1 << 12),
+        BARRIER_ACCESS_HOST_READ_BIT                      = (1 << 13),
+        BARRIER_ACCESS_HOST_WRITE_BIT                     = (1 << 14),
+        BARRIER_ACCESS_MEMORY_READ_BIT                    = (1 << 15),
+        BARRIER_ACCESS_MEMORY_WRITE_BIT                   = (1 << 16),
     };
 
     enum TextureType
@@ -321,7 +356,7 @@ namespace Silex
         TEXTURE_TYPE_MAX,
     };
 
-    enum TextureSample
+    enum TextureSamples
     {
         TEXTURE_SAMPLES_1,
         TEXTURE_SAMPLES_2,
@@ -334,10 +369,93 @@ namespace Silex
         TEXTURE_SAMPLES_MAX,
     };
 
-    enum QueueFamilyBits
+    enum TextureLayout
     {
-        QUEUE_FAMILY_GRAPHICS_BIT = 0x1,
-        QUEUE_FAMILY_COMPUTE_BIT  = 0x2,
-        QUEUE_FAMILY_TRANSFER_BIT = 0x4,
+        TEXTURE_LAYOUT_UNDEFINED,
+        TEXTURE_LAYOUT_GENERAL,
+        TEXTURE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        TEXTURE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+        TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        TEXTURE_LAYOUT_PREINITIALIZED,
+
+        TEXTURE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL = 1000117000,
+        TEXTURE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL = 1000117001,
+        TEXTURE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL                   = 1000241000,
+        TEXTURE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL                    = 1000241001,
+        TEXTURE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL                 = 1000241002,
+        TEXTURE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL                  = 1000241003,
+        TEXTURE_LAYOUT_READ_ONLY_OPTIMAL                          = 1000314000,
+        TEXTURE_LAYOUT_ATTACHMENT_OPTIMAL                         = 1000314001,
+        TEXTURE_LAYOUT_PRESENT_SRC                                = 1000001002,
+    };
+
+    enum TextureAspect
+    {
+        TEXTURE_ASPECT_COLOR   = 0,
+        TEXTURE_ASPECT_DEPTH   = 1,
+        TEXTURE_ASPECT_STENCIL = 2,
+
+        TEXTURE_ASPECT_MAX
+    };
+
+    enum TextureAspectBits
+    {
+        TEXTURE_ASPECT_COLOR_BIT   = (1 << TEXTURE_ASPECT_COLOR),
+        TEXTURE_ASPECT_DEPTH_BIT   = (1 << TEXTURE_ASPECT_DEPTH),
+        TEXTURE_ASPECT_STENCIL_BIT = (1 << TEXTURE_ASPECT_STENCIL),
+    };
+
+    enum AttachmentLoadOp
+    {
+        ATTACHMENT_LOAD_OP_LOAD      = 0,
+        ATTACHMENT_LOAD_OP_CLEAR     = 1,
+        ATTACHMENT_LOAD_OP_DONT_CARE = 2,
+    };
+
+    enum AttachmentStoreOp
+    {
+        ATTACHMENT_STORE_OP_STORE     = 0,
+        ATTACHMENT_STORE_OP_DONT_CARE = 1,
+    };
+
+    struct Attachment
+    {
+        RenderingFormat   format         = RENDERING_FORMAT_MAX;
+        TextureSamples    samples        = TEXTURE_SAMPLES_MAX;
+        AttachmentLoadOp  loadOp         = ATTACHMENT_LOAD_OP_DONT_CARE;
+        AttachmentStoreOp storeOp        = ATTACHMENT_STORE_OP_DONT_CARE;
+        AttachmentLoadOp  stencilLoadOp  = ATTACHMENT_LOAD_OP_DONT_CARE;
+        AttachmentStoreOp stencilStoreOp = ATTACHMENT_STORE_OP_DONT_CARE;
+        TextureLayout     initialLayout  = TEXTURE_LAYOUT_UNDEFINED;
+        TextureLayout     finalLayout    = TEXTURE_LAYOUT_UNDEFINED;
+    };
+
+    struct AttachmentReference
+    {
+        uint32            attachment = INVALID_RENDER_ID;
+        TextureLayout     layout     = TEXTURE_LAYOUT_UNDEFINED;
+        TextureAspectBits aspect;
+    };
+
+    struct Subpass
+    {
+        std::vector<AttachmentReference> inputReferences;
+        std::vector<AttachmentReference> colorReferences;
+        AttachmentReference              depthstencilReference;
+        AttachmentReference              resolveReferences;
+        std::vector<uint32>              preserveAttachments;
+    };
+
+    struct SubpassDependency
+    {
+        uint32            srcSubpass = INVALID_RENDER_ID;
+        uint32            dstSubpass = INVALID_RENDER_ID;
+        PipelineStageBits srcStages;
+        PipelineStageBits dstStages;
+        BarrierAccessBits srcAccess;
+        BarrierAccessBits dstAccess;
     };
 }

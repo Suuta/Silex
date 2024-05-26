@@ -33,7 +33,7 @@ namespace Silex
         VkSurfaceKHR surface   = nullptr;
         uint32       width     = 0;
         uint32       height    = 0;
-        VSyncMode    vsyncMode = VSYNC_MODE_ENABLED;
+        VSyncMode    vsyncMode = VSYNC_MODE_DISABLED;
     };
 
     //=============================================
@@ -73,7 +73,6 @@ namespace Silex
         const std::vector<VkQueueFamilyProperties>& GetQueueFamilyProperties() const;
         const std::vector<const char*>& GetEnabledInstanceExtensions() const;
         const std::vector<const char*>& GetEnabledDeviceExtensions() const;
-        const VkPhysicalDeviceFeatures& GetPhysicalDeviceFeatureList() const;
 
         VkPhysicalDevice GetPhysicalDevice() const;
         VkInstance GetInstance() const;
@@ -106,8 +105,5 @@ namespace Silex
         // デバイス拡張
         std::unordered_set<std::string> requestDeviceExtensions;
         std::vector<const char*>        enableDeviceExtensions;
-
-        // デバイス機能
-        VkPhysicalDeviceFeatures physicalDeviceFeatures;
     };
 }

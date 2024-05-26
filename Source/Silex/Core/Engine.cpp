@@ -74,25 +74,22 @@ namespace Silex
     {
         bool result = false;
 
-        WindowCreateInfo info = {};
-        info.title  = "Silex";
-        info.width  = 1280;
-        info.height = 720;
-        info.vsync  = false;
-
         // ウィンドウ
-        window = Window::Create(info);
+        window = Window::Create("Silex", 1280, 720);
+        result = window->Initialize();
+        SL_CHECK(!result, false);
 
         // コールバック登録
         window->BindWindowCloseEvent(this,  &Engine::OnWindowClose);
-        window->BindWindowResizeEvent(this, &Engine::OnWindowResize);
-        window->BindMouseMoveEvent(this,    &Engine::OnMouseMove);
-        window->BindMouseScrollEvent(this,  &Engine::OnMouseScroll);
+      //window->BindWindowResizeEvent(this, &Engine::OnWindowResize);
+      //window->BindMouseMoveEvent(this,    &Engine::OnMouseMove);
+      //window->BindMouseScrollEvent(this,  &Engine::OnMouseScroll);
 
         // レンダリングコンテキスト
         result = window->SetupRenderingContext();
         SL_CHECK(!result, false);
 
+#if 0
         // レンダラー
         Renderer::Get()->Init();
 
@@ -107,6 +104,7 @@ namespace Silex
         editor = Memory::Allocate<Editor>();
         editor->Init();
 
+#endif
         // ウィンドウ表示
         window->Show();
 
@@ -119,6 +117,7 @@ namespace Silex
 
         if (!minimized)
         {
+#if 0
             Renderer::Get()->BeginFrame();
             editorUI->BeginFrame();
 
@@ -127,6 +126,7 @@ namespace Silex
 
             editorUI->EndFrame();
             Renderer::Get()->EndFrame();
+#endif
 
             Input::Flush();
         }
@@ -139,6 +139,7 @@ namespace Silex
 
     void Engine::Finalize()
     {
+#if 0
         if (editor)
         {
             editor->Shutdown();
@@ -151,10 +152,12 @@ namespace Silex
 
         AssetManager::Get()->Shutdown();
         Renderer::Get()->Shutdown();
+#endif
 
         // ウィンドウ破棄
         if (window)
         {
+            window->Finalize();
             Memory::Deallocate(window);
         }
     }
