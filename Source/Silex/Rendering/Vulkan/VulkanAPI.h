@@ -7,6 +7,39 @@
 #include <vulkan/vk_mem_alloc.h>
 
 
+//----------------------------------------------------
+// memo
+//----------------------------------------------------
+// アセットは Ref<TextureAsset> 形式で保持?
+// 
+// レンダーオブジェクトをメンバーに内包する形で表現
+// class TextureAsset : public Asset
+// { 
+//     Texture* texture;
+// }
+//----------------------------------------------------
+
+//============
+// TODO:
+//============
+// 
+// --- オブジェクト ---
+// Buffer
+// パイプライン・バリア
+// コマンド
+// 
+// --- クリアスクリーンにむけて --- 
+// シェーダ・デスクリプターセット（必須なら）
+// データ転送: 他の実装参考に...
+// フレーム同期
+// 
+// --- 各種操作 ---
+// クリアスクリーンテスト
+// トライアングル表示
+// ImGui::Image 反映
+// 
+
+
 namespace Silex
 {
     class  VulkanContext;
@@ -62,9 +95,41 @@ namespace Silex
         VkFormat        format     = VK_FORMAT_UNDEFINED;
         VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
-        std::vector<VkFramebuffer> framebuffers;
-        std::vector<VkImage>       images;
-        std::vector<VkImageView>   views;
+        std::vector<FramebufferHandle*> framebuffers;
+        std::vector<VkImage>            images;
+        std::vector<VkImageView>        views;
+
+        uint32 imageIndex = 0;
+    };
+
+    struct VulkanBuffer : public Buffer
+    {
+        VkBuffer      buffer           = nullptr;
+        VkBufferView  view             = nullptr;
+        uint64        bufferSize       = 0;
+        VmaAllocation allocationHandle = nullptr;
+        uint64        allocationSize   = 0;
+    };
+
+    struct VulkanTexture : public TextureHandle
+    {
+        VkImage     image    = nullptr;
+        VkImageView imageView= nullptr;
+
+        VmaAllocation     allocationHandle = nullptr;
+        VmaAllocationInfo allocationInfo   = {};
+    };
+
+    struct VulkanSampler : public Sampler
+    {
+        VkSampler sampler = nullptr;
+    };
+
+    struct VulkanVertexFormat : public VertexFormat
+    {
+        std::vector<VkVertexInputBindingDescription>   bindings;
+        std::vector<VkVertexInputAttributeDescription> attributes;
+        VkPipelineVertexInputStateCreateInfo           createInfo = {};
     };
 
 
@@ -76,7 +141,6 @@ namespace Silex
         PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR = nullptr;
         PFN_vkAcquireNextImageKHR   vkAcquireNextImageKHR   = nullptr;
         PFN_vkQueuePresentKHR       vkQueuePresentKHR       = nullptr;
-        PFN_vkCreateRenderPass2KHR  vkCreateRenderPass2KHR  = nullptr;
     };
 
 
@@ -121,20 +185,39 @@ namespace Silex
         // スワップチェイン
         SwapChain* CreateSwapChain(Surface* surface) override;
         bool ResizeSwapChain(SwapChain* swapchain, uint32 requestFramebufferCount, VSyncMode mode) override;
-        FramebufferHandle* GetSwapChainNextFramebuffer() override;
+        FramebufferHandle* GetSwapChainNextFramebuffer(SwapChain* swapchain, Semaphore* semaphore) override;
         RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) override;
         RenderingFormat GetSwapChainFormat(SwapChain* swapchain) override;
         void DestroySwapChain(SwapChain* swapchain) override;
+
+        // バッファ
+        Buffer* CreateBuffer(uint64 size, BufferUsageBits usage, MemoryAllocationType memoryType) override;
+        void DestroyBuffer(Buffer* buffer) override;
+        byte* MapBuffer(Buffer* buffer) override;
+        void UnmapBuffer(Buffer* buffer) override;
+
+        // テクスチャ
+        TextureHandle* CreateTexture(const TextureFormat& format) override;
+        void DestroyTexture(TextureHandle* texture) override;
+
+        // サンプラ
+        Sampler* CreateSampler(const SamplerState& state) override;
+        void DestroySampler(Sampler* sampler) override;
+
+        // フレームバッファ
+        FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, TextureHandle* textures, uint32 numTexture, uint32 width, uint32 height) override;
+        void DestroyFramebuffer(FramebufferHandle* framebuffer) override;
+
+        // 頂点フォーマット
+        VertexFormat* CreateVertexFormat(uint32 numattributes, VertexAttribute* attributes) override;
+        void DestroyVertexFormat(VertexAttribute* attributes) override;
 
         // レンダーパス
         RenderPass* CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies) override;
         void DestroyRenderPass(RenderPass* renderpass) override;
 
-    private:
-
-        VkSampleCountFlagBits _GetSupportedSampleCounts(TextureSamples samples);
-
-
+        // バリア
+        void PipelineBarrier(CommandBuffer* commanddBuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrier* memoryBarrier, uint32 numBufferBarrier, BufferBarrier* bufferBarrier, uint32 numTextureBarrier, TextureBarrier* textureBarrier) override;
 
     private:
 
@@ -147,7 +230,7 @@ namespace Silex
         // 論理デバイス
         VkDevice device = nullptr;
 
-        // アロケータ
+        // VMAアロケータ (VulkanMemoryAllocator: VkImage/VkBuffer の生成にともなうメモリ管理を代行)
         VmaAllocator allocator = nullptr;
     };
 

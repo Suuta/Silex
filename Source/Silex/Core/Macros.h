@@ -18,10 +18,13 @@
 // __VA_ARGS__ の再帰展開を正しく展開させるため?
 #define SL_EXPAND(x) x
 
+// ビットシフト
+#define SL_BIT(x) 1 << x
+
 // コンパイラ警告の抑制や、三項演算子で実行しないステートのダミー処理?
 #define SL_NO_USE(x) (void)(x)
 
-// 引数の数によるオーバーロード解決
+// 引数オーバーロード解決に使用
 #define SL_ARG3(_1, _2, _3, ...) _3
 
 
@@ -38,6 +41,19 @@
     #define SL_FUNCSIG       __PRETTY_FUNCTION__
 #endif
 
+
+//===========================================================================================================================
+// 動的スタック確保
+//---------------------------------------------------------------------------------------------------------------------------
+// 呼び出し関数内スコープで有効なメモリをスタック領域に確保する
+//===========================================================================================================================
+#define SL_STACK(T, size)  ((sizeof(T) * size) != 0)? (T*)alloca(sizeof(T) * size) : nullptr
+
+
+//===========================================================================================================================
+// ログ
+//===========================================================================================================================
+
 // コンソールログ
 #define SL_LOG_FATAL(...) Silex::Logger::Log(Silex::LogLevel::Fatal, std::format(__VA_ARGS__))
 #define SL_LOG_ERROR(...) Silex::Logger::Log(Silex::LogLevel::Error, std::format(__VA_ARGS__))
@@ -51,8 +67,8 @@
 #define SL_MESSAGE_ALERT(...) Silex::OS::Get()->Message(OS_MESSEGA_TYPE_ALERT, std::format(__VA_ARGS__))
 
 // エラー
-#define SL_LOG_LOCATION()            SL_LOG_ERROR("{}, {}, {}",            __FUNCTION__, __FILE__, __LINE__);
-#define SL_LOG_LOCATION_ERROR(error) SL_LOG_ERROR("{}: {}, {}, {}", error, __FUNCTION__, __FILE__, __LINE__);
+#define SL_LOG_LOCATION()            SL_LOG_ERROR("{}, {}, {}",            SL_FUNCNAME, __FILE__, __LINE__);
+#define SL_LOG_LOCATION_ERROR(error) SL_LOG_ERROR("{}: {}, {}, {}", error, SL_FUNCNAME, __FILE__, __LINE__);
 
 // エラーチェック
 #define SL_CHECK(expr, retval) if (expr) { SL_LOG_LOCATION(); return retval; }
@@ -98,6 +114,7 @@ public:\
     static inline const char*  staticClassName = #T;\
     static inline const uint64 staticHashID    = GlobalClassDataBase::Register<T>(#T);\
     using Super = TSuper;
+
 
 #if 0
 //============================================================================================================================

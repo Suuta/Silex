@@ -5,6 +5,9 @@
 
 namespace Silex
 {
+    //================================================
+    // ハンドル
+    //================================================
     enum : uint32
     {
         INVALID_RENDER_ID = UINT32_MAX,
@@ -20,26 +23,32 @@ namespace Silex
     using Semaphore     = Handle;
     using SwapChain     = Handle;
     using RenderPass    = Handle;
+    using Buffer        = Handle;
+    using Pipeline      = Handle;
+    using Sampler       = Handle;
+    using UniformSet    = Handle;
+    using VertexFormat  = Handle;
 
-    using FramebufferHandle = Handle;
-
-
-    using BufferHandle       = Handle;
+    // 命名重複のためHandleを追加 (OpenGL廃止後に修正)
+    using FramebufferHandle  = Handle;
     using TextureHandle      = Handle;
-    using SamplerHandle      = Handle;
-    using VertexFormatHandle = Handle;
     using ShaderHandle       = Handle;
-    using UniformSetHandle   = Handle;
-    using PipelineHandle     = Handle;
 
-    // コマンドバッファタイプ
+
+    //================================================
+    // コマンドバッファ
+    //================================================
     enum CommandBufferType
     {
         COMMAND_BUFFER_TYPE_PRIMARY,
         COMMAND_BUFFER_TYPE_SECONDARY,
+
+        COMMAND_BUFFER_TYPE_MAX,
     };
 
-    // 各GPUのベンダーIDっぽい
+    //================================================
+    // デバイス
+    //================================================
     enum DeviceVendor
     {
         DEVICE_VENDOR_UNKNOWN   = 0x0000,
@@ -55,12 +64,13 @@ namespace Silex
 
     enum DeviceType
     {
-        DEVICE_TYPE_UNKNOW         = 0,
-        DEVICE_TYPE_INTEGRATED_GPU = 1,
-        DEVICE_TYPE_DISCRETE_GPU   = 2,
-        DEVICE_TYPE_VIRTUAL_GPU    = 3,
-        DEVICE_TYPE_CPU            = 4,
-        DEVICE_TYPE_MAX            = 5,
+        DEVICE_TYPE_UNKNOW,
+        DEVICE_TYPE_INTEGRATED_GPU,
+        DEVICE_TYPE_DISCRETE_GPU,
+        DEVICE_TYPE_VIRTUAL_GPU,
+        DEVICE_TYPE_CPU,
+
+        DEVICE_TYPE_MAX,
     };
 
     struct DeviceInfo
@@ -70,6 +80,9 @@ namespace Silex
         DeviceType   type   = DEVICE_TYPE_UNKNOW;
     };
 
+    //================================================
+    // フォーマット
+    //================================================
     enum RenderingFormat
     {
         RENDERING_FORMAT_UNDEFINE,
@@ -295,54 +308,63 @@ namespace Silex
         RENDERING_FORMAT_MAX,
     };
 
+    //================================================
+    // 比較関数
+    //================================================
+    enum CompareOperator
+    {
+        COMPARE_OP_NEVER,
+        COMPARE_OP_LESS,
+        COMPARE_OP_EQUAL,
+        COMPARE_OP_LESS_OR_EQUAL,
+        COMPARE_OP_GREATER,
+        COMPARE_OP_NOT_EQUAL,
+        COMPARE_OP_GREATER_OR_EQUAL,
+        COMPARE_OP_ALWAYS,
+
+        COMPARE_OP_MAX
+    };
+
+    //================================================
+    // メモリ
+    //================================================
+    enum MemoryAllocationType
+    {
+        MEMORY_ALLOCATION_TYPE_CPU,
+        MEMORY_ALLOCATION_TYPE_GPU,
+
+        MEMORY_ALLOCATION_TYPE_MAX,
+    };
+
+    //================================================
+    // キューファミリ
+    //================================================
     enum QueueFamilyBits
     {
-        QUEUE_FAMILY_GRAPHICS_BIT = 0x1,
-        QUEUE_FAMILY_COMPUTE_BIT  = 0x2,
-        QUEUE_FAMILY_TRANSFER_BIT = 0x4,
+        QUEUE_FAMILY_GRAPHICS_BIT = SL_BIT(0),
+        QUEUE_FAMILY_COMPUTE_BIT  = SL_BIT(1),
+        QUEUE_FAMILY_TRANSFER_BIT = SL_BIT(2),
     };
 
-    enum PipelineStageBits
+    //=================================================
+    // バッファ
+    //=================================================
+    enum BufferUsageBits
     {
-        PIPELINE_STAGE_TOP_OF_PIPE_BIT                    = (1 << 0),
-        PIPELINE_STAGE_DRAW_INDIRECT_BIT                  = (1 << 1),
-        PIPELINE_STAGE_VERTEX_INPUT_BIT                   = (1 << 2),
-        PIPELINE_STAGE_VERTEX_SHADER_BIT                  = (1 << 3),
-        PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT    = (1 << 4),
-        PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT = (1 << 5),
-        PIPELINE_STAGE_GEOMETRY_SHADER_BIT                = (1 << 6),
-        PIPELINE_STAGE_FRAGMENT_SHADER_BIT                = (1 << 7),
-        PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT           = (1 << 8),
-        PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT            = (1 << 9),
-        PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT        = (1 << 10),
-        PIPELINE_STAGE_COMPUTE_SHADER_BIT                 = (1 << 11),
-        PIPELINE_STAGE_TRANSFER_BIT                       = (1 << 12),
-        PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT                 = (1 << 13),
-        PIPELINE_STAGE_ALL_GRAPHICS_BIT                   = (1 << 15),
-        PIPELINE_STAGE_ALL_COMMANDS_BIT                   = (1 << 16),
+        BUFFER_USAGE_TRANSFER_SRC_BIT         = SL_BIT(0),
+        BUFFER_USAGE_TRANSFER_DST_BIT         = SL_BIT(1),
+        BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT = SL_BIT(2),
+        BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT = SL_BIT(3),
+        BUFFER_USAGE_UNIFORM_BIT              = SL_BIT(4),
+        BUFFER_USAGE_STORAGE_BIT              = SL_BIT(5),
+        BUFFER_USAGE_INDEX_BIT                = SL_BIT(6),
+        BUFFER_USAGE_VERTEX_BIT               = SL_BIT(7),
+        BUFFER_USAGE_INDIRECT_BIT             = SL_BIT(8),
     };
 
-    enum BarrierAccessBits
-    {
-        BARRIER_ACCESS_INDIRECT_COMMAND_READ_BIT          = (1 << 0),
-        BARRIER_ACCESS_INDEX_READ_BIT                     = (1 << 1),
-        BARRIER_ACCESS_VERTEX_ATTRIBUTE_READ_BIT          = (1 << 2),
-        BARRIER_ACCESS_UNIFORM_READ_BIT                   = (1 << 3),
-        BARRIER_ACCESS_INPUT_ATTACHMENT_READ_BIT          = (1 << 4),
-        BARRIER_ACCESS_SHADER_READ_BIT                    = (1 << 5),
-        BARRIER_ACCESS_SHADER_WRITE_BIT                   = (1 << 6),
-        BARRIER_ACCESS_COLOR_ATTACHMENT_READ_BIT          = (1 << 7),
-        BARRIER_ACCESS_COLOR_ATTACHMENT_WRITE_BIT         = (1 << 8),
-        BARRIER_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT  = (1 << 9),
-        BARRIER_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT = (1 << 10),
-        BARRIER_ACCESS_TRANSFER_READ_BIT                  = (1 << 11),
-        BARRIER_ACCESS_TRANSFER_WRITE_BIT                 = (1 << 12),
-        BARRIER_ACCESS_HOST_READ_BIT                      = (1 << 13),
-        BARRIER_ACCESS_HOST_WRITE_BIT                     = (1 << 14),
-        BARRIER_ACCESS_MEMORY_READ_BIT                    = (1 << 15),
-        BARRIER_ACCESS_MEMORY_WRITE_BIT                   = (1 << 16),
-    };
-
+    //=================================================
+    // テクスチャ
+    //=================================================
     enum TextureType
     {
         TEXTURE_TYPE_1D,
@@ -391,34 +413,199 @@ namespace Silex
         TEXTURE_LAYOUT_ATTACHMENT_OPTIMAL                         = 1000314001,
         TEXTURE_LAYOUT_PRESENT_SRC                                = 1000001002,
     };
-
-    enum TextureAspect
-    {
-        TEXTURE_ASPECT_COLOR   = 0,
-        TEXTURE_ASPECT_DEPTH   = 1,
-        TEXTURE_ASPECT_STENCIL = 2,
-
-        TEXTURE_ASPECT_MAX
-    };
-
+    
     enum TextureAspectBits
     {
-        TEXTURE_ASPECT_COLOR_BIT   = (1 << TEXTURE_ASPECT_COLOR),
-        TEXTURE_ASPECT_DEPTH_BIT   = (1 << TEXTURE_ASPECT_DEPTH),
-        TEXTURE_ASPECT_STENCIL_BIT = (1 << TEXTURE_ASPECT_STENCIL),
+        TEXTURE_ASPECT_COLOR_BIT   = SL_BIT(0),
+        TEXTURE_ASPECT_DEPTH_BIT   = SL_BIT(1),
+        TEXTURE_ASPECT_STENCIL_BIT = SL_BIT(2),
     };
 
+    enum TextureUsageBits
+    {
+        TEXTURE_USAGE_COPY_SRC_BIT                 = SL_BIT(0),
+        TEXTURE_USAGE_COPY_DST_BIT                 = SL_BIT(1),
+        TEXTURE_USAGE_SAMPLING_BIT                 = SL_BIT(2),
+        TEXTURE_USAGE_STORAGE_BIT                  = SL_BIT(3),
+        TEXTURE_USAGE_COLOR_ATTACHMENT_BIT         = SL_BIT(4),
+        TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT = SL_BIT(5),
+        TEXTURE_USAGE_TRANSIENT_ATTACHMENT_BIT     = SL_BIT(6),
+        TEXTURE_USAGE_INPUT_ATTACHMENT_BIT         = SL_BIT(7),
+        TEXTURE_USAGE_CPU_READ_BIT                 = SL_BIT(8),
+    };
+
+    struct TextureFormat
+    {
+        RenderingFormat format    = RENDERING_FORMAT_UNDEFINE;
+        uint32          width     = 0;
+        uint32          height    = 0;
+        uint32          depth     = 1;
+        uint32          array     = 1;
+        uint32          mipmap    = 1;
+        TextureType     type      = TEXTURE_TYPE_2D;
+        TextureSamples  samples   = TEXTURE_SAMPLES_1;
+        uint32          usageBits = 0; 
+    };
+
+    struct TextureSubresource
+    {
+        TextureAspectBits aspect = TEXTURE_ASPECT_COLOR_BIT;
+        uint32            layer  = 0;
+        uint32            mipmap = 0;
+    };
+
+    struct TextureSubresourceRange
+    {
+        TextureAspectBits aspect;
+        uint32            baseMipmap  = 0;
+        uint32            mipmapCount = 0;
+        uint32            baseLayer   = 0;
+        uint32            layerCount  = 0;
+    };
+
+    //================================================
+    // サンプラー
+    //================================================
+    enum SamplerFilter
+    {
+        SAMPLER_FILTER_NEAREST,
+        SAMPLER_FILTER_LINEAR,
+
+        SAMPLER_FILTER_MAX,
+    };
+
+    enum SamplerRepeatMode
+    {
+        SAMPLER_REPEAT_MODE_REPEAT,
+        SAMPLER_REPEAT_MODE_MIRRORED_REPEAT,
+        SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE,
+        SAMPLER_REPEAT_MODE_CLAMP_TO_BORDER,
+        SAMPLER_REPEAT_MODE_MIRROR_CLAMP_TO_EDGE,
+
+        SAMPLER_REPEAT_MODE_MAX
+    };
+
+    enum SamplerBorderColor
+    {
+        SAMPLER_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
+        SAMPLER_BORDER_COLOR_INT_TRANSPARENT_BLACK,
+        SAMPLER_BORDER_COLOR_FLOAT_OPAQUE_BLACK,
+        SAMPLER_BORDER_COLOR_INT_OPAQUE_BLACK,
+        SAMPLER_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+        SAMPLER_BORDER_COLOR_INT_OPAQUE_WHITE,
+
+        SAMPLER_BORDER_COLOR_MAX
+    };
+
+    struct SamplerState
+    {
+        SamplerFilter      magFilter     = SAMPLER_FILTER_LINEAR;
+        SamplerFilter      minFilter     = SAMPLER_FILTER_LINEAR;
+        SamplerFilter      mipFilter     = SAMPLER_FILTER_LINEAR;
+        SamplerRepeatMode  repeatU       = SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE;
+        SamplerRepeatMode  repeatV       = SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE;
+        SamplerRepeatMode  repeatW       = SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE;
+        float              lodBias       = 0.0f;
+        bool               useAnisotropy = false;
+        float              anisotropyMax = 1.0f;
+        bool               enableCompare = false;
+        CompareOperator    compareOp     = COMPARE_OP_ALWAYS;
+        float              minLod        = 0.0f;
+        float              maxLod        = 1e20;
+        SamplerBorderColor borderColor   = SAMPLER_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+        bool               unnormalized  = false;
+    };
+
+    //================================================
+    // バリア
+    //================================================
+    enum PipelineStageBits
+    {
+        PIPELINE_STAGE_TOP_OF_PIPE_BIT                    = SL_BIT(0),
+        PIPELINE_STAGE_DRAW_INDIRECT_BIT                  = SL_BIT(1),
+        PIPELINE_STAGE_VERTEX_INPUT_BIT                   = SL_BIT(2),
+        PIPELINE_STAGE_VERTEX_SHADER_BIT                  = SL_BIT(3),
+        PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT    = SL_BIT(4),
+        PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT = SL_BIT(5),
+        PIPELINE_STAGE_GEOMETRY_SHADER_BIT                = SL_BIT(6),
+        PIPELINE_STAGE_FRAGMENT_SHADER_BIT                = SL_BIT(7),
+        PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT           = SL_BIT(8),
+        PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT            = SL_BIT(9),
+        PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT        = SL_BIT(10),
+        PIPELINE_STAGE_COMPUTE_SHADER_BIT                 = SL_BIT(11),
+        PIPELINE_STAGE_TRANSFER_BIT                       = SL_BIT(12),
+        PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT                 = SL_BIT(13),
+        PIPELINE_STAGE_HOST_BIT                           = SL_BIT(14),
+        PIPELINE_STAGE_ALL_GRAPHICS_BIT                   = SL_BIT(15),
+        PIPELINE_STAGE_ALL_COMMANDS_BIT                   = SL_BIT(16),
+        PIPELINE_STAGE_NONE                               = 0,
+    };
+
+    enum BarrierAccessBits
+    {
+        BARRIER_ACCESS_INDIRECT_COMMAND_READ_BIT          = SL_BIT(0),
+        BARRIER_ACCESS_INDEX_READ_BIT                     = SL_BIT(1),
+        BARRIER_ACCESS_VERTEX_ATTRIBUTE_READ_BIT          = SL_BIT(2),
+        BARRIER_ACCESS_UNIFORM_READ_BIT                   = SL_BIT(3),
+        BARRIER_ACCESS_INPUT_ATTACHMENT_READ_BIT          = SL_BIT(4),
+        BARRIER_ACCESS_SHADER_READ_BIT                    = SL_BIT(5),
+        BARRIER_ACCESS_SHADER_WRITE_BIT                   = SL_BIT(6),
+        BARRIER_ACCESS_COLOR_ATTACHMENT_READ_BIT          = SL_BIT(7),
+        BARRIER_ACCESS_COLOR_ATTACHMENT_WRITE_BIT         = SL_BIT(8),
+        BARRIER_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT  = SL_BIT(9),
+        BARRIER_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT = SL_BIT(10),
+        BARRIER_ACCESS_TRANSFER_READ_BIT                  = SL_BIT(11),
+        BARRIER_ACCESS_TRANSFER_WRITE_BIT                 = SL_BIT(12),
+        BARRIER_ACCESS_HOST_READ_BIT                      = SL_BIT(13),
+        BARRIER_ACCESS_HOST_WRITE_BIT                     = SL_BIT(14),
+        BARRIER_ACCESS_MEMORY_READ_BIT                    = SL_BIT(15),
+        BARRIER_ACCESS_MEMORY_WRITE_BIT                   = SL_BIT(16),
+    };
+
+    struct MemoryBarrier
+    {
+        BarrierAccessBits srcAccess;
+        BarrierAccessBits dstAccess;
+    };
+
+    struct BufferBarrier
+    {
+        Buffer*           buffer;
+        BarrierAccessBits srcAccess;
+        BarrierAccessBits dstAccess;
+        uint64            offset;
+        uint64            size;
+    };
+
+    struct TextureBarrier
+    {
+        TextureHandle*          texture;
+        BarrierAccessBits       srcAccess;
+        BarrierAccessBits       dstAccess;
+        TextureLayout           oldLayout = TEXTURE_LAYOUT_UNDEFINED;
+        TextureLayout           newLayout = TEXTURE_LAYOUT_UNDEFINED;
+        TextureSubresourceRange subresources;
+    };
+
+
+    //================================================
+    // レンダーパス
+    //================================================
     enum AttachmentLoadOp
     {
-        ATTACHMENT_LOAD_OP_LOAD      = 0,
-        ATTACHMENT_LOAD_OP_CLEAR     = 1,
-        ATTACHMENT_LOAD_OP_DONT_CARE = 2,
+        ATTACHMENT_LOAD_OP_LOAD,
+        ATTACHMENT_LOAD_OP_CLEAR,
+        ATTACHMENT_LOAD_OP_DONT_CARE,
+
+        ATTACHMENT_LOAD_OP_MAX,
     };
 
     enum AttachmentStoreOp
     {
-        ATTACHMENT_STORE_OP_STORE     = 0,
-        ATTACHMENT_STORE_OP_DONT_CARE = 1,
+        ATTACHMENT_STORE_OP_STORE,
+        ATTACHMENT_STORE_OP_DONT_CARE,
+
+        ATTACHMENT_STORE_OP_MAX,
     };
 
     struct Attachment
@@ -437,7 +624,7 @@ namespace Silex
     {
         uint32            attachment = INVALID_RENDER_ID;
         TextureLayout     layout     = TEXTURE_LAYOUT_UNDEFINED;
-        TextureAspectBits aspect;
+        TextureAspectBits aspect     = TEXTURE_ASPECT_COLOR_BIT;
     };
 
     struct Subpass
@@ -458,4 +645,31 @@ namespace Silex
         BarrierAccessBits srcAccess;
         BarrierAccessBits dstAccess;
     };
+
+
+    //================================================
+    // 頂点レイアウト
+    //================================================
+    enum IndexBufferFormat
+    {
+        INDEX_BUFFER_FORMAT_UINT16,
+        INDEX_BUFFER_FORMAT_UINT32,
+    };
+
+    enum VertexFrequency
+    {
+        VERTEX_FREQUENCY_VERTEX,
+        VERTEX_FREQUENCY_INSTANCE,
+    };
+
+    struct VertexAttribute
+    {
+        uint32          location  = 0;
+        uint32          offset    = 0;
+        RenderingFormat format    = RENDERING_FORMAT_MAX;
+        uint32_t        stride    = 0;
+        VertexFrequency frequency = VERTEX_FREQUENCY_VERTEX;
+    };
 }
+
+

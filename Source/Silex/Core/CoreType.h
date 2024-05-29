@@ -23,28 +23,6 @@ using float64 = double;
 using ulong   = unsigned long;
 
 
-enum Result : uint32
-{
-    OK   = 0,
-    FAIL = 1,
-};
-
-
-struct Handle
-{
-    Handle() : handle(uint64(this))
-    {}
-
-    Handle(void* ptr) : handle(uint64(ptr))
-    {}
-
-    virtual ~Handle()
-    {};
-
-    uint64 handle = 0;
-};
-
-
 namespace Silex
 {
     namespace Traits
@@ -105,4 +83,47 @@ namespace Silex
         l     = Traits::Move(r);
         r     = Traits::Move(tmp);
     }
+
+
+
+
+    //============================================
+    // 抽象化汎用ハンドル
+    //============================================
+    struct Handle
+    {
+        Handle() : handle(uint64(this)) {}
+        Handle(void* ptr) : handle(uint64(ptr)) {}
+        virtual ~Handle() {};
+
+        uint64 handle = 0;
+    };
+
+    //============================================
+    // 生配列 / std::array / std::vector 読み取り
+    //============================================
+    template<typename T>
+    class ArrayView
+    {
+        const T*     ptr  = nullptr;
+        const uint32 size = 0;
+
+    public:
+
+        const T*     Ptr()  const { return ptr;  }
+        const uint32 Size() const { return size; }
+
+        ArrayView() = default;
+        ArrayView(const T* ptr, uint32 size = 1) : ptr(ptr), size(size) {}
+        ArrayView(const std::vector<T>& other)   : ptr(other.data()), size(other.size()) {}
+
+        const T& operator[](uint32 index) { return ptr[index]; }
+
+    public:
+
+        ArrayView(const ArrayView<T>&)  = delete;
+        ArrayView(const ArrayView<T>&&) = delete;
+        const ArrayView& operator=(const ArrayView<T>&)  = delete;
+        const ArrayView& operator=(const ArrayView<T>&&) = delete;
+    };
 }

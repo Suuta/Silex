@@ -63,24 +63,6 @@ namespace Silex
     }
 
 
-    // NOTE:========================================================================
-    // 以前の実装では、インスタンス固有の検証レイヤーとデバイス固有の検証レイヤーが区別されていたが
-    // 最新の実装では enabledLayerCount / ppEnabledLayerNames フィールドは 無視される
-    // ただし、古い実装との互換性を保つ必要があれば、設定する必要がある
-    // =============================================================================
-    // if (enableValidationLayers)
-    // {
-    //     // インスタンスに設定した "VK_LAYER_KHRONOS_validation" レイヤーをここでも有効にする必要があった
-    //     createInfo.enabledLayerCount   = validationLayers.size();
-    //     createInfo.ppEnabledLayerNames = validationLayers.data();
-    // }
-    // else
-    // {
-    //     createInfo.enabledLayerCount   = 0;
-    //     createInfo.ppEnabledLayerNames = nullptr;
-    // }
-
-
     VulkanContext::VulkanContext()
     {
     }
