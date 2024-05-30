@@ -2,14 +2,12 @@
 #pragma once
 
 #define NEW_RENDERER                    1
-#define SL_PLATFORM_OPENGL              0
-#define SL_PLATFORM_VULKAN              1
+#define SL_PLATFORM_OPENGL              1
+#define SL_PLATFORM_VULKAN              0
 #define SL_ENABLE_TRACK_HEAP_ALLOCATION 0
 #define SL_ENABLE_ASSERTS               1
 
-#if (SL_PLATFORM_OPENGL + SL_PLATFORM_VULKAN != 1)
-#error "描画APIは1つのみ指定可能です"
-#endif
+#define REGACY 1
 
 // 結合マクロ
 #define COMBINE(x, y) x##y

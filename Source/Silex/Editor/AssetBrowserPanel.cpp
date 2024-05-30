@@ -46,7 +46,7 @@ namespace Silex
             selectID = panel->m_SelectAsset->GetAssetID();
 
         isSelected = m_ID == selectID;
-        ImVec4 color = isSelected ? ImVec4(1, 0.5, 0.0, 1) : ImVec4(0, 0, 0, 0);
+        ImVec4 color = isSelected ? ImVec4(0.25, 0.85, 0.85, 1) : ImVec4(0, 0, 0, 0);
 
         ImGui::PushStyleColor(ImGuiCol_Button,        color);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color);

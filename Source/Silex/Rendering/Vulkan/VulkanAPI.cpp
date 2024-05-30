@@ -6,6 +6,109 @@
 
 namespace Silex
 {
+    //=============================================
+    // Vulkan 構造体
+    //=============================================
+
+    // コマンドキュー
+    struct VulkanCommandQueue : public CommandQueue
+    {
+        VkQueue queue  = nullptr;
+        uint32  family = INVALID_RENDER_ID;
+        uint32  index  = INVALID_RENDER_ID;
+    };
+
+    // コマンドプール
+    struct VulkanCommandPool : public CommandQueue
+    {
+        VkCommandPool     commandPool = nullptr;
+        CommandBufferType type        = COMMAND_BUFFER_TYPE_PRIMARY;
+    };
+
+    // コマンドバッファ
+    struct VulkanCommandBuffer : public CommandBuffer
+    {
+        VkCommandBuffer commandBuffer = nullptr;
+    };
+
+    // セマフォ
+    struct VulkanSemaphore : public Semaphore
+    {
+        VkSemaphore semaphore = nullptr;
+    };
+
+    // フェンス
+    struct VulkanFence : public Fence
+    {
+        VkFence fence = nullptr;
+    };
+
+    // レンダーパス
+    struct VulkanRenderPass : public RenderPass
+    {
+        VkRenderPass renderpass = nullptr;
+    };
+
+    // フレームバッファ
+    struct VulkanFramebuffer : public FramebufferHandle
+    {
+        VkFramebuffer framebuffer = nullptr;
+    };
+
+    // スワップチェイン
+    struct VulkanSwapChain : public SwapChain
+    {
+        VulkanSurface*    surface    = nullptr;
+        VulkanRenderPass* renderpass = nullptr;
+
+        VkSwapchainKHR  swapchain  = nullptr;
+        VkFormat        format     = VK_FORMAT_UNDEFINED;
+        VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+
+        std::vector<FramebufferHandle*> framebuffers;
+        std::vector<VkImage>            images;
+        std::vector<VkImageView>        views;
+
+        uint32 imageIndex = 0;
+    };
+
+    // バッファ
+    struct VulkanBuffer : public Buffer
+    {
+        VkBuffer      buffer           = nullptr;
+        VkBufferView  view             = nullptr;
+        uint64        bufferSize       = 0;
+        VmaAllocation allocationHandle = nullptr;
+        uint64        allocationSize   = 0;
+    };
+
+    // テクスチャ
+    struct VulkanTexture : public TextureHandle
+    {
+        VkImage     image    = nullptr;
+        VkImageView imageView= nullptr;
+
+        VmaAllocation     allocationHandle = nullptr;
+        VmaAllocationInfo allocationInfo   = {};
+    };
+
+    // サンプラー
+    struct VulkanSampler : public Sampler
+    {
+        VkSampler sampler = nullptr;
+    };
+
+    // 頂点フォーマット
+    struct VulkanVertexFormat : public VertexFormat
+    {
+        std::vector<VkVertexInputBindingDescription>   bindings;
+        std::vector<VkVertexInputAttributeDescription> attributes;
+        VkPipelineVertexInputStateCreateInfo           createInfo = {};
+    };
+
+
+
+
     //==================================================================================
     // Vulkan ヘルパー
     //==================================================================================
@@ -1217,5 +1320,47 @@ namespace Silex
             numTextureBarrier,
             imageBarriers
         );
+    }
+
+
+    //==================================================================================
+    // シェーダー
+    //==================================================================================
+    std::vector<byte> VulkanAPI::CompileSPIRV(uint32 numSpirv, ShaderStageSPIRVData* spirv, const std::string& shaderName)
+    {
+        return std::vector<byte>();
+    }
+
+    ShaderHandle* VulkanAPI::CreateShader(const std::vector<byte>& p_shader_binary, ShaderDescription& shaderDesc, std::string& name)
+    {
+        return nullptr;
+    }
+
+    void VulkanAPI::DestroyShader(ShaderHandle* shader)
+    {
+    }
+
+    //==================================================================================
+    // デスクリプター
+    //==================================================================================
+    DescriptorSet* VulkanAPI::CreateDescriptorSet()
+    {
+        return nullptr;
+    }
+
+    void VulkanAPI::DestroyDescriptorSet()
+    {
+    }
+
+    //==================================================================================
+    // パイプライン
+    //==================================================================================
+    Pipeline* VulkanAPI::CreatePipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PrimitiveTopology primitive, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, int32* colorAttachments, int32 numColorAttachments, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass)
+    {
+        return nullptr;
+    }
+
+    void VulkanAPI::DestroyPipeline(Pipeline* pipeline)
+    {
     }
 }

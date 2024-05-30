@@ -17,121 +17,15 @@
 // { 
 //     Texture* texture;
 // }
+// 
+// アセットマネージャの対象は ○○Asset から行うようにし
+// Texture 自体は、レンダラー側で管理できるようにする
 //----------------------------------------------------
-
-//============
-// TODO:
-//============
-// 
-// --- オブジェクト ---
-// Buffer
-// パイプライン・バリア
-// コマンド
-// 
-// --- クリアスクリーンにむけて --- 
-// シェーダ・デスクリプターセット（必須なら）
-// データ転送: 他の実装参考に...
-// フレーム同期
-// 
-// --- 各種操作 ---
-// クリアスクリーンテスト
-// トライアングル表示
-// ImGui::Image 反映
-// 
-
 
 namespace Silex
 {
     class  VulkanContext;
     struct VulkanSurface;
-
-    //=============================================
-    // Vulkan 構造体
-    //=============================================
-    struct VulkanCommandQueue : public CommandQueue
-    {
-        VkQueue queue  = nullptr;
-        uint32  family = INVALID_RENDER_ID;
-        uint32  index  = INVALID_RENDER_ID;
-    };
-
-    struct VulkanCommandPool : public CommandQueue
-    {
-        VkCommandPool     commandPool = nullptr;
-        CommandBufferType type        = COMMAND_BUFFER_TYPE_PRIMARY;
-    };
-
-    struct VulkanCommandBuffer : public CommandBuffer
-    {
-        VkCommandBuffer commandBuffer = nullptr;
-    };
-
-    struct VulkanSemaphore : public Semaphore
-    {
-        VkSemaphore semaphore = nullptr;
-    };
-
-    struct VulkanFence : public Fence
-    {
-        VkFence fence = nullptr;
-    };
-
-    struct VulkanRenderPass : public RenderPass
-    {
-        VkRenderPass renderpass = nullptr;
-    };
-
-    struct VulkanFramebuffer : public FramebufferHandle
-    {
-        VkFramebuffer framebuffer = nullptr;
-    };
-
-    struct VulkanSwapChain : public SwapChain
-    {
-        VulkanSurface*    surface    = nullptr;
-        VulkanRenderPass* renderpass = nullptr;
-
-        VkSwapchainKHR  swapchain  = nullptr;
-        VkFormat        format     = VK_FORMAT_UNDEFINED;
-        VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-
-        std::vector<FramebufferHandle*> framebuffers;
-        std::vector<VkImage>            images;
-        std::vector<VkImageView>        views;
-
-        uint32 imageIndex = 0;
-    };
-
-    struct VulkanBuffer : public Buffer
-    {
-        VkBuffer      buffer           = nullptr;
-        VkBufferView  view             = nullptr;
-        uint64        bufferSize       = 0;
-        VmaAllocation allocationHandle = nullptr;
-        uint64        allocationSize   = 0;
-    };
-
-    struct VulkanTexture : public TextureHandle
-    {
-        VkImage     image    = nullptr;
-        VkImageView imageView= nullptr;
-
-        VmaAllocation     allocationHandle = nullptr;
-        VmaAllocationInfo allocationInfo   = {};
-    };
-
-    struct VulkanSampler : public Sampler
-    {
-        VkSampler sampler = nullptr;
-    };
-
-    struct VulkanVertexFormat : public VertexFormat
-    {
-        std::vector<VkVertexInputBindingDescription>   bindings;
-        std::vector<VkVertexInputAttributeDescription> attributes;
-        VkPipelineVertexInputStateCreateInfo           createInfo = {};
-    };
-
 
     // デバイス拡張機能関数
     struct DeviceExtensionFunctions
@@ -142,7 +36,6 @@ namespace Silex
         PFN_vkAcquireNextImageKHR   vkAcquireNextImageKHR   = nullptr;
         PFN_vkQueuePresentKHR       vkQueuePresentKHR       = nullptr;
     };
-
 
     //=============================================
     // Vulkan API 実装
@@ -219,6 +112,33 @@ namespace Silex
         // バリア
         void PipelineBarrier(CommandBuffer* commanddBuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrier* memoryBarrier, uint32 numBufferBarrier, BufferBarrier* bufferBarrier, uint32 numTextureBarrier, TextureBarrier* textureBarrier) override;
 
+        // シェーダー
+        virtual std::vector<byte> CompileSPIRV(uint32 numSpirv, ShaderStageSPIRVData* spirv, const std::string& shaderName) override;
+        virtual ShaderHandle* CreateShader(const std::vector<byte>& p_shader_binary, ShaderDescription& shaderDesc, std::string& name) override;
+        virtual void DestroyShader(ShaderHandle* shader) override;
+
+        // デスクリプターセット
+        DescriptorSet* CreateDescriptorSet() override;
+        void DestroyDescriptorSet() override;
+
+        // パイプライン
+        virtual Pipeline* CreatePipeline(
+            ShaderHandle*              shader,
+            VertexFormat*              vertexFormat,
+            PrimitiveTopology          primitive,
+            PipelineRasterizationState rasterizationState,
+            PipelineMultisampleState   multisampleState,
+            PipelineDepthStencilState  depthstencilState,
+            PipelineColorBlendState    blendState,
+            int32*                     colorAttachments,
+            int32                      numColorAttachments,
+            PipelineDynamicStateFlags  dynamicState,
+            RenderPass*                renderpass,
+            uint32                     renderSubpass
+        ) override;
+
+        void DestroyPipeline(Pipeline* pipeline) override;
+
     private:
 
         // デバイス拡張機能関数
@@ -233,37 +153,4 @@ namespace Silex
         // VMAアロケータ (VulkanMemoryAllocator: VkImage/VkBuffer の生成にともなうメモリ管理を代行)
         VmaAllocator allocator = nullptr;
     };
-
-
-    // VkInstance
-    // VkPhysicalDevice
-    // VkDevice
-
-    // VkQueue
-    // VkCommandPool
-    // VkCommandBuffer
-    // VkSemaphore
-    // VkFence
-
-    // VkBuffer
-    // VkImage
-    // VkBufferView
-    // VkImageView
-    // VkSampler
-
-    // VkFramebuffer
-    // VkRenderPass
-
-    // VkShaderModule
-    // VkPipelineCache
-    // VkPipelineLayout
-    // VkPipeline
-    // VkDescriptorSetLayout
-    // VkDescriptorSet
-    // VkDescriptorPool
-
-    // VkDeviceMemory
-    // VkEvent
-    // VkQueryPool
 }
-

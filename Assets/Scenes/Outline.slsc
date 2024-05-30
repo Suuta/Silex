@@ -1,0 +1,72 @@
+Scene: Untitled
+Entities:
+  - Entity: 4659925131673948981
+    InstanceComponent:
+      name: Floor
+      active: true
+    TransformComponent:
+      position: [0, 0, 0]
+      rotation: [0, 0, 0]
+      scale: [32, 0.100000001, 32]
+    MeshComponent:
+      mesh: 3
+      castShadow: true
+      material:
+        0: 12894483546203256378
+  - Entity: 13622721094780882598
+    InstanceComponent:
+      name: Cube
+      active: true
+    TransformComponent:
+      position: [0, 1.3797071, 0]
+      rotation: [0, 0, 0]
+      scale: [0.999993324, 0.99999404, 1]
+    MeshComponent:
+      mesh: 3
+      castShadow: true
+      material:
+        0: 12894483546203256378
+  - Entity: 9391669668212887990
+    InstanceComponent:
+      name: Lighting
+      active: true
+    TransformComponent:
+      position: [0, 0, 0]
+      rotation: [0.785398185, 0.785398185, 0]
+      scale: [1, 1, 1]
+    DirectionalLightComponent:
+      color: [1, 1, 1]
+      enableSoftShadow: true
+      intencity: 1
+      showCascade: false
+      shadowDepthBias: 0.00100000005
+    SkyLightComponent:
+      sky: 12172433304082857611
+      intencity: 1
+      renderSky: true
+      enableIBL: true
+    PostProcessComponent:
+      enableOutline: true
+      lineWidth: 1
+      outlineColor: [0.250965238, 0.250965238, 0.250965238]
+      enableFXAA: true
+      enableBloom: false
+      bloomThreshold: 2
+      bloomIntencity: 0.100000001
+      enableChromaticAberration: false
+      enableTonemap: true
+      exposure: 2
+      gammaCorrection: 1
+  - Entity: 78345995723053183
+    InstanceComponent:
+      name: Sphere
+      active: true
+    TransformComponent:
+      position: [-0.282832801, 1.05580211, 0.243855268]
+      rotation: [0, 0, 0]
+      scale: [1, 1, 1]
+    MeshComponent:
+      mesh: 4
+      castShadow: true
+      material:
+        0: 5

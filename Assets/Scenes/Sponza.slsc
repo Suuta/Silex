@@ -11,7 +11,7 @@ Entities:
     PostProcessComponent:
       enableOutline: false
       lineWidth: 1
-      outlineColor: [0, 0, 0]
+      outlineColor: [0.899613917, 0.783583164, 0.607847273]
       enableFXAA: true
       enableBloom: true
       bloomThreshold: 1
@@ -64,7 +64,7 @@ Entities:
       active: true
     TransformComponent:
       position: [0, 0, 0]
-      rotation: [1.48352981, 0.00523598772, 0.52359879]
+      rotation: [1.48352981, 0, 0.34906584]
       scale: [1, 1, 1]
     DirectionalLightComponent:
       color: [1, 1, 1]

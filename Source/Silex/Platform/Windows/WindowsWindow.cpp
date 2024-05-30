@@ -100,7 +100,7 @@ namespace Silex
         glfwMakeContextCurrent(window);
 
         // NOTE: 垂直同期の設定は、glfwMakeContextCurrent呼び出し後に行う必要がある(GLコマンドだからか？)
-        glfwSwapInterval(createInfo.vsync);
+        glfwSwapInterval(false);
 #endif
 
         return true;
@@ -117,8 +117,10 @@ namespace Silex
         callbacks->keyReleasedEvent.Unbind();
         Memory::Deallocate(callbacks);
 
+#if !SL_PLATFORM_OPENGL
         // レンダリングコンテキスト破棄
         CleanupRenderingContext();
+#endif
 
         // ウィンドウ破棄
         Hide();

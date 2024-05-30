@@ -52,7 +52,6 @@ namespace Silex
         virtual RenderingFormat GetSwapChainFormat(SwapChain* swapchain) = 0;
         virtual void DestroySwapChain(SwapChain* swapchain) = 0;
 
-
         // バッファ
         virtual Buffer* CreateBuffer(uint64 size, BufferUsageBits usage, MemoryAllocationType memoryType) = 0;
         virtual void DestroyBuffer(Buffer* buffer) = 0;
@@ -81,5 +80,32 @@ namespace Silex
 
         // バリア
         virtual void PipelineBarrier(CommandBuffer* commanddBuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrier* memoryBarrier, uint32 numBufferBarrier, BufferBarrier* bufferBarrier, uint32 numTextureBarrier, TextureBarrier* textureBarrier) = 0;
+    
+        // シェーダー
+        virtual std::vector<byte> CompileSPIRV(uint32 numSpirv, ShaderStageSPIRVData* spirv, const std::string& shaderName) = 0;
+        virtual ShaderHandle* CreateShader(const std::vector<byte>& p_shader_binary, ShaderDescription& shaderDesc, std::string& name) = 0;
+        virtual void DestroyShader(ShaderHandle* shader) = 0;
+
+        // デスクリプターセット
+        virtual DescriptorSet* CreateDescriptorSet() = 0;
+        virtual void DestroyDescriptorSet() = 0;
+
+        // パイプライン
+        virtual Pipeline* CreatePipeline(
+            ShaderHandle*                   shader,
+            VertexFormat*                   vertexFormat,
+            PrimitiveTopology               primitive,
+            PipelineRasterizationState      rasterizationState,
+            PipelineMultisampleState        multisampleState,
+            PipelineDepthStencilState       depthstencilState,
+            PipelineColorBlendState         blendState,
+            int32*                          colorAttachments,
+            int32                           numColorAttachments,
+            PipelineDynamicStateFlags       dynamicState,
+            RenderPass*                     renderpass,
+            uint32                          renderSubpass
+        ) = 0;
+
+        virtual void DestroyPipeline(Pipeline* pipeline) = 0;
     };
 }

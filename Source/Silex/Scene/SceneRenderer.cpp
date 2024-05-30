@@ -799,12 +799,14 @@ namespace Silex
         context->outlineShader->Bind();
         context->outlineShader->Set("screenTexture", 0);
         context->outlineShader->Set("normalTexture", 1);
+        context->outlineShader->Set("depthTexture", 2);
         context->outlineShader->Set("lineWidth",     option.postProcess.lineWidth);
         context->outlineShader->Set("outlineColor",  option.postProcess.outlineColor);
 
         context->finalPassFB->Bind();
         context->temporaryFB->BindAttachment(0, 0);
         context->gBufferFB->BindAttachment(1, 1);
+        context->gBufferFB->BindAttachment(2, 2);
 
         Renderer::Get()->DrawScreenQuad();
         Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, RHI::AttachmentBuffer::Color);

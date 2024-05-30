@@ -31,53 +31,90 @@ uniform sampler2D depthTexture;
 uniform float lineWidth = 1.0;
 uniform vec3  outlineColor;
 
-// Simple GPU Outline Shaders
-// https://io7m.com/documents/outline-glsl/#d0e239
+const float zNear = 0.1;
+const float zFar  = 10.0;
+
+
+float linearDepth(float depthSample)
+{
+    depthSample = 2.0 * depthSample - 1.0;
+    float zLinear = 2.0 * zNear * zFar / (zFar + zNear - depthSample * (zFar - zNear));
+    return zLinear;
+}
 
 void main()
 {
-    // ピクセルサイズを計算
-    vec2 viewportSize = textureSize(screenTexture, 0);
-    float dx = (1.0 / viewportSize.x) * lineWidth;
-    float dy = (1.0 / viewportSize.y) * lineWidth;
+    vec2 viewoport     = textureSize(screenTexture, 0);
+    vec2 texelSize     = vec2(1.0 / viewoport.x, 1.0 / viewoport.y);
+    vec4 originalColor = texture(screenTexture, TexCoords);
 
-    // サンプルポイント（ピクセル座標のオフセット）
-    vec2 uvCenter   = TexCoords;
-    vec2 uvRight    = vec2(uvCenter.x + dx, uvCenter.y);
-    vec2 uvTop      = vec2(uvCenter.x,      uvCenter.y - dx);
-    vec2 uvTopRight = vec2(uvCenter.x + dx, uvCenter.y - dx);
+    float offset = lineWidth   * 0.5;
+    float left   = texelSize.x * -offset;
+    float right  = texelSize.x *  offset;
+    float top    = texelSize.y * -offset;
+    float bottom = texelSize.y *  offset;
 
-    // ノーマルマップから取得
-    vec3 mCenter   = texture(normalTexture, uvCenter).rgb;
-    vec3 mTop      = texture(normalTexture, uvTop).rgb;
-    vec3 mRight    = texture(normalTexture, uvRight).rgb;
-    vec3 mTopRight = texture(normalTexture, uvTopRight).rgb;
+    vec2 center = TexCoords;
+    vec2 tr = center + vec2(right, top);
+    vec2 tl = center + vec2(left,  top);
+    vec2 br = center + vec2(right, bottom);
+    vec2 bl = center + vec2(left,  bottom);
 
-    //
-    vec3 dT  = abs(mCenter - mTop);
-    vec3 dR  = abs(mCenter - mRight);
-    vec3 dTR = abs(mCenter - mTopRight);
+    //======================================================
+    // 深度
+    //======================================================
+    float depthCurrent = linearDepth(texture(depthTexture, center).a);
 
-    float dTmax  = max(dT.x, max(dT.y, dT.z));
-    float dRmax  = max(dR.x, max(dR.y, dR.z));
-    float dTRmax = max(dTR.x, max(dTR.y, dTR.z));
+    float depthAverage = 0.0;
+    depthAverage += linearDepth(texture(depthTexture, tr).a);
+    depthAverage += linearDepth(texture(depthTexture, tl).a);
+    depthAverage += linearDepth(texture(depthTexture, br).a);
+    depthAverage += linearDepth(texture(depthTexture, bl).a);
+    depthAverage *= 0.25;
 
-    float deltaRaw = 0.0;
-    deltaRaw = max(deltaRaw, dTmax);
-    deltaRaw = max(deltaRaw, dRmax);
-    deltaRaw = max(deltaRaw, dTRmax);
+    if (abs(depthCurrent - depthAverage) > 0.05)
+    {
+        // 深度平均値との差が一定以上ならアウトラインピクセル
+        PixelColor.rgb = outlineColor;
+    }
+    else
+    {
+        //======================================================
+        // Simple GPU Outline Shaders
+        // https://io7m.com/documents/outline-glsl/#d0e239
+        //======================================================
 
+        // ノーマルマップから取得
+        vec3 nCenter = texture(normalTexture, center).rgb;
 
-    vec3 color = texture(screenTexture, TexCoords).rgb;
+        vec3 nTR = texture(normalTexture, center + vec2(right, top)    * 2.0).rgb;
+        vec3 nTL = texture(normalTexture, center + vec2(left,  top)    * 2.0).rgb;
+        vec3 nBR = texture(normalTexture, center + vec2(right, bottom) * 2.0).rgb;
+        vec3 nBL = texture(normalTexture, center + vec2(left,  bottom) * 2.0).rgb;
 
-    //if (deltaRaw >= 0.5)
-    //{
-    //    color = outlineColor;
-    //}
+        vec3 dTR = abs(nCenter - nTR);
+        vec3 dTL = abs(nCenter - nTL);
+        vec3 dBR = abs(nCenter - nBR);
+        vec3 dBL = abs(nCenter - nBL);
 
-    float mask = step(0.5, deltaRaw);
-    color = mix(color, outlineColor, mask);
+        float dTRmax = max(dTR.x, max(dTR.y, dTR.z));
+        float dTLmax = max(dTL.x, max(dTL.y, dTL.z));
+        float dBRmax = max(dBR.x, max(dBR.y, dBR.z));
+        float dBLmax = max(dBL.x, max(dBL.y, dBL.z));
 
+        float deltaRaw = 0.0;
+        deltaRaw = max(deltaRaw, dTRmax);
+        deltaRaw = max(deltaRaw, dTLmax);
+        deltaRaw = max(deltaRaw, dBRmax);
+        deltaRaw = max(deltaRaw, dBLmax);
 
-    PixelColor = vec4(vec3(color), 1.0);
+        if (deltaRaw >= 0.5)
+        {
+            PixelColor.rgb = outlineColor;
+        }
+        else
+        {
+            PixelColor.rgb = originalColor.rgb;
+        }
+    }
 }

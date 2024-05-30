@@ -347,3 +347,6 @@ AssetDatabase:
   - id: 6860333394593523657
     type: 0
     path: Assets/Shaders/Sky.glsl
+  - id: 14093516819278789743
+    type: 1
+    path: Assets/Scenes/Outline.slsc

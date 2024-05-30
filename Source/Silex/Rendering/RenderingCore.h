@@ -26,7 +26,7 @@ namespace Silex
     using Buffer        = Handle;
     using Pipeline      = Handle;
     using Sampler       = Handle;
-    using UniformSet    = Handle;
+    using DescriptorSet = Handle;
     using VertexFormat  = Handle;
 
     // 命名重複のためHandleを追加 (OpenGL廃止後に修正)
@@ -35,16 +35,6 @@ namespace Silex
     using ShaderHandle       = Handle;
 
 
-    //================================================
-    // コマンドバッファ
-    //================================================
-    enum CommandBufferType
-    {
-        COMMAND_BUFFER_TYPE_PRIMARY,
-        COMMAND_BUFFER_TYPE_SECONDARY,
-
-        COMMAND_BUFFER_TYPE_MAX,
-    };
 
     //================================================
     // デバイス
@@ -346,6 +336,17 @@ namespace Silex
         QUEUE_FAMILY_TRANSFER_BIT = SL_BIT(2),
     };
 
+    //================================================
+    // コマンドバッファ
+    //================================================
+    enum CommandBufferType
+    {
+        COMMAND_BUFFER_TYPE_PRIMARY,
+        COMMAND_BUFFER_TYPE_SECONDARY,
+
+        COMMAND_BUFFER_TYPE_MAX,
+    };
+
     //=================================================
     // バッファ
     //=================================================
@@ -413,12 +414,17 @@ namespace Silex
         TEXTURE_LAYOUT_ATTACHMENT_OPTIMAL                         = 1000314001,
         TEXTURE_LAYOUT_PRESENT_SRC                                = 1000001002,
     };
-    
+
     enum TextureAspectBits
     {
-        TEXTURE_ASPECT_COLOR_BIT   = SL_BIT(0),
-        TEXTURE_ASPECT_DEPTH_BIT   = SL_BIT(1),
-        TEXTURE_ASPECT_STENCIL_BIT = SL_BIT(2),
+        TEXTURE_ASPECT_COLOR,
+        TEXTURE_ASPECT_DEPTH,
+        TEXTURE_ASPECT_STENCIL,
+        TEXTURE_ASPECT_MAX,
+
+        TEXTURE_ASPECT_COLOR_BIT   = SL_BIT(TEXTURE_ASPECT_COLOR),
+        TEXTURE_ASPECT_DEPTH_BIT   = SL_BIT(TEXTURE_ASPECT_DEPTH),
+        TEXTURE_ASPECT_STENCIL_BIT = SL_BIT(TEXTURE_ASPECT_STENCIL),
     };
 
     enum TextureUsageBits
@@ -587,7 +593,6 @@ namespace Silex
         TextureSubresourceRange subresources;
     };
 
-
     //================================================
     // レンダーパス
     //================================================
@@ -646,7 +651,6 @@ namespace Silex
         BarrierAccessBits dstAccess;
     };
 
-
     //================================================
     // 頂点レイアウト
     //================================================
@@ -670,6 +674,345 @@ namespace Silex
         uint32_t        stride    = 0;
         VertexFrequency frequency = VERTEX_FREQUENCY_VERTEX;
     };
+
+    //================================================
+    // デスクリプタ
+    //================================================
+    enum DescriptorType
+    {
+        DESCRIPTOR_TYPE_SAMPLER,
+        DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE,
+        DESCRIPTOR_TYPE_TEXTURE,
+        DESCRIPTOR_TYPE_IMAGE,
+        DESCRIPTOR_TYPE_TEXTURE_BUFFER,
+        DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE_BUFFER,
+        DESCRIPTOR_TYPE_IMAGE_BUFFER,
+        DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        DESCRIPTOR_TYPE_STORAGE_BUFFER,
+        DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+
+        DESCRIPTOR_TYPE_MAX
+    };
+
+    //================================================
+    // シェーダー
+    //================================================
+
+    enum ShaderStage
+    {
+        SHADER_STAGE_VERTEX,
+        SHADER_STAGE_FRAGMENT,
+        SHADER_STAGE_TESSELATION_CONTROL,
+        SHADER_STAGE_TESSELATION_EVALUATION,
+        SHADER_STAGE_COMPUTE,
+
+        SHADER_STAGE_MAX,
+
+        SHADER_STAGE_VERTEX_BIT                 = (1 << SHADER_STAGE_VERTEX),
+        SHADER_STAGE_FRAGMENT_BIT               = (1 << SHADER_STAGE_FRAGMENT),
+        SHADER_STAGE_TESSELATION_CONTROL_BIT    = (1 << SHADER_STAGE_TESSELATION_CONTROL),
+        SHADER_STAGE_TESSELATION_EVALUATION_BIT = (1 << SHADER_STAGE_TESSELATION_EVALUATION),
+        SHADER_STAGE_COMPUTE_BIT                = (1 << SHADER_STAGE_COMPUTE),
+    };
+
+    struct ShaderStageSPIRVData
+    {
+        ShaderStage       shaderStage = SHADER_STAGE_MAX;
+        std::vector<byte> spirv;
+    };
+
+    struct ShaderUniform
+    {
+        DescriptorType type     = DESCRIPTOR_TYPE_MAX;
+        bool           writable = false;
+        uint32         binding  = 0;
+        ShaderStage    stages   = SHADER_STAGE_MAX;
+        uint32         length   = 0;
+
+        bool operator!=(const ShaderUniform& p_other) const
+        {
+            return binding != p_other.binding || type != p_other.type || writable != p_other.writable || stages != p_other.stages || length != p_other.length;
+        }
+
+        bool operator<(const ShaderUniform& p_other) const
+        {
+            if (binding != p_other.binding)
+                return binding < p_other.binding;
+
+            if (type != p_other.type)
+                return type < p_other.type;
+            
+            if (writable != p_other.writable)
+                return writable < p_other.writable;
+           
+            if (stages != p_other.stages)
+                return stages < p_other.stages;
+            
+            if (length != p_other.length)
+                return length < p_other.length;
+            
+            return false;
+        }
+    };
+
+    struct ShaderDescription
+    {
+        uint64 vertex_input_mask = 0;
+        uint32 fragment_output_mask = 0;
+        bool   is_compute = false;
+        uint32 compute_local_size[3] = {};
+        uint32 push_constant_size = 0;
+
+        std::vector<std::vector<ShaderUniform>> uniform_sets;
+        std::vector<ShaderStage>                stages;
+    };
+
+    //================================================
+    // パイプライン
+    //================================================
+    enum PrimitiveTopology
+    {
+        PRIMITIVE_TOPOLOGY_POINTS,
+        PRIMITIVE_TOPOLOGY_LINES,
+        PRIMITIVE_TOPOLOGY_LINES_WITH_ADJACENCY,
+        PRIMITIVE_TOPOLOGY_LINESTRIPS,
+        PRIMITIVE_TOPOLOGY_LINESTRIPS_WITH_ADJACENCY,
+        PRIMITIVE_TOPOLOGY_TRIANGLES,
+        PRIMITIVE_TOPOLOGY_TRIANGLES_WITH_ADJACENCY,
+        PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS,
+        PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS_WITH_AJACENCY,
+        PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS_WITH_RESTART_INDEX,
+        PRIMITIVE_TOPOLOGY_TESSELATION_PATCH,
+
+        RENDER_PRIMITIVE_MAX
+    };
+
+    enum PolygonCullMode
+    {
+        POLYGON_CULL_DISABLED,
+        POLYGON_CULL_FRONT,
+        POLYGON_CULL_BACK,
+
+        POLYGON_CULL_MAX
+    };
+
+    enum PolygonFrontFace
+    {
+        POLYGON_FRONT_FACE_CLOCKWISE,
+        POLYGON_FRONT_FACE_COUNTER_CLOCKWISE,
+
+        POLYGON_FRONT_FACE_MAX,
+    };
+
+    enum StencilOperation
+    {
+        STENCIL_OP_KEEP,
+        STENCIL_OP_ZERO,
+        STENCIL_OP_REPLACE,
+        STENCIL_OP_INCREMENT_AND_CLAMP,
+        STENCIL_OP_DECREMENT_AND_CLAMP,
+        STENCIL_OP_INVERT,
+        STENCIL_OP_INCREMENT_AND_WRAP,
+        STENCIL_OP_DECREMENT_AND_WRAP,
+
+        STENCIL_OP_MAX
+    };
+
+    enum LogicOperation
+    {
+        LOGIC_OP_CLEAR,
+        LOGIC_OP_AND,
+        LOGIC_OP_AND_REVERSE,
+        LOGIC_OP_COPY,
+        LOGIC_OP_AND_INVERTED,
+        LOGIC_OP_NO_OP,
+        LOGIC_OP_XOR,
+        LOGIC_OP_OR,
+        LOGIC_OP_NOR,
+        LOGIC_OP_EQUIVALENT,
+        LOGIC_OP_INVERT,
+        LOGIC_OP_OR_REVERSE,
+        LOGIC_OP_COPY_INVERTED,
+        LOGIC_OP_OR_INVERTED,
+        LOGIC_OP_NAND,
+        LOGIC_OP_SET,
+
+        LOGIC_OP_MAX
+    };
+
+    enum BlendFactor
+    {
+        BLEND_FACTOR_ZERO,
+        BLEND_FACTOR_ONE,
+        BLEND_FACTOR_SRC_COLOR,
+        BLEND_FACTOR_ONE_MINUS_SRC_COLOR,
+        BLEND_FACTOR_DST_COLOR,
+        BLEND_FACTOR_ONE_MINUS_DST_COLOR,
+        BLEND_FACTOR_SRC_ALPHA,
+        BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+        BLEND_FACTOR_DST_ALPHA,
+        BLEND_FACTOR_ONE_MINUS_DST_ALPHA,
+        BLEND_FACTOR_CONSTANT_COLOR,
+        BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR,
+        BLEND_FACTOR_CONSTANT_ALPHA,
+        BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA,
+        BLEND_FACTOR_SRC_ALPHA_SATURATE,
+        BLEND_FACTOR_SRC1_COLOR,
+        BLEND_FACTOR_ONE_MINUS_SRC1_COLOR,
+        BLEND_FACTOR_SRC1_ALPHA,
+        BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA,
+
+        BLEND_FACTOR_MAX
+    };
+
+    enum BlendOperation
+    {
+        BLEND_OP_ADD,
+        BLEND_OP_SUBTRACT,
+        BLEND_OP_REVERSE_SUBTRACT,
+        BLEND_OP_MINIMUM,
+        BLEND_OP_MAXIMUM,
+
+        BLEND_OP_MAX
+    };
+
+    struct PipelineRasterizationState
+    {
+        bool enable_depth_clamp = false;
+        bool discard_primitives = false;
+        bool wireframe = false;
+        PolygonCullMode cull_mode = POLYGON_CULL_DISABLED;
+        PolygonFrontFace front_face = POLYGON_FRONT_FACE_CLOCKWISE;
+        bool depth_bias_enabled = false;
+        float depth_bias_constant_factor = 0.0f;
+        float depth_bias_clamp = 0.0f;
+        float depth_bias_slope_factor = 0.0f;
+        float line_width = 1.0f;
+        uint32 patch_control_points = 1;
+    };
+
+    struct PipelineMultisampleState
+    {
+        TextureSamples sample_count = TEXTURE_SAMPLES_1;
+        bool enable_sample_shading = false;
+        float min_sample_shading = 0.0f;
+        std::vector<uint32> sample_mask;
+        bool enable_alpha_to_coverage = false;
+        bool enable_alpha_to_one = false;
+    };
+
+    struct PipelineDepthStencilState
+    {
+        bool enable_depth_test = false;
+        bool enable_depth_write = false;
+        CompareOperator depth_compare_operator = COMPARE_OP_ALWAYS;
+        bool enable_depth_range = false;
+        float depth_range_min = 0;
+        float depth_range_max = 0;
+        bool enable_stencil = false;
+
+        struct StencilOperationState
+        {
+            StencilOperation fail        = STENCIL_OP_ZERO;
+            StencilOperation pass        = STENCIL_OP_ZERO;
+            StencilOperation depthFail   = STENCIL_OP_ZERO;
+            CompareOperator  compare     = COMPARE_OP_ALWAYS;
+            uint32           compareMask = 0;
+            uint32           writeMask   = 0;
+            uint32           reference   = 0;
+        };
+
+        StencilOperationState frontOp;
+        StencilOperationState backOp;
+    };
+
+    struct PipelineColorBlendState
+    {
+        bool           enableLogicOp = false;
+        LogicOperation logicOp = LOGIC_OP_CLEAR;
+
+        struct Attachment
+        {
+            bool           enable_blend           = false;
+            BlendFactor    src_color_blend_factor = BLEND_FACTOR_ZERO;
+            BlendFactor    dst_color_blend_factor = BLEND_FACTOR_ZERO;
+            BlendOperation color_blend_op         = BLEND_OP_ADD;
+            BlendFactor    src_alpha_blend_factor = BLEND_FACTOR_ZERO;
+            BlendFactor    dst_alpha_blend_factor = BLEND_FACTOR_ZERO;
+            BlendOperation alpha_blend_op         = BLEND_OP_ADD;
+            bool write_r = true;
+            bool write_g = true;
+            bool write_b = true;
+            bool write_a = true;
+        };
+
+        static PipelineColorBlendState create_disabled(int p_attachments = 1)
+        {
+            PipelineColorBlendState bs;
+            for (int i = 0; i < p_attachments; i++)
+            {
+                bs.attachments.push_back(Attachment());
+            }
+
+            return bs;
+        }
+
+        static PipelineColorBlendState create_blend(int p_attachments = 1)
+        {
+            PipelineColorBlendState bs;
+            for (int i = 0; i < p_attachments; i++)
+            {
+                Attachment ba;
+                ba.enable_blend = true;
+                ba.src_color_blend_factor = BLEND_FACTOR_SRC_ALPHA;
+                ba.dst_color_blend_factor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                ba.src_alpha_blend_factor = BLEND_FACTOR_SRC_ALPHA;
+                ba.dst_alpha_blend_factor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+
+                bs.attachments.push_back(ba);
+            }
+
+            return bs;
+        }
+
+        std::vector<Attachment> attachments;
+        glm::vec4 blend_constant;
+    };
+
+    enum PipelineDynamicStateFlags
+    {
+        DYNAMIC_STATE_LINE_WIDTH           = SL_BIT(0),
+        DYNAMIC_STATE_DEPTH_BIAS           = SL_BIT(1),
+        DYNAMIC_STATE_BLEND_CONSTANTS      = SL_BIT(2),
+        DYNAMIC_STATE_DEPTH_BOUNDS         = SL_BIT(3),
+        DYNAMIC_STATE_STENCIL_COMPARE_MASK = SL_BIT(4),
+        DYNAMIC_STATE_STENCIL_WRITE_MASK   = SL_BIT(5),
+        DYNAMIC_STATE_STENCIL_REFERENCE    = SL_BIT(6),
+    };
+
+    //================================================
+    // 特殊化定数
+    //================================================
+#if 0
+    enum PipelineSpecializationConstantType
+    {
+        PIPELINE_SPECIALIZATION_CONSTANT_TYPE_BOOL,
+        PIPELINE_SPECIALIZATION_CONSTANT_TYPE_INT,
+        PIPELINE_SPECIALIZATION_CONSTANT_TYPE_FLOAT,
+    };
+
+    struct PipelineSpecializationConstant
+    {
+        PipelineSpecializationConstantType type = {};
+        uint32 constantID = 0xffffffff;
+        union
+        {
+            uint32 _int;
+            float  _float;
+            bool   _bool;
+        };
+    };
+#endif
 }
 
 

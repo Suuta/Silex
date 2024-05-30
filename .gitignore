@@ -11,5 +11,6 @@
 **.vcxproj.filters
 **.vcxproj.user
 
-# 現在のディレクトリ（.gitignore が置かれているディレクトリ）の直下の .exe ファイルだけを無視
+# 現在のディレクトリ（.gitignore が置かれているディレクトリ）の直下のファイルだけを無視
 /*.exe
+/*.cap

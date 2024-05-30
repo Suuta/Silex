@@ -79,17 +79,22 @@ namespace Silex
         result = window->Initialize();
         SL_CHECK(!result, false);
 
-        // コールバック登録
-        window->BindWindowCloseEvent(this,  &Engine::OnWindowClose);
-      //window->BindWindowResizeEvent(this, &Engine::OnWindowResize);
-      //window->BindMouseMoveEvent(this,    &Engine::OnMouseMove);
-      //window->BindMouseScrollEvent(this,  &Engine::OnMouseScroll);
-
+#if !REGACY
         // レンダリングコンテキスト
         result = window->SetupRenderingContext();
         SL_CHECK(!result, false);
+#endif
 
-#if 0
+        // コールバック登録
+        window->BindWindowCloseEvent(this,  &Engine::OnWindowClose);
+#if REGACY
+        window->BindWindowResizeEvent(this, &Engine::OnWindowResize);
+        window->BindMouseMoveEvent(this,    &Engine::OnMouseMove);
+        window->BindMouseScrollEvent(this,  &Engine::OnMouseScroll);
+#endif
+
+
+#if REGACY
         // レンダラー
         Renderer::Get()->Init();
 
@@ -117,7 +122,7 @@ namespace Silex
 
         if (!minimized)
         {
-#if 0
+#if REGACY
             Renderer::Get()->BeginFrame();
             editorUI->BeginFrame();
 
@@ -139,7 +144,7 @@ namespace Silex
 
     void Engine::Finalize()
     {
-#if 0
+#if REGACY
         if (editor)
         {
             editor->Shutdown();
