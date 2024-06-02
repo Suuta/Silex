@@ -77,7 +77,7 @@ namespace Silex
     {
         VkBuffer      buffer           = nullptr;
         VkBufferView  view             = nullptr;
-        uint64        bufferSize       = 0;
+        uint64        size             = 0;
         VmaAllocation allocationHandle = nullptr;
         uint64        allocationSize   = 0;
     };
@@ -106,6 +106,25 @@ namespace Silex
         VkPipelineVertexInputStateCreateInfo           createInfo = {};
     };
 
+    // シェーダー
+    struct VulkanShader : public DescriptorSet
+    {
+        VkShaderStageFlags                           stageFlags = 0;
+        std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos;
+        std::vector<VkDescriptorSetLayout>           descriptorsetLayouts;
+        VkPipelineLayout                             pipelineLayout;
+    };
+
+    // デスクリプターセット
+    static constexpr uint32 MaxDescriptorsetPerPool = 64;
+
+    struct VulkanDescriptorSet : public DescriptorSet
+    {
+        VkDescriptorSet  descriptorSet  = nullptr;
+        VkDescriptorPool descriptorPool = nullptr;
+
+        VulkanAPI::DescriptorSetPoolKey poolKey;
+    };
 
 
 
@@ -113,11 +132,142 @@ namespace Silex
     // Vulkan ヘルパー
     //==================================================================================
 
+    // デスクリプターセットシグネチャから同一シグネチャのプールがあれば取得、なければ新規生成
+    VkDescriptorPool VulkanAPI::_FindOrCreateDescriptorPool(const DescriptorSetPoolKey& key)
+    {
+        // プールが既に存在し、そのプールの参照カウントが MaxDescriptorsetPerPool 以下ならそのプールを使用
+        const auto& find = descriptorsetPools.find(key);
+        if (find != descriptorsetPools.end())
+        {
+            for (auto& [pool, count] : find->second)
+            {
+                if (count < MaxDescriptorsetPerPool)
+                {
+                    find->second[pool]++;
+                    return pool;
+                }
+            }
+        }
+
+        // キーからデスクリプタータイプを設定
+        VkDescriptorPoolSize* sizesPtr = SL_STACK(VkDescriptorPoolSize, DESCRIPTOR_TYPE_MAX);
+        uint32 sizeCount = 0;
+        {
+            VkDescriptorPoolSize* sizes = sizesPtr;
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER])
+            {
+                *sizes = {};
+                sizes->type = VK_DESCRIPTOR_TYPE_SAMPLER;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER] * MaxDescriptorsetPerPool;
+                sizes++;
+                sizeCount++;
+            }
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE])
+            {
+                *sizes = {};
+                sizes->type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE] * MaxDescriptorsetPerPool;
+                sizes++;
+                sizeCount++;
+            }
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_TEXTURE])
+            {
+                *sizes = {};
+                sizes->type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_TEXTURE] * MaxDescriptorsetPerPool;
+                sizes++;
+                sizeCount++;
+            }
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE])
+            {
+                *sizes = {};
+                sizes->type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE] * MaxDescriptorsetPerPool;
+                sizes++;
+                sizeCount++;
+            }
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_TEXTURE_BUFFER] || key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE_BUFFER])
+            {
+                *sizes = {};
+                sizes->type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+                sizes->descriptorCount = (key.descriptorTypeCounts[DESCRIPTOR_TYPE_TEXTURE_BUFFER] + key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE_BUFFER]) * MaxDescriptorsetPerPool;
+                sizes++;
+                sizeCount++;
+            }
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE_BUFFER])
+            {
+                *sizes = {};
+                sizes->type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE_BUFFER] * MaxDescriptorsetPerPool;
+                sizes++;
+                sizeCount++;
+            }
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_UNIFORM_BUFFER])
+            {
+                *sizes = {};
+                sizes->type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_UNIFORM_BUFFER] * MaxDescriptorsetPerPool;
+                sizes++;
+                sizeCount++;
+            }
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_STORAGE_BUFFER]) {
+                *sizes = {};
+                sizes->type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_STORAGE_BUFFER] * MaxDescriptorsetPerPool;
+                sizes++;
+                sizeCount++;
+            }
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_INPUT_ATTACHMENT])
+            {
+                *sizes = {};
+                sizes->type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_INPUT_ATTACHMENT] * MaxDescriptorsetPerPool;
+                sizes++;
+                sizeCount++;
+            }
+        }
+
+        // デスクリプタープール生成
+        VkDescriptorPoolCreateInfo createInfo = {};
+        createInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+        createInfo.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+        createInfo.maxSets       = MaxDescriptorsetPerPool;
+        createInfo.poolSizeCount = sizeCount;
+        createInfo.pPoolSizes    = sizesPtr;
+
+        VkDescriptorPool pool = nullptr;
+        VkResult result = vkCreateDescriptorPool(device, &createInfo, nullptr, &pool);
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        auto& itr = descriptorsetPools[key];
+        itr[pool]++;
+
+        return pool;
+    }
+
+    // プールの参照カウントを減らす、0なら破棄
+    void VulkanAPI::_RecycleDescriptorPool(VkDescriptorPool pool, DescriptorSetPoolKey& poolKey)
+    {
+        const auto& itr = descriptorsetPools.find(poolKey);
+        itr->second[pool]--;
+
+        if (itr->second[pool] == 0)
+        {
+            vkDestroyDescriptorPool(device, pool, nullptr);
+            itr->second.erase(pool);
+
+            if (itr->second.empty())
+            {
+                descriptorsetPools.erase(itr);
+            }
+        }
+    }
+
     // 指定されたサンプル数が、利用可能なサンプル数かどうかチェックする
-    static VkSampleCountFlagBits _CheckSupportedSampleCounts(VkPhysicalDevice physicalDevice, TextureSamples samples)
+    VkSampleCountFlagBits VulkanAPI::_CheckSupportedSampleCounts(TextureSamples samples)
     {
         VkPhysicalDeviceProperties properties;
-        vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+        vkGetPhysicalDeviceProperties(context->GetPhysicalDevice(), &properties);
 
         VkSampleCountFlags sampleFlags = properties.limits.framebufferColorSampleCounts & properties.limits.framebufferDepthSampleCounts;
 
@@ -141,6 +291,7 @@ namespace Silex
 
         return VK_SAMPLE_COUNT_1_BIT;
     }
+
 
 
     //==================================================================================
@@ -212,11 +363,11 @@ namespace Silex
         SL_CHECK_VKRESULT(result, false);
 
         // 拡張機能関数ロード
-        extensions.vkCreateSwapchainKHR    = GET_VULKAN_DEVICE_PROC(device, vkCreateSwapchainKHR);
-        extensions.vkDestroySwapchainKHR   = GET_VULKAN_DEVICE_PROC(device, vkDestroySwapchainKHR);
-        extensions.vkGetSwapchainImagesKHR = GET_VULKAN_DEVICE_PROC(device, vkGetSwapchainImagesKHR);
-        extensions.vkAcquireNextImageKHR   = GET_VULKAN_DEVICE_PROC(device, vkAcquireNextImageKHR);
-        extensions.vkQueuePresentKHR       = GET_VULKAN_DEVICE_PROC(device, vkQueuePresentKHR);
+        CreateSwapchainKHR    = GET_VULKAN_DEVICE_PROC(device, vkCreateSwapchainKHR);
+        DestroySwapchainKHR   = GET_VULKAN_DEVICE_PROC(device, vkDestroySwapchainKHR);
+        GetSwapchainImagesKHR = GET_VULKAN_DEVICE_PROC(device, vkGetSwapchainImagesKHR);
+        AcquireNextImageKHR   = GET_VULKAN_DEVICE_PROC(device, vkAcquireNextImageKHR);
+        QueuePresentKHR       = GET_VULKAN_DEVICE_PROC(device, vkQueuePresentKHR);
 
         // メモリアロケータ（VMA）生成
         VmaAllocatorCreateInfo allocatorInfo = {};
@@ -661,16 +812,16 @@ namespace Silex
         //------------------------------------------------------------------------------------------
         // NOTE: VK_ERROR_NATIVE_WINDOW_IN_USE_KHR OpenGL でウィンドウコンテキストが生成されている場合に発生
         //------------------------------------------------------------------------------------------
-        result = extensions.vkCreateSwapchainKHR(device, &swapCreateInfo, nullptr, &vkSwapchain->swapchain);
+        result = CreateSwapchainKHR(device, &swapCreateInfo, nullptr, &vkSwapchain->swapchain);
         SL_CHECK_VKRESULT(result, false);
 
         // イメージ取得
         uint32 imageCount = 0;
-        result = extensions.vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, nullptr);
+        result = GetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, nullptr);
         SL_CHECK_VKRESULT(result, false);
 
         vkSwapchain->images.resize(imageCount);
-        result = extensions.vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, vkSwapchain->images.data());
+        result = GetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, vkSwapchain->images.data());
         SL_CHECK_VKRESULT(result, false);
 
         // イメージビュー生成
@@ -734,7 +885,7 @@ namespace Silex
         // ここでチェックするか、ウィンドウイベントから直接リサイズ呼び出しするか検討する
         //=============================================================================
 
-        VkResult result = extensions.vkAcquireNextImageKHR(device, vkswapchain->swapchain, UINT64_MAX, vksemaphore->semaphore, nullptr, &vkswapchain->imageIndex);
+        VkResult result = AcquireNextImageKHR(device, vkswapchain->swapchain, UINT64_MAX, vksemaphore->semaphore, nullptr, &vkswapchain->imageIndex);
         SL_CHECK_VKRESULT(result, nullptr);
         
         return vkswapchain->framebuffers[vkswapchain->imageIndex];
@@ -777,7 +928,7 @@ namespace Silex
             // ...
 
             // スワップチェイン破棄
-            extensions.vkDestroySwapchainKHR(device, vkSwapchain->swapchain, nullptr);
+            DestroySwapchainKHR(device, vkSwapchain->swapchain, nullptr);
 
             //レンダーパス破棄
             vkDestroyRenderPass(device, vkSwapchain->renderpass->renderpass, nullptr);
@@ -885,7 +1036,7 @@ namespace Silex
         bool isCube          = format.type == TEXTURE_TYPE_CUBE || format.type == TEXTURE_TYPE_CUBE_ARRAY;
         bool isInCpuMemory   = format.usageBits & TEXTURE_USAGE_CPU_READ_BIT;
         bool isDepthStencil  = format.usageBits & TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        auto sampleCountBits = _CheckSupportedSampleCounts(context->GetPhysicalDevice(), format.samples);
+        auto sampleCountBits = _CheckSupportedSampleCounts(format.samples);
 
         // ==================== イメージ生成 ====================
         VkImageCreateInfo imageCreateInfo = {};
@@ -1136,7 +1287,7 @@ namespace Silex
             vkAttachments[i] = {};
             vkAttachments[i].sType          = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2_KHR;
             vkAttachments[i].format         = (VkFormat)attachments[i].format;
-            vkAttachments[i].samples        = _CheckSupportedSampleCounts(context->GetPhysicalDevice(), attachments[i].samples);
+            vkAttachments[i].samples        = _CheckSupportedSampleCounts(attachments[i].samples);
             vkAttachments[i].loadOp         = (VkAttachmentLoadOp)attachments[i].loadOp;
             vkAttachments[i].storeOp        = (VkAttachmentStoreOp)attachments[i].storeOp;
             vkAttachments[i].stencilLoadOp  = (VkAttachmentLoadOp)attachments[i].stencilLoadOp;
@@ -1343,13 +1494,250 @@ namespace Silex
     //==================================================================================
     // デスクリプター
     //==================================================================================
-    DescriptorSet* VulkanAPI::CreateDescriptorSet()
+    DescriptorSet* VulkanAPI::CreateDescriptorSet(Descriptor* descriptors, uint32 numdescriptors, ShaderHandle* shader, uint32 setIndex)
     {
+        DescriptorSetPoolKey key = {};
+
+        // key 追加
+        VkWriteDescriptorSet* writes = SL_STACK(VkWriteDescriptorSet, numdescriptors);
+        for (uint32 i = 0; i < numdescriptors; i++)
+        {
+            uint32 numDescriptors = 1;
+            const Descriptor& descriptor = descriptors[i];
+
+            writes[i] = {};
+            writes[i].sType      = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writes[i].dstBinding = descriptor.binding;
+
+            switch (descriptor.type)
+            {
+                case DESCRIPTOR_TYPE_SAMPLER:
+                {
+                    numDescriptors = descriptor.handles.size();
+                    VkDescriptorImageInfo* imgInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
+
+                    for (uint32 j = 0; j < numDescriptors; j++)
+                    {
+                        imgInfos[j] = {};
+                        imgInfos[j].sampler     = ((VulkanSampler*)(descriptor.handles[j]))->sampler;
+                        imgInfos[j].imageView   = nullptr;
+                        imgInfos[j].imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                    }
+
+                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+                    writes[i].pImageInfo     = imgInfos;
+
+                    break;
+                }
+                case DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE:
+                {
+                    numDescriptors = descriptor.handles.size() / 2;
+                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
+
+                    for (uint32 j = 0; j < numDescriptors; j++) 
+                    {
+                        imageInfos[j] = {};
+                        imageInfos[j].sampler     = ((VulkanSampler*)(descriptor.handles[j * 2 + 0]))->sampler;
+                        imageInfos[j].imageView   = ((VulkanTexture*)(descriptor.handles[j * 2 + 1]))->imageView;
+                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    }
+
+                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                    writes[i].pImageInfo     = imageInfos;
+
+                    break;
+                }
+                case DESCRIPTOR_TYPE_TEXTURE:
+                {
+                    numDescriptors = descriptor.handles.size();
+                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
+
+                    for (uint32 j = 0; j < numDescriptors; j++)
+                    {
+                        imageInfos[j] = {};
+                        imageInfos[j].imageView   = ((VulkanTexture*)(descriptor.handles[j]))->imageView;
+                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    }
+
+                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                    writes[i].pImageInfo     = imageInfos;
+
+                    break;
+                }
+                case DESCRIPTOR_TYPE_IMAGE:
+                {
+                    numDescriptors = descriptor.handles.size();
+                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
+
+                    for (uint32 j = 0; j < numDescriptors; j++)
+                    {
+                        imageInfos[j] = {};
+                        imageInfos[j].imageView   = ((VulkanTexture*)(descriptor.handles[j]))->imageView;
+                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                    }
+
+                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                    writes[i].pImageInfo     = imageInfos;
+
+                    break;
+                }
+                case DESCRIPTOR_TYPE_TEXTURE_BUFFER:
+                {
+                    numDescriptors = descriptor.handles.size();
+                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, numDescriptors);
+                    VkBufferView* views                = SL_STACK(VkBufferView, numDescriptors);
+
+                    for (uint32 j = 0; j < numDescriptors; j++)
+                    {
+                        VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[j];
+                        bufferInfo[j] = {};
+                        bufferInfo[j].buffer = buffer->buffer;
+                        bufferInfo[j].range  = buffer->size;
+
+                        views[j] = buffer->view;
+                    }
+
+                    writes[i].descriptorType   = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+                    writes[i].pBufferInfo      = bufferInfo;
+                    writes[i].pTexelBufferView = views;
+
+                    break;
+                }
+                case DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE_BUFFER:
+                {
+                    numDescriptors = descriptor.handles.size() / 2;
+                    VkDescriptorImageInfo*  imageInfos  = SL_STACK(VkDescriptorImageInfo, numDescriptors);
+                    VkDescriptorBufferInfo* bufferInfos = SL_STACK(VkDescriptorBufferInfo, numDescriptors);
+                    VkBufferView*           views       = SL_STACK(VkBufferView, numDescriptors);
+
+                    for (uint32 j = 0; j < numDescriptors; j++)
+                    {
+                        VulkanSampler* sampler = (VulkanSampler*)descriptor.handles[j * 2 + 0];
+                        VulkanBuffer* buffer   = (VulkanBuffer*)descriptor.handles[j * 2 + 1];
+
+                        imageInfos[j] = {};
+                        imageInfos[j].sampler = sampler->sampler;
+
+                        bufferInfos[j] = {};
+                        bufferInfos[j].buffer = buffer->buffer;
+                        bufferInfos[j].range  = buffer->size;
+
+                        views[j] = buffer->view;
+                    }
+
+                    writes[i].descriptorType   = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+                    writes[i].pImageInfo       = imageInfos;
+                    writes[i].pBufferInfo      = bufferInfos;
+                    writes[i].pTexelBufferView = views;
+
+                    break;
+                }
+                case DESCRIPTOR_TYPE_IMAGE_BUFFER:
+                {
+                    SL_ASSERT(false, "未実装");
+                    break;
+                }
+                case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                {
+                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
+
+                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0];
+                    *bufferInfo = {};
+                    bufferInfo->buffer = buffer->buffer;
+                    bufferInfo->range  = buffer->size;
+
+                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                    writes[i].pBufferInfo    = bufferInfo;
+
+                    break;
+                }
+                case DESCRIPTOR_TYPE_STORAGE_BUFFER:
+                {
+                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
+
+                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0];
+                    *bufferInfo = {};
+                    bufferInfo->buffer = buffer->buffer;
+                    bufferInfo->range  = buffer->size;
+
+                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                    writes[i].pBufferInfo    = bufferInfo;
+
+                    break;
+                }
+                case DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+                {
+                    numDescriptors = descriptor.handles.size();
+                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
+
+                    for (uint32 j = 0; j < numDescriptors; j++)
+                    {
+                        imageInfos[j] = {};
+                        imageInfos[j].imageView   = ((VulkanTexture*)descriptor.handles[j])->imageView;
+                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    }
+
+                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
+                    writes[i].pImageInfo     = imageInfos;
+
+                    break;
+                }
+
+                default: SL_ASSERT(false);
+            }
+
+            writes[i].descriptorCount = numDescriptors;
+            key.descriptorTypeCounts[descriptor.type] += numDescriptors;
+        }
+
+        // デスクリプタープール取得 (keyをもとに、生成済みのプールがあれば取得、なければ新規生成)
+        VkDescriptorPool vkPool = _FindOrCreateDescriptorPool(key);
+        SL_CHECK(vkPool, nullptr);
+
+        VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
+        descriptorSetAllocateInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        descriptorSetAllocateInfo.descriptorPool     = vkPool;
+        descriptorSetAllocateInfo.descriptorSetCount = 1;
+        descriptorSetAllocateInfo.pSetLayouts        = &((VulkanShader*)shader)->descriptorsetLayouts[setIndex];
+
+        // デスクリプターセット生成
+        VkDescriptorSet vkdescriptorset = nullptr;
+        VkResult result = vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &vkdescriptorset);
+        if (result != VK_SUCCESS)
+        {
+            _RecycleDescriptorPool(vkPool, key);
+            
+            SL_LOG_LOCATION_ERROR(VkResultToString(result));
+            return nullptr;
+        }
+
+        // デスクリプターセット更新
+        for (uint32 i = 0; i < numdescriptors; i++)
+            writes[i].dstSet = vkdescriptorset;
+
+        vkUpdateDescriptorSets(device, numdescriptors, writes, 0, nullptr);
+
+
+        VulkanDescriptorSet* descriptorset = Memory::Allocate<VulkanDescriptorSet>();
+        descriptorset->descriptorPool = vkPool;
+        descriptorset->descriptorSet  = vkdescriptorset;
+        descriptorset->poolKey        = key;
+
         return nullptr;
     }
 
-    void VulkanAPI::DestroyDescriptorSet()
+    void VulkanAPI::DestroyDescriptorSet(DescriptorSet* descriptorset)
     {
+        if (descriptorset)
+        {
+            VulkanDescriptorSet* vkdescriptorset = (VulkanDescriptorSet*)descriptorset;
+            vkFreeDescriptorSets(device, vkdescriptorset->descriptorPool, 1, &vkdescriptorset->descriptorSet);
+
+            // 同一キーのデスクリプタプールの参照カウントを減らす(参照カウントが0ならデスクリプタプールを破棄)
+            _RecycleDescriptorPool(vkdescriptorset->descriptorPool, vkdescriptorset->poolKey);
+
+            Memory::Deallocate(vkdescriptorset);
+        }
     }
 
     //==================================================================================

@@ -27,16 +27,6 @@ namespace Silex
     class  VulkanContext;
     struct VulkanSurface;
 
-    // デバイス拡張機能関数
-    struct DeviceExtensionFunctions
-    {
-        PFN_vkCreateSwapchainKHR    vkCreateSwapchainKHR    = nullptr;
-        PFN_vkDestroySwapchainKHR   vkDestroySwapchainKHR   = nullptr;
-        PFN_vkGetSwapchainImagesKHR vkGetSwapchainImagesKHR = nullptr;
-        PFN_vkAcquireNextImageKHR   vkAcquireNextImageKHR   = nullptr;
-        PFN_vkQueuePresentKHR       vkQueuePresentKHR       = nullptr;
-    };
-
     //=============================================
     // Vulkan API 実装
     //=============================================
@@ -109,17 +99,14 @@ namespace Silex
         RenderPass* CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies) override;
         void DestroyRenderPass(RenderPass* renderpass) override;
 
-        // バリア
-        void PipelineBarrier(CommandBuffer* commanddBuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrier* memoryBarrier, uint32 numBufferBarrier, BufferBarrier* bufferBarrier, uint32 numTextureBarrier, TextureBarrier* textureBarrier) override;
-
         // シェーダー
         virtual std::vector<byte> CompileSPIRV(uint32 numSpirv, ShaderStageSPIRVData* spirv, const std::string& shaderName) override;
         virtual ShaderHandle* CreateShader(const std::vector<byte>& p_shader_binary, ShaderDescription& shaderDesc, std::string& name) override;
         virtual void DestroyShader(ShaderHandle* shader) override;
 
         // デスクリプターセット
-        DescriptorSet* CreateDescriptorSet() override;
-        void DestroyDescriptorSet() override;
+        DescriptorSet* CreateDescriptorSet(Descriptor* descriptors, uint32 numdescriptors, ShaderHandle* shader, uint32 setIndex) override;
+        void DestroyDescriptorSet(DescriptorSet* descriptorset) override;
 
         // パイプライン
         virtual Pipeline* CreatePipeline(
@@ -134,15 +121,48 @@ namespace Silex
             int32                      numColorAttachments,
             PipelineDynamicStateFlags  dynamicState,
             RenderPass*                renderpass,
-            uint32                     renderSubpass
-        ) override;
+            uint32                     renderSubpass) override;
 
         void DestroyPipeline(Pipeline* pipeline) override;
 
+        // コマンド
+        void PipelineBarrier(CommandBuffer* commanddBuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrier* memoryBarrier, uint32 numBufferBarrier, BufferBarrier* bufferBarrier, uint32 numTextureBarrier, TextureBarrier* textureBarrier) override;
+
+
+    public:
+
+        // プール検索キー
+        struct DescriptorSetPoolKey
+        {
+            uint16 descriptorTypeCounts[DESCRIPTOR_TYPE_MAX] = {};
+            bool operator<(const DescriptorSetPoolKey& other) const
+            {
+                return memcmp(descriptorTypeCounts, other.descriptorTypeCounts, sizeof(descriptorTypeCounts)) < 0;
+            }
+        };
+
     private:
 
+        // デスクリプターセットシグネチャから同一シグネチャのデスクリプタプールを検索、なければ新規生成
+        VkDescriptorPool _FindOrCreateDescriptorPool(const DescriptorSetPoolKey& key);
+
+        // デスクリプタプールの参照カウントを減らす（0なら破棄）
+        void _RecycleDescriptorPool(VkDescriptorPool pool, DescriptorSetPoolKey& poolKey);
+
+        // 指定されたサンプル数が、利用可能なサンプル数かどうかチェックする
+        VkSampleCountFlagBits _CheckSupportedSampleCounts(TextureSamples samples);
+
+    private:
+
+        // デスクリプター型と個数では一意のハッシュ値を生成できないので、unordered_mapではなく、mapを採用
+        std::map<DescriptorSetPoolKey, std::unordered_map<VkDescriptorPool, uint32>> descriptorsetPools;
+
         // デバイス拡張機能関数
-        DeviceExtensionFunctions extensions;
+        PFN_vkCreateSwapchainKHR    CreateSwapchainKHR    = nullptr;
+        PFN_vkDestroySwapchainKHR   DestroySwapchainKHR   = nullptr;
+        PFN_vkGetSwapchainImagesKHR GetSwapchainImagesKHR = nullptr;
+        PFN_vkAcquireNextImageKHR   AcquireNextImageKHR   = nullptr;
+        PFN_vkQueuePresentKHR       QueuePresentKHR       = nullptr;
 
         // レンダリングコンテキスト
         VulkanContext* context = nullptr;

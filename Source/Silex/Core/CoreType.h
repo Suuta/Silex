@@ -92,11 +92,11 @@ namespace Silex
     //============================================
     struct Handle
     {
-        Handle() : handle(uint64(this)) {}
-        Handle(void* ptr) : handle(uint64(ptr)) {}
+        Handle() : pointer(uint64(this)) {}
+        Handle(void* ptr) : pointer(uint64(ptr)) {}
         virtual ~Handle() {};
 
-        uint64 handle = 0;
+        uint64 pointer = 0;
     };
 
     //============================================

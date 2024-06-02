@@ -87,8 +87,8 @@ namespace Silex
         virtual void DestroyShader(ShaderHandle* shader) = 0;
 
         // デスクリプターセット
-        virtual DescriptorSet* CreateDescriptorSet() = 0;
-        virtual void DestroyDescriptorSet() = 0;
+        virtual DescriptorSet* CreateDescriptorSet(Descriptor* descriptors, uint32 numdescriptors, ShaderHandle* shader, uint32 setIndex) = 0;
+        virtual void DestroyDescriptorSet(DescriptorSet* descriptorset) = 0;
 
         // パイプライン
         virtual Pipeline* CreatePipeline(

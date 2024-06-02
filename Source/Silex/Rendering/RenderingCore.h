@@ -694,6 +694,15 @@ namespace Silex
         DESCRIPTOR_TYPE_MAX
     };
 
+    struct Descriptor
+    {
+        DescriptorType       type    = DESCRIPTOR_TYPE_MAX;
+        uint32               binding = INVALID_RENDER_ID;
+        std::vector<Handle*> handles;
+    };
+
+
+
     //================================================
     // シェーダー
     //================================================

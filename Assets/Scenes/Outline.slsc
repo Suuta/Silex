@@ -1,5 +1,18 @@
 Scene: Untitled
 Entities:
+  - Entity: 10375330136932207328
+    InstanceComponent:
+      name: Cube
+      active: true
+    TransformComponent:
+      position: [-0.5, 1.5, 0.5]
+      rotation: [0, 0, 0]
+      scale: [1, 1, 1]
+    MeshComponent:
+      mesh: 3
+      castShadow: true
+      material:
+        0: 5
   - Entity: 4659925131673948981
     InstanceComponent:
       name: Floor
@@ -7,25 +20,25 @@ Entities:
     TransformComponent:
       position: [0, 0, 0]
       rotation: [0, 0, 0]
-      scale: [32, 0.100000001, 32]
+      scale: [32, 1, 32]
     MeshComponent:
       mesh: 3
       castShadow: true
       material:
-        0: 12894483546203256378
+        0: 6754722118927369052
   - Entity: 13622721094780882598
     InstanceComponent:
       name: Cube
       active: true
     TransformComponent:
-      position: [0, 1.3797071, 0]
+      position: [0, 1, 0]
       rotation: [0, 0, 0]
       scale: [0.999993324, 0.99999404, 1]
     MeshComponent:
       mesh: 3
       castShadow: true
       material:
-        0: 12894483546203256378
+        0: 5
   - Entity: 9391669668212887990
     InstanceComponent:
       name: Lighting
@@ -48,7 +61,7 @@ Entities:
     PostProcessComponent:
       enableOutline: true
       lineWidth: 1
-      outlineColor: [0.250965238, 0.250965238, 0.250965238]
+      outlineColor: [0, 0, 0]
       enableFXAA: true
       enableBloom: false
       bloomThreshold: 2
@@ -62,7 +75,7 @@ Entities:
       name: Sphere
       active: true
     TransformComponent:
-      position: [-0.282832801, 1.05580211, 0.243855268]
+      position: [-1.76545894, 1, 1.81600535]
       rotation: [0, 0, 0]
       scale: [1, 1, 1]
     MeshComponent:

@@ -2,7 +2,7 @@ Scene: Untitled
 Entities:
   - Entity: 9391669668212887990
     InstanceComponent:
-      name: Empty
+      name: Light
       active: true
     TransformComponent:
       position: [0, 0, 0]
@@ -31,16 +31,3 @@ Entities:
       enableTonemap: true
       exposure: 2
       gammaCorrection: 1
-  - Entity: 13622721094780882598
-    InstanceComponent:
-      name: Empty
-      active: true
-    TransformComponent:
-      position: [0, 0, 0]
-      rotation: [0, 0, 0]
-      scale: [1, 1, 1]
-    MeshComponent:
-      mesh: 3
-      castShadow: true
-      material:
-        0: 5

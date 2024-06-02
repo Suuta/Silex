@@ -4,6 +4,7 @@
 #include "Core/CoreType.h"
 #include "Core/MemoryPool.h"
 
+#include <map>
 #include <unordered_map>
 #include <mutex>
 
