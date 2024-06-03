@@ -7,20 +7,24 @@
 #include <vulkan/vk_mem_alloc.h>
 
 
-//----------------------------------------------------
-// memo
-//----------------------------------------------------
-// アセットは Ref<TextureAsset> 形式で保持?
+// TODO: VulkanAPI 
+// ・パイプライン
+// ・シェーダー
 // 
-// レンダーオブジェクトをメンバーに内包する形で表現
-// class TextureAsset : public Asset
-// { 
-//     Texture* texture;
-// }
+// ・RenderDeviceでラッパー実装
+//   - アセットは Ref<TextureAsset> 形式で保持?
+//   - 
+//   - レンダーオブジェクトをメンバーに内包する形で表現
+//   - class TextureAsset : public Asset
+//   - { 
+//   -     Texture* texture;
+//   - }
+//   - 
+//   - アセットマネージャの対象は ○○Asset から行うようにし
+//   - Texture 自体は、レンダラー側で管理できるようにする
 // 
-// アセットマネージャの対象は ○○Asset から行うようにし
-// Texture 自体は、レンダラー側で管理できるようにする
-//----------------------------------------------------
+// ・メインループ実装
+
 
 namespace Silex
 {
@@ -100,9 +104,9 @@ namespace Silex
         void DestroyRenderPass(RenderPass* renderpass) override;
 
         // シェーダー
-        virtual std::vector<byte> CompileSPIRV(uint32 numSpirv, ShaderStageSPIRVData* spirv, const std::string& shaderName) override;
-        virtual ShaderHandle* CreateShader(const std::vector<byte>& p_shader_binary, ShaderDescription& shaderDesc, std::string& name) override;
-        virtual void DestroyShader(ShaderHandle* shader) override;
+        std::vector<byte> CompileSPIRV(uint32 numSpirv, ShaderStageSPIRVData* spirv, const std::string& shaderName) override;
+        ShaderHandle* CreateShader(const std::vector<byte>& p_shader_binary, ShaderDescription& shaderDesc, std::string& name) override;
+        void DestroyShader(ShaderHandle* shader) override;
 
         // デスクリプターセット
         DescriptorSet* CreateDescriptorSet(Descriptor* descriptors, uint32 numdescriptors, ShaderHandle* shader, uint32 setIndex) override;
@@ -125,9 +129,30 @@ namespace Silex
 
         void DestroyPipeline(Pipeline* pipeline) override;
 
-        // コマンド
-        void PipelineBarrier(CommandBuffer* commanddBuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrier* memoryBarrier, uint32 numBufferBarrier, BufferBarrier* bufferBarrier, uint32 numTextureBarrier, TextureBarrier* textureBarrier) override;
 
+        // コマンド
+        void PipelineBarrier(CommandBuffer* commandbuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrier* memoryBarrier, uint32 numBufferBarrier, BufferBarrier* bufferBarrier, uint32 numTextureBarrier, TextureBarrier* textureBarrier) override;
+        void ClearBuffer(CommandBuffer* commandbuffer, Buffer* buffer, uint64 offset, uint64 size) override;
+        void CopyBuffer(CommandBuffer* commandbuffer, Buffer* srcBuffer, Buffer* dstBuffer, uint32 numRegion, BufferCopyRegion* regions) override;
+        void CopyTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureCopyRegion* regions) override;
+        void ResolveTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, uint32 srcLayer, uint32 srcMipmap, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 dstLayer, uint32 dstMipmap) override;
+        void ClearColorTexture(CommandBuffer* commandbuffer, TextureHandle* texture, TextureLayout textureLayout, const glm::vec4& color, const TextureSubresourceRange& subresources) override;
+        void CopyBufferToTexture(CommandBuffer* commandbuffer, Buffer* srcBuffer, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, BufferTextureCopyRegion* regions) override;
+        void CopyTextureToBuffer(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, Buffer* dstBuffer, uint32 numRegion, BufferTextureCopyRegion* regions) override;
+        void PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData) override;
+        void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType, uint32 numclearValues, RenderPassClearValue* clearvalues, uint32 x, uint32 y, uint32 width, uint32 height) override;
+        void EndRenderPass(CommandBuffer* commandbuffer) override;
+        void NextRenderSubpass(CommandBuffer* commandbuffer, CommandBufferType commandBufferType) override;
+        void SetViewport(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) override;
+        void SetScissor(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) override;
+        void ClearAttachments(CommandBuffer* commandbuffer, uint32 numAttachmentClear, AttachmentClear** attachmentClears, uint32 x, uint32 y, uint32 width, uint32 height) override;
+        void BindPipeline(CommandBuffer* commandbuffer, Pipeline* pipeline) override;
+        void BindDescriptorSet(CommandBuffer* commandbuffer, DescriptorSet* descriptorset, ShaderHandle* shader, uint32 setIndex) override;
+        void Draw(CommandBuffer* commandbuffer, uint32 vertexCount, uint32 instanceCount, uint32 baseVertex, uint32 firstInstance) override;
+        void DrawIndexed(CommandBuffer* commandbuffer, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance) override;
+        void BindVertexBuffers(CommandBuffer* commandbuffer, uint32 bindingCount, const Buffer** buffers, const uint64* offsets) override;
+        void BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset) override;
+        void SetLineWidth(CommandBuffer* commandbuffer, float width) override;
 
     public:
 

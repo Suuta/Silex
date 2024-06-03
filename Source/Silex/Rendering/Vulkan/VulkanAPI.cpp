@@ -85,8 +85,9 @@ namespace Silex
     // テクスチャ
     struct VulkanTexture : public TextureHandle
     {
-        VkImage     image    = nullptr;
-        VkImageView imageView= nullptr;
+        VkImage     image     = nullptr;
+        VkImageView imageView = nullptr;
+        VkExtent3D  extent    = {};
 
         VmaAllocation     allocationHandle = nullptr;
         VmaAllocationInfo allocationInfo   = {};
@@ -124,6 +125,12 @@ namespace Silex
         VkDescriptorPool descriptorPool = nullptr;
 
         VulkanAPI::DescriptorSetPoolKey poolKey;
+    };
+
+    // パイプライン
+    struct VulkanPipeline
+    {
+        VkPipeline pipeline = nullptr;
     };
 
 
@@ -1096,6 +1103,7 @@ namespace Silex
         texture->allocationInfo   = allocationInfo;
         texture->image            = vkimage;
         texture->imageView        = vkview;
+        texture->extent           = imageCreateInfo.extent;
 
         vmaGetAllocationInfo(allocator, texture->allocationHandle, &texture->allocationInfo);
 
@@ -1114,36 +1122,6 @@ namespace Silex
         }
     }
 
-#if 0
-    byte* VulkanAPI::MapTexture(TextureHandle* texture, const TextureSubresource& subresource)
-    {
-        VkResult result;
-        VulkanTexture* vktexture = (VulkanTexture*)texture;
-
-        VkImageSubresource vksubresource = {};
-        vksubresource.aspectMask = VkImageAspectFlags(1 << subresource.aspect);
-        vksubresource.arrayLayer = subresource.layer;
-        vksubresource.mipLevel   = subresource.mipmap;
-
-        VkSubresourceLayout vklayout = {};
-        vkGetImageSubresourceLayout(device, vktexture->image, &vksubresource, &vklayout);
-
-        void* mappedPtr = nullptr;
-        result = vkMapMemory(device, vktexture->allocationInfo.deviceMemory, vktexture->allocationInfo.offset + vklayout.offset, vklayout.size, 0, &mappedPtr);
-        SL_CHECK_VKRESULT(result, nullptr);
-
-        result = vmaMapMemory(allocator, vktexture->allocationHandle, &mappedPtr);
-        SL_CHECK_VKRESULT(result, nullptr);
-
-        return (byte*)mappedPtr;
-    }
-
-    void VulkanAPI::UnmapTexture(TextureHandle* texture)
-    {
-        VulkanTexture* vktexture = (VulkanTexture*)texture;
-        vkUnmapMemory(device, vktexture->allocationInfo.deviceMemory);
-    }
-#endif
 
     //==================================================================================
     // サンプラー
@@ -1412,7 +1390,7 @@ namespace Silex
     }
 
     //==================================================================================
-    // バリア
+    // コマンド
     //==================================================================================
     void VulkanAPI::PipelineBarrier(CommandBuffer* commanddBuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrier* memoryBarrier, uint32 numBufferBarrier, BufferBarrier* bufferBarrier, uint32 numTextureBarrier, TextureBarrier* textureBarrier)
     {
@@ -1473,10 +1451,299 @@ namespace Silex
         );
     }
 
+    void VulkanAPI::ClearBuffer(CommandBuffer* commandbuffer, Buffer* buffer, uint64 offset, uint64 size)
+    {
+        VulkanBuffer* vkbuffer = (VulkanBuffer*)buffer;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdFillBuffer(cmd->commandBuffer, vkbuffer->buffer, offset, size, 0); // 0で埋める
+    }
+
+    void VulkanAPI::CopyBuffer(CommandBuffer* commandbuffer, Buffer* srcBuffer, Buffer* dstBuffer, uint32 numRegion, BufferCopyRegion* regions)
+    {
+        VulkanBuffer* src = (VulkanBuffer*)srcBuffer;
+        VulkanBuffer* dst = (VulkanBuffer*)dstBuffer;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdCopyBuffer(cmd->commandBuffer, src->buffer, dst->buffer, numRegion, (VkBufferCopy*)regions);
+    }
+
+    void VulkanAPI::CopyTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureCopyRegion* regions)
+    {
+        VkImageCopy* copyRegion = SL_STACK(VkImageCopy, numRegion);
+        for (uint32 i = 0; i < numRegion; i++)
+        {
+            copyRegion[i] = {};
+            copyRegion[i].srcSubresource.aspectMask     = regions[i].srcSubresources.aspect;
+            copyRegion[i].srcSubresource.baseArrayLayer = regions[i].srcSubresources.baseLayer;
+            copyRegion[i].srcSubresource.layerCount     = regions[i].srcSubresources.layerCount;
+            copyRegion[i].srcSubresource.mipLevel       = regions[i].srcSubresources.mipmap;
+            copyRegion[i].srcOffset.x                   = regions[i].srcOffset.x;
+            copyRegion[i].srcOffset.y                   = regions[i].srcOffset.y;
+            copyRegion[i].srcOffset.z                   = regions[i].srcOffset.z;
+            copyRegion[i].dstSubresource.aspectMask     = regions[i].dstSubresources.aspect;
+            copyRegion[i].dstSubresource.baseArrayLayer = regions[i].dstSubresources.baseLayer;
+            copyRegion[i].dstSubresource.layerCount     = regions[i].dstSubresources.layerCount;
+            copyRegion[i].dstSubresource.mipLevel       = regions[i].dstSubresources.mipmap;
+            copyRegion[i].dstOffset.x                   = regions[i].dstOffset.x;
+            copyRegion[i].dstOffset.y                   = regions[i].dstOffset.y;
+            copyRegion[i].dstOffset.z                   = regions[i].dstOffset.z;
+            copyRegion[i].extent.width                  = regions[i].size.x;
+            copyRegion[i].extent.height                 = regions[i].size.y;
+            copyRegion[i].extent.depth                  = regions[i].size.z;
+        }
+
+        VulkanTexture* src = (VulkanTexture*)srcTexture;
+        VulkanTexture* dst = (VulkanTexture*)dstTexture;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdCopyImage(cmd->commandBuffer, src->image, (VkImageLayout)srcTextureLayout, dst->image, (VkImageLayout)dstTextureLayout, numRegion, copyRegion);
+    }
+
+    void VulkanAPI::ResolveTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, uint32 srcLayer, uint32 srcMipmap, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 dstLayer, uint32 dstMipmap)
+    {
+        VulkanTexture* src = (VulkanTexture*)srcTexture;
+        VulkanTexture* dst = (VulkanTexture*)dstTexture;
+
+        VkImageResolve resolve = {};
+        resolve.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        resolve.srcSubresource.mipLevel       = srcMipmap;
+        resolve.srcSubresource.baseArrayLayer = srcLayer;
+        resolve.srcSubresource.layerCount     = 1;
+        resolve.dstSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+        resolve.dstSubresource.mipLevel       = dstMipmap;
+        resolve.dstSubresource.baseArrayLayer = dstLayer;
+        resolve.dstSubresource.layerCount     = 1;
+        resolve.extent.width                  = std::max(1u, src->extent.width  >> srcMipmap);
+        resolve.extent.height                 = std::max(1u, src->extent.height >> srcMipmap);
+        resolve.extent.depth                  = std::max(1u, src->extent.depth  >> srcMipmap);
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdResolveImage(cmd->commandBuffer, src->image, (VkImageLayout)srcTextureLayout, dst->image, (VkImageLayout)dstTextureLayout, 1, &resolve);
+    }
+
+    void VulkanAPI::ClearColorTexture(CommandBuffer* commandbuffer, TextureHandle* texture, TextureLayout textureLayout, const glm::vec4& color, const TextureSubresourceRange& subresources)
+    {
+        VulkanTexture* vktexture = (VulkanTexture*)texture;
+
+        VkClearColorValue clearColor = {};
+        memcpy(&clearColor.float32, &color, sizeof(VkClearColorValue::float32));
+
+        VkImageSubresourceRange vkSubresources = {};
+        vkSubresources.aspectMask     = subresources.aspect;
+        vkSubresources.baseMipLevel   = subresources.baseMipmap;
+        vkSubresources.levelCount     = subresources.mipmapCount;
+        vkSubresources.layerCount     = subresources.layerCount;
+        vkSubresources.baseArrayLayer = subresources.baseLayer;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdClearColorImage(cmd->commandBuffer, vktexture->image, (VkImageLayout)textureLayout, &clearColor, 1, &vkSubresources);
+    }
+
+    void VulkanAPI::CopyBufferToTexture(CommandBuffer* commandbuffer, Buffer* srcBuffer, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, BufferTextureCopyRegion* regions)
+    {
+        VkBufferImageCopy* copyRegion = SL_STACK(VkBufferImageCopy, numRegion);
+        for (uint32 i = 0; i < numRegion; i++)
+        {
+            copyRegion[i] = {};
+            copyRegion[i].bufferOffset                    = regions[i].bufferOffset;
+            copyRegion[i].imageExtent.width               = regions[i].textureRegionSize.x;
+            copyRegion[i].imageExtent.height              = regions[i].textureRegionSize.y;
+            copyRegion[i].imageExtent.depth               = regions[i].textureRegionSize.z;
+            copyRegion[i].imageOffset.x                   = regions[i].textureOffset.x;
+            copyRegion[i].imageOffset.y                   = regions[i].textureOffset.y;
+            copyRegion[i].imageOffset.z                   = regions[i].textureOffset.z;
+            copyRegion[i].imageSubresource.aspectMask     = regions[i].textureSubresources.aspect;
+            copyRegion[i].imageSubresource.baseArrayLayer = regions[i].textureSubresources.baseLayer;
+            copyRegion[i].imageSubresource.layerCount     = regions[i].textureSubresources.layerCount;
+            copyRegion[i].imageSubresource.mipLevel       = regions[i].textureSubresources.mipmap;
+        }
+
+        VulkanBuffer*  src = (VulkanBuffer*)srcBuffer;
+        VulkanTexture* dst = (VulkanTexture*)dstTexture;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdCopyBufferToImage(cmd->commandBuffer, src->buffer, dst->image, (VkImageLayout)dstTextureLayout, numRegion, copyRegion);
+    }
+
+    void VulkanAPI::CopyTextureToBuffer(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, Buffer* dstBuffer, uint32 numRegion, BufferTextureCopyRegion* regions)
+    {
+        VkBufferImageCopy* copyRegion = SL_STACK(VkBufferImageCopy, numRegion);
+        for (uint32 i = 0; i < numRegion; i++)
+        {
+            copyRegion[i] = {};
+            copyRegion[i].bufferOffset                    = regions[i].bufferOffset;
+            copyRegion[i].imageExtent.width               = regions[i].textureRegionSize.x;
+            copyRegion[i].imageExtent.height              = regions[i].textureRegionSize.y;
+            copyRegion[i].imageExtent.depth               = regions[i].textureRegionSize.z;
+            copyRegion[i].imageOffset.x                   = regions[i].textureOffset.x;
+            copyRegion[i].imageOffset.y                   = regions[i].textureOffset.y;
+            copyRegion[i].imageOffset.z                   = regions[i].textureOffset.z;
+            copyRegion[i].imageSubresource.aspectMask     = regions[i].textureSubresources.aspect;
+            copyRegion[i].imageSubresource.baseArrayLayer = regions[i].textureSubresources.baseLayer;
+            copyRegion[i].imageSubresource.layerCount     = regions[i].textureSubresources.layerCount;
+            copyRegion[i].imageSubresource.mipLevel       = regions[i].textureSubresources.mipmap;
+        }
+
+        VulkanTexture* src = (VulkanTexture*)srcTexture;
+        VulkanBuffer*  dst = (VulkanBuffer*)dstBuffer;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdCopyImageToBuffer(cmd->commandBuffer, src->image, (VkImageLayout)srcTextureLayout, dst->buffer, numRegion, copyRegion);
+    }
+
+
+
+    void VulkanAPI::PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData)
+    {
+        VulkanShader* vkshader = (VulkanShader*)shader;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdPushConstants(cmd->commandBuffer, vkshader->pipelineLayout, vkshader->stageFlags, firstIndex * sizeof(uint32), numData * sizeof(uint32_t), data);
+    }
+
+    void VulkanAPI::BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType, uint32 numclearValues, RenderPassClearValue* clearvalues, uint32 x, uint32 y, uint32 width, uint32 height)
+    {
+        VkSubpassContents vksubpassContents = commandBufferType == COMMAND_BUFFER_TYPE_PRIMARY ? VK_SUBPASS_CONTENTS_INLINE : VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS;
+
+        VkRenderPassBeginInfo begineInfo = {};
+        begineInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        begineInfo.renderPass               = (VkRenderPass)((VulkanRenderPass*)(renderpass))->renderpass;
+        begineInfo.framebuffer              = (VkFramebuffer)((VulkanFramebuffer*)(framebuffer))->framebuffer;
+        begineInfo.renderArea.offset.x      = x;
+        begineInfo.renderArea.offset.y      = y;
+        begineInfo.renderArea.extent.width  = width;
+        begineInfo.renderArea.extent.height = height;
+        begineInfo.clearValueCount          = numclearValues;
+        begineInfo.pClearValues             = (VkClearValue*)clearvalues;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdBeginRenderPass(cmd->commandBuffer, &begineInfo, vksubpassContents);
+    }
+
+    void VulkanAPI::EndRenderPass(CommandBuffer* commandbuffer)
+    {
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdEndRenderPass(cmd->commandBuffer);
+    }
+
+    void VulkanAPI::NextRenderSubpass(CommandBuffer* commandbuffer, CommandBufferType commandBufferType)
+    {
+        VkSubpassContents vksubpassContents = commandBufferType == COMMAND_BUFFER_TYPE_PRIMARY? VK_SUBPASS_CONTENTS_INLINE : VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdNextSubpass(cmd->commandBuffer, vksubpassContents);
+    }
+
+    void VulkanAPI::SetViewport(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height)
+    {
+        VkViewport viewport = {};
+        viewport.x        = x;
+        viewport.y        = y;
+        viewport.width    = width;
+        viewport.height   = height;
+        viewport.maxDepth = 1.0f;
+        viewport.minDepth = 0.0f;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdSetViewport(cmd->commandBuffer, 0, 1, &viewport);
+    }
+
+    void VulkanAPI::SetScissor(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height)
+    {
+        VkRect2D rect = {};
+        rect.offset = { (int32)x, (int32)y };
+        rect.extent = { width, height};
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdSetScissor(cmd->commandBuffer, 0, 1, &rect);
+    }
+
+    void VulkanAPI::ClearAttachments(CommandBuffer* commandbuffer, uint32 numAttachmentClear, AttachmentClear** attachmentClears, uint32 x, uint32 y, uint32 width, uint32 height)
+    {
+        VkClearAttachment* vkclears = SL_STACK(VkClearAttachment, numAttachmentClear);
+
+        for (uint32 i = 0; i < numAttachmentClear; i++)
+        {
+            vkclears[i] = {};
+            memcpy(&vkclears[i].clearValue, &attachmentClears[i]->value, sizeof(VkClearValue));
+            vkclears[i].colorAttachment = attachmentClears[i]->colorAttachment;
+            vkclears[i].aspectMask      = attachmentClears[i]->aspect;
+        }
+
+        VkClearRect vkrects = {};
+        vkrects.rect.offset.x      = x;
+        vkrects.rect.offset.y      = y;
+        vkrects.rect.extent.width  = width;
+        vkrects.rect.extent.height = height;
+        vkrects.baseArrayLayer     = 0;
+        vkrects.layerCount         = 1;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdClearAttachments(cmd->commandBuffer, numAttachmentClear, vkclears, 1, &vkrects);
+    }
+
+    void VulkanAPI::BindPipeline(CommandBuffer* commandbuffer, Pipeline* pipeline)
+    {
+        VulkanPipeline* vkpipeline = (VulkanPipeline*)pipeline;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdBindPipeline(cmd->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkpipeline->pipeline);
+    }
+
+    void VulkanAPI::BindDescriptorSet(CommandBuffer* commandbuffer, DescriptorSet* descriptorset, ShaderHandle* shader, uint32 setIndex)
+    {
+        VulkanShader* vkshader = (VulkanShader*)shader;
+        VulkanDescriptorSet* vkdescriptorset = (VulkanDescriptorSet*)descriptorset;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdBindDescriptorSets(cmd->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkshader->pipelineLayout, setIndex, 1, &vkdescriptorset->descriptorSet, 0, nullptr);
+    }
+
+    void VulkanAPI::Draw(CommandBuffer* commandbuffer, uint32 vertexCount, uint32 instanceCount, uint32 baseVertex, uint32 firstInstance)
+    {
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdDraw(cmd->commandBuffer, vertexCount, instanceCount, firstInstance, firstInstance);
+    }
+
+    void VulkanAPI::DrawIndexed(CommandBuffer* commandbuffer, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance)
+    {
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdDrawIndexed(cmd->commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    }
+
+    void VulkanAPI::BindVertexBuffers(CommandBuffer* commandbuffer, uint32 bindingCount, const Buffer** buffers, const uint64* offsets)
+    {
+        VkBuffer* vkbuffers = SL_STACK(VkBuffer, bindingCount);
+        for (uint32 i = 0; i < bindingCount; i++)
+        {
+            VulkanBuffer* buf = ((VulkanBuffer*)buffers[i]);
+            vkbuffers[i] = buf->buffer;
+        }
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdBindVertexBuffers(cmd->commandBuffer, 0, bindingCount, vkbuffers, offsets);
+    }
+
+    void VulkanAPI::BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset)
+    {
+        VulkanBuffer* buf = (VulkanBuffer*)buffer;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdBindIndexBuffer(cmd->commandBuffer, buf->buffer, offset, format == INDEX_BUFFER_FORMAT_UINT16? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
+    }
+
+    void VulkanAPI::SetLineWidth(CommandBuffer* commandbuffer, float width)
+    {
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdSetLineWidth(cmd->commandBuffer, width);
+    }
+
 
     //==================================================================================
     // シェーダー
     //==================================================================================
+#if 1
     std::vector<byte> VulkanAPI::CompileSPIRV(uint32 numSpirv, ShaderStageSPIRVData* spirv, const std::string& shaderName)
     {
         return std::vector<byte>();
@@ -1490,6 +1757,7 @@ namespace Silex
     void VulkanAPI::DestroyShader(ShaderHandle* shader)
     {
     }
+#endif
 
     //==================================================================================
     // デスクリプター
@@ -1723,7 +1991,7 @@ namespace Silex
         descriptorset->descriptorSet  = vkdescriptorset;
         descriptorset->poolKey        = key;
 
-        return nullptr;
+        return descriptorset;
     }
 
     void VulkanAPI::DestroyDescriptorSet(DescriptorSet* descriptorset)

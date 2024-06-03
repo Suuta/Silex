@@ -460,6 +460,14 @@ namespace Silex
         uint32            mipmap = 0;
     };
 
+    struct TextureSubresourceLayers
+    {
+        TextureAspectBits aspect;
+        uint32            mipmap     = 0;
+        uint32            baseLayer  = 0;
+        uint32            layerCount = 0;
+    };
+
     struct TextureSubresourceRange
     {
         TextureAspectBits aspect;
@@ -727,7 +735,7 @@ namespace Silex
     struct ShaderStageSPIRVData
     {
         ShaderStage       shaderStage = SHADER_STAGE_MAX;
-        std::vector<byte> spirv;
+        std::vector<byte> spirv       = {};
     };
 
     struct ShaderUniform
@@ -766,13 +774,13 @@ namespace Silex
 
     struct ShaderDescription
     {
-        uint64 vertex_input_mask = 0;
-        uint32 fragment_output_mask = 0;
-        bool   is_compute = false;
-        uint32 compute_local_size[3] = {};
-        uint32 push_constant_size = 0;
+        uint64 vertexInputMask     = 0;
+        uint32 fragmentOutputMask  = 0;
+        bool   isCompute           = false;
+        uint32 computeLocalSize[3] = {};
+        uint32 pushConstantSize    = 0;
 
-        std::vector<std::vector<ShaderUniform>> uniform_sets;
+        std::vector<std::vector<ShaderUniform>> uniformSets;
         std::vector<ShaderStage>                stages;
     };
 
@@ -887,38 +895,38 @@ namespace Silex
 
     struct PipelineRasterizationState
     {
-        bool enable_depth_clamp = false;
-        bool discard_primitives = false;
-        bool wireframe = false;
-        PolygonCullMode cull_mode = POLYGON_CULL_DISABLED;
-        PolygonFrontFace front_face = POLYGON_FRONT_FACE_CLOCKWISE;
-        bool depth_bias_enabled = false;
-        float depth_bias_constant_factor = 0.0f;
-        float depth_bias_clamp = 0.0f;
-        float depth_bias_slope_factor = 0.0f;
-        float line_width = 1.0f;
-        uint32 patch_control_points = 1;
+        bool             enable_depth_clamp      = false;
+        bool             discard_primitives      = false;
+        bool             wireframe               = false;
+        PolygonCullMode  cullMode                = POLYGON_CULL_DISABLED;
+        PolygonFrontFace frontFace               = POLYGON_FRONT_FACE_CLOCKWISE;
+        bool             depthBiasEnabled        = false;
+        float            depthBiasConstantFactor = 0.0f;
+        float            depthBiasClamp          = 0.0f;
+        float            depthBiasSlopeFactor    = 0.0f;
+        float            lineWidth               = 1.0f;
+        uint32           patchControlPoints      = 1;
     };
 
     struct PipelineMultisampleState
     {
-        TextureSamples sample_count = TEXTURE_SAMPLES_1;
-        bool enable_sample_shading = false;
-        float min_sample_shading = 0.0f;
-        std::vector<uint32> sample_mask;
-        bool enable_alpha_to_coverage = false;
-        bool enable_alpha_to_one = false;
+        TextureSamples      sampleCount           = TEXTURE_SAMPLES_1;
+        bool                enableSampleShading   = false;
+        float               minSampleShading      = 0.0f;
+        std::vector<uint32> sampleMask            = {};
+        bool                enableAlphaToCoverage = false;
+        bool                enableAlphaToOne      = false;
     };
 
     struct PipelineDepthStencilState
     {
-        bool enable_depth_test = false;
-        bool enable_depth_write = false;
-        CompareOperator depth_compare_operator = COMPARE_OP_ALWAYS;
-        bool enable_depth_range = false;
-        float depth_range_min = 0;
-        float depth_range_max = 0;
-        bool enable_stencil = false;
+        bool            enableDepthTest  = false;
+        bool            enableDepthWrite = false;
+        bool            enableDepthRange = false;
+        bool            enableStencil    = false;
+        CompareOperator depthCompareOp   = COMPARE_OP_ALWAYS;
+        float           depthRangeMin    = 0;
+        float           depthRangeMax    = 0;
 
         struct StencilOperationState
         {
@@ -938,24 +946,24 @@ namespace Silex
     struct PipelineColorBlendState
     {
         bool           enableLogicOp = false;
-        LogicOperation logicOp = LOGIC_OP_CLEAR;
+        LogicOperation logicOp       = LOGIC_OP_CLEAR;
 
         struct Attachment
         {
-            bool           enable_blend           = false;
-            BlendFactor    src_color_blend_factor = BLEND_FACTOR_ZERO;
-            BlendFactor    dst_color_blend_factor = BLEND_FACTOR_ZERO;
-            BlendOperation color_blend_op         = BLEND_OP_ADD;
-            BlendFactor    src_alpha_blend_factor = BLEND_FACTOR_ZERO;
-            BlendFactor    dst_alpha_blend_factor = BLEND_FACTOR_ZERO;
-            BlendOperation alpha_blend_op         = BLEND_OP_ADD;
-            bool write_r = true;
-            bool write_g = true;
-            bool write_b = true;
-            bool write_a = true;
+            bool           enableBlend         = false;
+            BlendFactor    srcColorBlendFactor = BLEND_FACTOR_ZERO;
+            BlendFactor    dstColorBlendFactor = BLEND_FACTOR_ZERO;
+            BlendOperation colorBlendOp        = BLEND_OP_ADD;
+            BlendFactor    srcAlphaBlendFactor = BLEND_FACTOR_ZERO;
+            BlendFactor    dstAlphaBlendFactor = BLEND_FACTOR_ZERO;
+            BlendOperation alphaBlendOp        = BLEND_OP_ADD;
+            bool           write_r             = true;
+            bool           write_g             = true;
+            bool           write_b             = true;
+            bool           write_a             = true;
         };
 
-        static PipelineColorBlendState create_disabled(int p_attachments = 1)
+        static PipelineColorBlendState CreateDisabled(int p_attachments = 1)
         {
             PipelineColorBlendState bs;
             for (int i = 0; i < p_attachments; i++)
@@ -966,17 +974,17 @@ namespace Silex
             return bs;
         }
 
-        static PipelineColorBlendState create_blend(int p_attachments = 1)
+        static PipelineColorBlendState CreateBlend(int attachments = 1)
         {
             PipelineColorBlendState bs;
-            for (int i = 0; i < p_attachments; i++)
+            for (int i = 0; i < attachments; i++)
             {
                 Attachment ba;
-                ba.enable_blend = true;
-                ba.src_color_blend_factor = BLEND_FACTOR_SRC_ALPHA;
-                ba.dst_color_blend_factor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-                ba.src_alpha_blend_factor = BLEND_FACTOR_SRC_ALPHA;
-                ba.dst_alpha_blend_factor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                ba.enableBlend = true;
+                ba.srcColorBlendFactor = BLEND_FACTOR_SRC_ALPHA;
+                ba.dstColorBlendFactor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                ba.srcAlphaBlendFactor = BLEND_FACTOR_SRC_ALPHA;
+                ba.dstAlphaBlendFactor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 
                 bs.attachments.push_back(ba);
             }
@@ -985,7 +993,7 @@ namespace Silex
         }
 
         std::vector<Attachment> attachments;
-        glm::vec4 blend_constant;
+        glm::vec4               blendConstant;
     };
 
     enum PipelineDynamicStateFlags
@@ -1000,28 +1008,50 @@ namespace Silex
     };
 
     //================================================
-    // 特殊化定数
+    // コマンド
     //================================================
-#if 0
-    enum PipelineSpecializationConstantType
+    union RenderPassClearValue
     {
-        PIPELINE_SPECIALIZATION_CONSTANT_TYPE_BOOL,
-        PIPELINE_SPECIALIZATION_CONSTANT_TYPE_INT,
-        PIPELINE_SPECIALIZATION_CONSTANT_TYPE_FLOAT,
-    };
-
-    struct PipelineSpecializationConstant
-    {
-        PipelineSpecializationConstantType type = {};
-        uint32 constantID = 0xffffffff;
-        union
+        glm::vec4 color = {};
+        struct
         {
-            uint32 _int;
-            float  _float;
-            bool   _bool;
+            float  depth;
+            uint32 stencil;
         };
     };
-#endif
+
+    struct AttachmentClear
+    {
+        TextureAspectBits    aspect;
+        uint32               colorAttachment = 0xffffffff;
+        RenderPassClearValue value;
+    };
+
+    struct BufferCopyRegion
+    {
+        uint64 srcOffset = 0;
+        uint64 dstOffset = 0;
+        uint64 size      = 0;
+    };
+
+    struct TextureCopyRegion
+    {
+        TextureSubresourceLayers srcSubresources;
+        glm::ivec3               srcOffset;
+        TextureSubresourceLayers dstSubresources;
+        glm::ivec3               dstOffset;
+        glm::ivec3               size;
+    };
+
+    struct BufferTextureCopyRegion
+    {
+        uint64                   bufferOffset = 0;
+        TextureSubresourceLayers textureSubresources;
+        glm::ivec3               textureOffset;
+        glm::ivec3               textureRegionSize;
+    };
+    
+    
 }
 
 
