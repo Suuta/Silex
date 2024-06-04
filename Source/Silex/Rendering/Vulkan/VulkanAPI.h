@@ -7,7 +7,7 @@
 #include <vulkan/vk_mem_alloc.h>
 
 
-// TODO: VulkanAPI 
+// TODO: VulkanAPI
 // ・パイプライン
 // ・シェーダー
 // 
@@ -188,6 +188,7 @@ namespace Silex
         PFN_vkGetSwapchainImagesKHR GetSwapchainImagesKHR = nullptr;
         PFN_vkAcquireNextImageKHR   AcquireNextImageKHR   = nullptr;
         PFN_vkQueuePresentKHR       QueuePresentKHR       = nullptr;
+        PFN_vkCreateRenderPass2KHR  CreateRenderPass2KHR  = nullptr;
 
         // レンダリングコンテキスト
         VulkanContext* context = nullptr;

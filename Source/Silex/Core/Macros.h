@@ -7,7 +7,7 @@
 #define SL_ENABLE_TRACK_HEAP_ALLOCATION 0
 #define SL_ENABLE_ASSERTS               1
 
-#define REGACY 1
+#define SL_REGACY 0
 
 // 結合マクロ
 #define COMBINE(x, y) x##y

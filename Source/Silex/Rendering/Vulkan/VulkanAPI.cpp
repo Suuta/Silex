@@ -108,7 +108,7 @@ namespace Silex
     };
 
     // シェーダー
-    struct VulkanShader : public DescriptorSet
+    struct VulkanShader : public ShaderHandle
     {
         VkShaderStageFlags                           stageFlags = 0;
         std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos;
@@ -375,6 +375,7 @@ namespace Silex
         GetSwapchainImagesKHR = GET_VULKAN_DEVICE_PROC(device, vkGetSwapchainImagesKHR);
         AcquireNextImageKHR   = GET_VULKAN_DEVICE_PROC(device, vkAcquireNextImageKHR);
         QueuePresentKHR       = GET_VULKAN_DEVICE_PROC(device, vkQueuePresentKHR);
+        CreateRenderPass2KHR  = GET_VULKAN_DEVICE_PROC(device, vkCreateRenderPass2KHR);
 
         // メモリアロケータ（VMA）生成
         VmaAllocatorCreateInfo allocatorInfo = {};
@@ -687,7 +688,7 @@ namespace Silex
         passInfo.pSubpasses      = &subpass;
 
         VkRenderPass vkRenderPass = nullptr;
-        result = vkCreateRenderPass2(device, &passInfo, nullptr, &vkRenderPass);
+        result = CreateRenderPass2KHR(device, &passInfo, nullptr, &vkRenderPass);
         SL_CHECK_VKRESULT(result, nullptr);
 
         VulkanRenderPass* renderpass = Memory::Allocate<VulkanRenderPass>();
@@ -1980,11 +1981,12 @@ namespace Silex
         }
 
         // デスクリプターセット更新
-        for (uint32 i = 0; i < numdescriptors; i++)
-            writes[i].dstSet = vkdescriptorset;
+        {
+            for (uint32 i = 0; i < numdescriptors; i++)
+                writes[i].dstSet = vkdescriptorset;
 
-        vkUpdateDescriptorSets(device, numdescriptors, writes, 0, nullptr);
-
+            vkUpdateDescriptorSets(device, numdescriptors, writes, 0, nullptr);
+        }
 
         VulkanDescriptorSet* descriptorset = Memory::Allocate<VulkanDescriptorSet>();
         descriptorset->descriptorPool = vkPool;
@@ -2013,6 +2015,200 @@ namespace Silex
     //==================================================================================
     Pipeline* VulkanAPI::CreatePipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PrimitiveTopology primitive, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, int32* colorAttachments, int32 numColorAttachments, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass)
     {
+
+#if 0
+        // 頂点
+        const VkPipelineVertexInputStateCreateInfo* vertex_input_state_create_info = nullptr;
+
+        if (p_vertex_format.id)
+        {
+            VulkanVertexFormat* vkformat = (VulkanVertexFormat*)vertexFormat;
+            vertex_input_state_create_info = &vf_info->vk_create_info;
+        }
+        else
+        {
+            VkPipelineVertexInputStateCreateInfo* null_vertex_input_state = ALLOCA_SINGLE(VkPipelineVertexInputStateCreateInfo);
+            *null_vertex_input_state = {};
+            null_vertex_input_state->sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+            vertex_input_state_create_info = null_vertex_input_state;
+        }
+
+        // インプットアセンブリ
+        VkPipelineInputAssemblyStateCreateInfo input_assembly_create_info = {};
+        input_assembly_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        input_assembly_create_info.topology = RD_TO_VK_PRIMITIVE[p_render_primitive];
+        input_assembly_create_info.primitiveRestartEnable = (p_render_primitive == RENDER_PRIMITIVE_TRIANGLE_STRIPS_WITH_RESTART_INDEX);
+
+        // テッセレーション
+        VkPipelineTessellationStateCreateInfo tessellation_create_info = {};
+        tessellation_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+        ERR_FAIL_COND_V(physical_device_properties.limits.maxTessellationPatchSize > 0 && (p_rasterization_state.patch_control_points < 1 || p_rasterization_state.patch_control_points > physical_device_properties.limits.maxTessellationPatchSize), PipelineID());
+        tessellation_create_info.patchControlPoints = p_rasterization_state.patch_control_points;
+
+        // ビューポート
+        VkPipelineViewportStateCreateInfo viewport_state_create_info = {};
+        viewport_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewport_state_create_info.viewportCount = 1; // If VR extensions are supported at some point, this will have to be customizable in the framebuffer format.
+        viewport_state_create_info.scissorCount = 1;
+
+        // ラスタライゼーション
+        VkPipelineRasterizationStateCreateInfo rasterization_state_create_info = {};
+        rasterization_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterization_state_create_info.depthClampEnable = p_rasterization_state.enable_depth_clamp;
+        rasterization_state_create_info.rasterizerDiscardEnable = p_rasterization_state.discard_primitives;
+        rasterization_state_create_info.polygonMode = p_rasterization_state.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+        rasterization_state_create_info.cullMode = (PolygonCullMode)p_rasterization_state.cull_mode;
+        rasterization_state_create_info.frontFace = (p_rasterization_state.front_face == POLYGON_FRONT_FACE_CLOCKWISE ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE);
+        rasterization_state_create_info.depthBiasEnable = p_rasterization_state.depth_bias_enabled;
+        rasterization_state_create_info.depthBiasConstantFactor = p_rasterization_state.depth_bias_constant_factor;
+        rasterization_state_create_info.depthBiasClamp = p_rasterization_state.depth_bias_clamp;
+        rasterization_state_create_info.depthBiasSlopeFactor = p_rasterization_state.depth_bias_slope_factor;
+        rasterization_state_create_info.lineWidth = p_rasterization_state.line_width;
+
+        // マルチサンプリング
+        VkPipelineMultisampleStateCreateInfo multisample_state_create_info = {};
+        multisample_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        multisample_state_create_info.rasterizationSamples = _ensure_supported_sample_count(p_multisample_state.sample_count);
+        multisample_state_create_info.sampleShadingEnable = p_multisample_state.enable_sample_shading;
+        multisample_state_create_info.minSampleShading = p_multisample_state.min_sample_shading;
+
+        if (p_multisample_state.sample_mask.size())
+        {
+            static_assert(ARRAYS_COMPATIBLE(uint32_t, VkSampleMask));
+            multisample_state_create_info.pSampleMask = p_multisample_state.sample_mask.ptr();
+        }
+        else
+        {
+            multisample_state_create_info.pSampleMask = nullptr;
+        }
+        multisample_state_create_info.alphaToCoverageEnable = p_multisample_state.enable_alpha_to_coverage;
+        multisample_state_create_info.alphaToOneEnable = p_multisample_state.enable_alpha_to_one;
+
+        // デプス・ステンシル
+        VkPipelineDepthStencilStateCreateInfo depth_stencil_state_create_info = {};
+        depth_stencil_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depth_stencil_state_create_info.depthTestEnable = p_depth_stencil_state.enable_depth_test;
+        depth_stencil_state_create_info.depthWriteEnable = p_depth_stencil_state.enable_depth_write;
+        depth_stencil_state_create_info.depthCompareOp = (VkCompareOp)p_depth_stencil_state.depth_compare_operator;
+        depth_stencil_state_create_info.depthBoundsTestEnable = p_depth_stencil_state.enable_depth_range;
+        depth_stencil_state_create_info.stencilTestEnable = p_depth_stencil_state.enable_stencil;
+        depth_stencil_state_create_info.front.failOp = (VkStencilOp)p_depth_stencil_state.front_op.fail;
+        depth_stencil_state_create_info.front.passOp = (VkStencilOp)p_depth_stencil_state.front_op.pass;
+        depth_stencil_state_create_info.front.depthFailOp = (VkStencilOp)p_depth_stencil_state.front_op.depth_fail;
+        depth_stencil_state_create_info.front.compareOp = (VkCompareOp)p_depth_stencil_state.front_op.compare;
+        depth_stencil_state_create_info.front.compareMask = p_depth_stencil_state.front_op.compare_mask;
+        depth_stencil_state_create_info.front.writeMask = p_depth_stencil_state.front_op.write_mask;
+        depth_stencil_state_create_info.front.reference = p_depth_stencil_state.front_op.reference;
+        depth_stencil_state_create_info.back.failOp = (VkStencilOp)p_depth_stencil_state.back_op.fail;
+        depth_stencil_state_create_info.back.passOp = (VkStencilOp)p_depth_stencil_state.back_op.pass;
+        depth_stencil_state_create_info.back.depthFailOp = (VkStencilOp)p_depth_stencil_state.back_op.depth_fail;
+        depth_stencil_state_create_info.back.compareOp = (VkCompareOp)p_depth_stencil_state.back_op.compare;
+        depth_stencil_state_create_info.back.compareMask = p_depth_stencil_state.back_op.compare_mask;
+        depth_stencil_state_create_info.back.writeMask = p_depth_stencil_state.back_op.write_mask;
+        depth_stencil_state_create_info.back.reference = p_depth_stencil_state.back_op.reference;
+        depth_stencil_state_create_info.minDepthBounds = p_depth_stencil_state.depth_range_min;
+        depth_stencil_state_create_info.maxDepthBounds = p_depth_stencil_state.depth_range_max;
+
+        // ブレンドステート
+        VkPipelineColorBlendStateCreateInfo color_blend_state_create_info = {};
+        color_blend_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        color_blend_state_create_info.logicOpEnable = p_blend_state.enable_logic_op;
+        color_blend_state_create_info.logicOp = (VkLogicOp)p_blend_state.logic_op;
+
+        VkPipelineColorBlendAttachmentState* vk_attachment_states = ALLOCA_ARRAY(VkPipelineColorBlendAttachmentState, p_color_attachments.size());
+        {
+            for (uint32_t i = 0; i < p_color_attachments.size(); i++) {
+                vk_attachment_states[i] = {};
+                if (p_color_attachments[i] != INVALID_RENDER_ID)
+                {
+                    vk_attachment_states[i].blendEnable = p_blend_state.attachments[i].enable_blend;
+
+                    vk_attachment_states[i].srcColorBlendFactor = (VkBlendFactor)p_blend_state.attachments[i].src_color_blend_factor;
+                    vk_attachment_states[i].dstColorBlendFactor = (VkBlendFactor)p_blend_state.attachments[i].dst_color_blend_factor;
+                    vk_attachment_states[i].colorBlendOp = (VkBlendOp)p_blend_state.attachments[i].color_blend_op;
+
+                    vk_attachment_states[i].srcAlphaBlendFactor = (VkBlendFactor)p_blend_state.attachments[i].src_alpha_blend_factor;
+                    vk_attachment_states[i].dstAlphaBlendFactor = (VkBlendFactor)p_blend_state.attachments[i].dst_alpha_blend_factor;
+                    vk_attachment_states[i].alphaBlendOp = (VkBlendOp)p_blend_state.attachments[i].alpha_blend_op;
+
+                    if (p_blend_state.attachments[i].write_r) {
+                        vk_attachment_states[i].colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
+                    }
+                    if (p_blend_state.attachments[i].write_g) {
+                        vk_attachment_states[i].colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
+                    }
+                    if (p_blend_state.attachments[i].write_b) {
+                        vk_attachment_states[i].colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
+                    }
+                    if (p_blend_state.attachments[i].write_a) {
+                        vk_attachment_states[i].colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
+                    }
+                }
+            }
+        }
+        color_blend_state_create_info.attachmentCount = p_color_attachments.size();
+        color_blend_state_create_info.pAttachments = vk_attachment_states;
+        color_blend_state_create_info.blendConstants[0] = p_blend_state.blend_constant.r;
+        color_blend_state_create_info.blendConstants[1] = p_blend_state.blend_constant.g;
+        color_blend_state_create_info.blendConstants[2] = p_blend_state.blend_constant.b;
+        color_blend_state_create_info.blendConstants[3] = p_blend_state.blend_constant.a;
+
+        // ダイナミックステート
+        VkPipelineDynamicStateCreateInfo dynamic_state_create_info = {};
+        dynamic_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+
+        static const uint32 numMaxDynamicState = 9;
+        VkDynamicState* vk_dynamic_states = ALLOCA_ARRAY(VkDynamicState, numMaxDynamicState);
+        uint32 vk_dynamic_states_count = 0;
+
+        // ビューポート・シザー矩形は、言わずもがな動的ステートにする
+        vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_VIEWPORT;
+        vk_dynamic_states_count++;
+        vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_SCISSOR;
+        vk_dynamic_states_count++;
+
+        if (p_dynamic_state.has_flag(DYNAMIC_STATE_LINE_WIDTH))
+        {
+            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_LINE_WIDTH;
+            vk_dynamic_states_count++;
+        }
+        if (p_dynamic_state.has_flag(DYNAMIC_STATE_DEPTH_BIAS))
+        {
+            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_DEPTH_BIAS;
+            vk_dynamic_states_count++;
+        }
+        if (p_dynamic_state.has_flag(DYNAMIC_STATE_BLEND_CONSTANTS))
+        {
+            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_BLEND_CONSTANTS;
+            vk_dynamic_states_count++;
+        }
+        if (p_dynamic_state.has_flag(DYNAMIC_STATE_DEPTH_BOUNDS))
+        {
+            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_DEPTH_BOUNDS;
+            vk_dynamic_states_count++;
+        }
+        if (p_dynamic_state.has_flag(DYNAMIC_STATE_STENCIL_COMPARE_MASK))
+        {
+            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK;
+            vk_dynamic_states_count++;
+        }
+        if (p_dynamic_state.has_flag(DYNAMIC_STATE_STENCIL_WRITE_MASK))
+        {
+            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_STENCIL_WRITE_MASK;
+            vk_dynamic_states_count++;
+        }
+        if (p_dynamic_state.has_flag(DYNAMIC_STATE_STENCIL_REFERENCE))
+        {
+            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_STENCIL_REFERENCE;
+            vk_dynamic_states_count++;
+        }
+
+        SL_ASSERT(vk_dynamic_states_count <= numMaxDynamicState);
+
+        dynamic_state_create_info.dynamicStateCount = vk_dynamic_states_count;
+        dynamic_state_create_info.pDynamicStates = vk_dynamic_states;
+
+#endif
         return nullptr;
     }
 

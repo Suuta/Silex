@@ -47,7 +47,7 @@ namespace Silex
     {
         SL_LOG_TRACE("WindowsWindow::Create");
 
-#if SL_PLATFORM_OPENGL
+#if SL_REGACY
         glfwWindowHint(GLFW_VISIBLE, FALSE);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
@@ -94,7 +94,7 @@ namespace Silex
         icon.height = reader.Data.Height;
         glfwSetWindowIcon(window, 1, &icon);
 
-#if SL_PLATFORM_OPENGL
+#if SL_REGACY
         // ウィンドウコンテキストを更新（指定されたウィンドウのコンテキストを、このスレッドに対して生成する）
         // 1度に1つのスレッド上でのみ更新することが可能で、スレッドごとに1つだけ持つことが出来る
         glfwMakeContextCurrent(window);
@@ -117,7 +117,7 @@ namespace Silex
         callbacks->keyReleasedEvent.Unbind();
         Memory::Deallocate(callbacks);
 
-#if !SL_PLATFORM_OPENGL
+#if !SL_REGACY
         // レンダリングコンテキスト破棄
         CleanupRenderingContext();
 #endif
