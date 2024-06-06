@@ -39,9 +39,6 @@ namespace Silex
         virtual RenderingAPI* CreateRendringAPI() = 0;
         virtual void DestroyRendringAPI(RenderingAPI* api) = 0;
 
-        // プレゼント命令のサポート
-        virtual bool DeviceCanPresent(Surface* surface) const = 0;
-
         // サーフェース
         virtual Surface* CreateSurface() = 0;
         virtual void DestroySurface(Surface* surface) = 0;

@@ -253,7 +253,7 @@ namespace Silex
     }
 
     // プールの参照カウントを減らす、0なら破棄
-    void VulkanAPI::_RecycleDescriptorPool(VkDescriptorPool pool, DescriptorSetPoolKey& poolKey)
+    void VulkanAPI::_DecrementPoolRefCount(VkDescriptorPool pool, DescriptorSetPoolKey& poolKey)
     {
         const auto& itr = descriptorsetPools.find(poolKey);
         itr->second[pool]--;
@@ -621,11 +621,11 @@ namespace Silex
         VkSurfaceKHR     vkSurface      = ((VulkanSurface*)surface)->surface;
 
         uint32 formatCount = 0;
-        result = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkSurface, &formatCount, nullptr);
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkSurface, &formatCount, nullptr);
         SL_CHECK_VKRESULT(result, nullptr);
 
         VkSurfaceFormatKHR* formats = SL_STACK(VkSurfaceFormatKHR, formatCount);
-        result = vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkSurface, &formatCount, formats);
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkSurface, &formatCount, formats);
         SL_CHECK_VKRESULT(result, nullptr);
 
         VkFormat        format     = VK_FORMAT_UNDEFINED;
@@ -643,7 +643,7 @@ namespace Silex
             const VkFormat firstChoice  = VK_FORMAT_B8G8R8A8_UNORM;
             const VkFormat secondChoice = VK_FORMAT_R8G8B8A8_UNORM;
 
-            for (uint32_t i = 0; i < formatCount; i++)
+            for (uint32 i = 0; i < formatCount; i++)
             {
                 if (formats[i].format == firstChoice || formats[i].format == secondChoice)
                 {
@@ -711,7 +711,7 @@ namespace Silex
 
         // サーフェース仕様取得
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
-        VkResult result = vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface->surface, &surfaceCapabilities);
+        VkResult result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface->surface, &surfaceCapabilities);
         SL_CHECK_VKRESULT(result, false);
 
         // サイズ
@@ -737,11 +737,11 @@ namespace Silex
 
         // プレゼントモード
         uint32 presentModeCount = 0;
-        result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface->surface, &presentModeCount, nullptr);
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface->surface, &presentModeCount, nullptr);
         SL_CHECK_VKRESULT(result, false);
 
         VkPresentModeKHR* presentModes = SL_STACK(VkPresentModeKHR, presentModeCount);
-        result = vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface->surface, &presentModeCount, presentModes);
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface->surface, &presentModeCount, presentModes);
         SL_CHECK_VKRESULT(result, false);
 
         VkPresentModeKHR selectMode = (VkPresentModeKHR)mode;
@@ -1264,7 +1264,7 @@ namespace Silex
         for (uint32 i = 0; i < numAttachments; i++)
         {
             vkAttachments[i] = {};
-            vkAttachments[i].sType          = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2_KHR;
+            vkAttachments[i].sType          = VK_STRUCTURE_TYPE_ATTACHMENT_DESCRIPTION_2;
             vkAttachments[i].format         = (VkFormat)attachments[i].format;
             vkAttachments[i].samples        = _CheckSupportedSampleCounts(attachments[i].samples);
             vkAttachments[i].loadOp         = (VkAttachmentLoadOp)attachments[i].loadOp;
@@ -1330,7 +1330,7 @@ namespace Silex
             }
 
             vkSubpasses[i] = {};
-            vkSubpasses[i].sType                   = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2_KHR;
+            vkSubpasses[i].sType                   = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2;
             vkSubpasses[i].pipelineBindPoint       = VK_PIPELINE_BIND_POINT_GRAPHICS;
             vkSubpasses[i].viewMask                = 0;
             vkSubpasses[i].inputAttachmentCount    = numInputAttachmentRef;
@@ -1370,7 +1370,7 @@ namespace Silex
         createInfo.pCorrelatedViewMasks    = nullptr;
 
         VkRenderPass vkRenderPass = nullptr;
-        VkResult result = vkCreateRenderPass2(device, &createInfo, nullptr, &vkRenderPass);
+        VkResult result = CreateRenderPass2KHR(device, &createInfo, nullptr, &vkRenderPass);
         SL_CHECK_VKRESULT(result, nullptr);
 
         VulkanRenderPass* renderpass = Memory::Allocate<VulkanRenderPass>();
@@ -1600,7 +1600,7 @@ namespace Silex
         VulkanShader* vkshader = (VulkanShader*)shader;
 
         VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
-        vkCmdPushConstants(cmd->commandBuffer, vkshader->pipelineLayout, vkshader->stageFlags, firstIndex * sizeof(uint32), numData * sizeof(uint32_t), data);
+        vkCmdPushConstants(cmd->commandBuffer, vkshader->pipelineLayout, vkshader->stageFlags, firstIndex * sizeof(uint32), numData * sizeof(uint32), data);
     }
 
     void VulkanAPI::BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType, uint32 numclearValues, RenderPassClearValue* clearvalues, uint32 x, uint32 y, uint32 width, uint32 height)
@@ -1744,26 +1744,45 @@ namespace Silex
     //==================================================================================
     // シェーダー
     //==================================================================================
-#if 1
-    std::vector<byte> VulkanAPI::CompileSPIRV(uint32 numSpirv, ShaderStageSPIRVData* spirv, const std::string& shaderName)
+    ShaderHandle* VulkanAPI::CreateShader()
     {
-        return std::vector<byte>();
-    }
+        //TODO: デスクリプターセットレイアウト
+        //...
 
-    ShaderHandle* VulkanAPI::CreateShader(const std::vector<byte>& p_shader_binary, ShaderDescription& shaderDesc, std::string& name)
-    {
-        return nullptr;
+        //TODO: パイプラインレイアウト
+        //...
+
+
+        VulkanShader* vkshader = Memory::Allocate<VulkanShader>();
+        return vkshader;
     }
 
     void VulkanAPI::DestroyShader(ShaderHandle* shader)
     {
+        if (shader)
+        {
+            VulkanShader* vkshader = (VulkanShader*)shader;
+
+            for (uint32 i = 0; i < vkshader->descriptorsetLayouts.size(); i++)
+            {
+                vkDestroyDescriptorSetLayout(device, vkshader->descriptorsetLayouts[i], nullptr);
+            }
+
+            vkDestroyPipelineLayout(device, vkshader->pipelineLayout, nullptr);
+
+            for (uint32 i = 0; i < vkshader->stageCreateInfos.size(); i++)
+            {
+                vkDestroyShaderModule(device, vkshader->stageCreateInfos[i].module, nullptr);
+            }
+
+            Memory::Deallocate(vkshader);
+        }
     }
-#endif
 
     //==================================================================================
     // デスクリプター
     //==================================================================================
-    DescriptorSet* VulkanAPI::CreateDescriptorSet(Descriptor* descriptors, uint32 numdescriptors, ShaderHandle* shader, uint32 setIndex)
+    DescriptorSet* VulkanAPI::CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex)
     {
         DescriptorSetPoolKey key = {};
 
@@ -1772,7 +1791,7 @@ namespace Silex
         for (uint32 i = 0; i < numdescriptors; i++)
         {
             uint32 numDescriptors = 1;
-            const Descriptor& descriptor = descriptors[i];
+            const DescriptorInfo& descriptor = descriptors[i];
 
             writes[i] = {};
             writes[i].sType      = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1974,7 +1993,7 @@ namespace Silex
         VkResult result = vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &vkdescriptorset);
         if (result != VK_SUCCESS)
         {
-            _RecycleDescriptorPool(vkPool, key);
+            _DecrementPoolRefCount(vkPool, key);
             
             SL_LOG_LOCATION_ERROR(VkResultToString(result));
             return nullptr;
@@ -2004,7 +2023,7 @@ namespace Silex
             vkFreeDescriptorSets(device, vkdescriptorset->descriptorPool, 1, &vkdescriptorset->descriptorSet);
 
             // 同一キーのデスクリプタプールの参照カウントを減らす(参照カウントが0ならデスクリプタプールを破棄)
-            _RecycleDescriptorPool(vkdescriptorset->descriptorPool, vkdescriptorset->poolKey);
+            _DecrementPoolRefCount(vkdescriptorset->descriptorPool, vkdescriptorset->poolKey);
 
             Memory::Deallocate(vkdescriptorset);
         }
@@ -2013,206 +2032,214 @@ namespace Silex
     //==================================================================================
     // パイプライン
     //==================================================================================
-    Pipeline* VulkanAPI::CreatePipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PrimitiveTopology primitive, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, int32* colorAttachments, int32 numColorAttachments, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass)
+    Pipeline* VulkanAPI::CreatePipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PrimitiveTopology primitive, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, int32* colorAttachments, uint32 numColorAttachments, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass)
     {
-
-#if 0
-        // 頂点
-        const VkPipelineVertexInputStateCreateInfo* vertex_input_state_create_info = nullptr;
-
-        if (p_vertex_format.id)
+        // ===== 頂点レイアウト =====
+        const VkPipelineVertexInputStateCreateInfo* vertexInputStateCreateInfo = nullptr;
+        if (vertexFormat)
         {
             VulkanVertexFormat* vkformat = (VulkanVertexFormat*)vertexFormat;
-            vertex_input_state_create_info = &vf_info->vk_create_info;
+            vertexInputStateCreateInfo = &vkformat->createInfo;
         }
         else
         {
-            VkPipelineVertexInputStateCreateInfo* null_vertex_input_state = ALLOCA_SINGLE(VkPipelineVertexInputStateCreateInfo);
-            *null_vertex_input_state = {};
-            null_vertex_input_state->sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-            vertex_input_state_create_info = null_vertex_input_state;
+            VkPipelineVertexInputStateCreateInfo* nullstate = SL_STACK(VkPipelineVertexInputStateCreateInfo, 1);
+            *nullstate = {};
+            nullstate->sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+            vertexInputStateCreateInfo = nullstate;
         }
 
-        // インプットアセンブリ
-        VkPipelineInputAssemblyStateCreateInfo input_assembly_create_info = {};
-        input_assembly_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        input_assembly_create_info.topology = RD_TO_VK_PRIMITIVE[p_render_primitive];
-        input_assembly_create_info.primitiveRestartEnable = (p_render_primitive == RENDER_PRIMITIVE_TRIANGLE_STRIPS_WITH_RESTART_INDEX);
+        // ===== インプットアセンブリ =====
+        VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = {};
+        inputAssemblyCreateInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+        inputAssemblyCreateInfo.topology               = (VkPrimitiveTopology)primitive;
+        inputAssemblyCreateInfo.primitiveRestartEnable = (primitive == PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS_WITH_RESTART_INDEX);
 
-        // テッセレーション
-        VkPipelineTessellationStateCreateInfo tessellation_create_info = {};
-        tessellation_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
-        ERR_FAIL_COND_V(physical_device_properties.limits.maxTessellationPatchSize > 0 && (p_rasterization_state.patch_control_points < 1 || p_rasterization_state.patch_control_points > physical_device_properties.limits.maxTessellationPatchSize), PipelineID());
-        tessellation_create_info.patchControlPoints = p_rasterization_state.patch_control_points;
+        // ===== テッセレーション =====
+        VkPipelineTessellationStateCreateInfo tessellationCreateInfo = {};
+        tessellationCreateInfo.sType              = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
+        tessellationCreateInfo.patchControlPoints = rasterizationState.patchControlPoints;
 
-        // ビューポート
-        VkPipelineViewportStateCreateInfo viewport_state_create_info = {};
-        viewport_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-        viewport_state_create_info.viewportCount = 1; // If VR extensions are supported at some point, this will have to be customizable in the framebuffer format.
-        viewport_state_create_info.scissorCount = 1;
+        // ===== ビューポート =====
+        VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
+        viewportStateCreateInfo.sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+        viewportStateCreateInfo.viewportCount = 1;
+        viewportStateCreateInfo.scissorCount  = 1;
 
-        // ラスタライゼーション
-        VkPipelineRasterizationStateCreateInfo rasterization_state_create_info = {};
-        rasterization_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        rasterization_state_create_info.depthClampEnable = p_rasterization_state.enable_depth_clamp;
-        rasterization_state_create_info.rasterizerDiscardEnable = p_rasterization_state.discard_primitives;
-        rasterization_state_create_info.polygonMode = p_rasterization_state.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
-        rasterization_state_create_info.cullMode = (PolygonCullMode)p_rasterization_state.cull_mode;
-        rasterization_state_create_info.frontFace = (p_rasterization_state.front_face == POLYGON_FRONT_FACE_CLOCKWISE ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE);
-        rasterization_state_create_info.depthBiasEnable = p_rasterization_state.depth_bias_enabled;
-        rasterization_state_create_info.depthBiasConstantFactor = p_rasterization_state.depth_bias_constant_factor;
-        rasterization_state_create_info.depthBiasClamp = p_rasterization_state.depth_bias_clamp;
-        rasterization_state_create_info.depthBiasSlopeFactor = p_rasterization_state.depth_bias_slope_factor;
-        rasterization_state_create_info.lineWidth = p_rasterization_state.line_width;
+        // ===== ラスタライゼーション =====
+        VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {};
+        rasterizationStateCreateInfo.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+        rasterizationStateCreateInfo.depthClampEnable        = rasterizationState.enable_depth_clamp;
+        rasterizationStateCreateInfo.rasterizerDiscardEnable = rasterizationState.discard_primitives;
+        rasterizationStateCreateInfo.polygonMode             = rasterizationState.wireframe? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+        rasterizationStateCreateInfo.cullMode                = (PolygonCullMode)rasterizationState.cullMode;
+        rasterizationStateCreateInfo.frontFace               = (rasterizationState.frontFace == POLYGON_FRONT_FACE_CLOCKWISE ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE);
+        rasterizationStateCreateInfo.depthBiasEnable         = rasterizationState.depthBiasEnabled;
+        rasterizationStateCreateInfo.depthBiasConstantFactor = rasterizationState.depthBiasConstantFactor;
+        rasterizationStateCreateInfo.depthBiasClamp          = rasterizationState.depthBiasClamp;
+        rasterizationStateCreateInfo.depthBiasSlopeFactor    = rasterizationState.depthBiasSlopeFactor;
+        rasterizationStateCreateInfo.lineWidth               = rasterizationState.lineWidth;
 
-        // マルチサンプリング
-        VkPipelineMultisampleStateCreateInfo multisample_state_create_info = {};
-        multisample_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-        multisample_state_create_info.rasterizationSamples = _ensure_supported_sample_count(p_multisample_state.sample_count);
-        multisample_state_create_info.sampleShadingEnable = p_multisample_state.enable_sample_shading;
-        multisample_state_create_info.minSampleShading = p_multisample_state.min_sample_shading;
+        // ===== マルチサンプリング =====
+        VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo = {};
+        multisampleStateCreateInfo.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+        multisampleStateCreateInfo.rasterizationSamples  = _CheckSupportedSampleCounts(multisampleState.sampleCount);
+        multisampleStateCreateInfo.sampleShadingEnable   = multisampleState.enableSampleShading;
+        multisampleStateCreateInfo.minSampleShading      = multisampleState.minSampleShading;
+        multisampleStateCreateInfo.pSampleMask           = multisampleState.sampleMask.empty()? nullptr : multisampleState.sampleMask.data();
+        multisampleStateCreateInfo.alphaToCoverageEnable = multisampleState.enableAlphaToCoverage;
+        multisampleStateCreateInfo.alphaToOneEnable      = multisampleState.enableAlphaToOne;
 
-        if (p_multisample_state.sample_mask.size())
+        // ===== デプス・ステンシル =====
+        VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = {};
+        depthStencilStateCreateInfo.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+        depthStencilStateCreateInfo.depthTestEnable       = depthstencilState.enableDepthTest;
+        depthStencilStateCreateInfo.depthWriteEnable      = depthstencilState.enableDepthWrite;
+        depthStencilStateCreateInfo.depthCompareOp        = (VkCompareOp)depthstencilState.depthCompareOp;
+        depthStencilStateCreateInfo.depthBoundsTestEnable = depthstencilState.enableDepthRange;
+        depthStencilStateCreateInfo.stencilTestEnable     = depthstencilState.enableStencil;
+        depthStencilStateCreateInfo.front.failOp          = (VkStencilOp)depthstencilState.frontOp.fail;
+        depthStencilStateCreateInfo.front.passOp          = (VkStencilOp)depthstencilState.frontOp.pass;
+        depthStencilStateCreateInfo.front.depthFailOp     = (VkStencilOp)depthstencilState.frontOp.depthFail;
+        depthStencilStateCreateInfo.front.compareOp       = (VkCompareOp)depthstencilState.frontOp.compare;
+        depthStencilStateCreateInfo.front.compareMask     = depthstencilState.frontOp.compareMask;
+        depthStencilStateCreateInfo.front.writeMask       = depthstencilState.frontOp.writeMask;
+        depthStencilStateCreateInfo.front.reference       = depthstencilState.frontOp.reference;
+        depthStencilStateCreateInfo.back.failOp           = (VkStencilOp)depthstencilState.backOp.fail;
+        depthStencilStateCreateInfo.back.passOp           = (VkStencilOp)depthstencilState.backOp.pass;
+        depthStencilStateCreateInfo.back.depthFailOp      = (VkStencilOp)depthstencilState.backOp.depthFail;
+        depthStencilStateCreateInfo.back.compareOp        = (VkCompareOp)depthstencilState.backOp.compare;
+        depthStencilStateCreateInfo.back.compareMask      = depthstencilState.backOp.compareMask;
+        depthStencilStateCreateInfo.back.writeMask        = depthstencilState.backOp.writeMask;
+        depthStencilStateCreateInfo.back.reference        = depthstencilState.backOp.reference;
+        depthStencilStateCreateInfo.minDepthBounds        = depthstencilState.depthRangeMin;
+        depthStencilStateCreateInfo.maxDepthBounds        = depthstencilState.depthRangeMax;
+
+        // ===== ブレンドステート =====
+        VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = {};
+        colorBlendStateCreateInfo.sType         = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlendStateCreateInfo.logicOpEnable = blendState.enableLogicOp;
+        colorBlendStateCreateInfo.logicOp       = (VkLogicOp)blendState.logicOp;
+
+        VkPipelineColorBlendAttachmentState* attachmentStates = SL_STACK(VkPipelineColorBlendAttachmentState, numColorAttachments);
+        for (uint32 i = 0; i < numColorAttachments; i++)
         {
-            static_assert(ARRAYS_COMPATIBLE(uint32_t, VkSampleMask));
-            multisample_state_create_info.pSampleMask = p_multisample_state.sample_mask.ptr();
-        }
-        else
-        {
-            multisample_state_create_info.pSampleMask = nullptr;
-        }
-        multisample_state_create_info.alphaToCoverageEnable = p_multisample_state.enable_alpha_to_coverage;
-        multisample_state_create_info.alphaToOneEnable = p_multisample_state.enable_alpha_to_one;
+            attachmentStates[i] = {};
+            if (colorAttachments[i] != INVALID_RENDER_ID)
+            {
+                attachmentStates[i].blendEnable         = blendState.attachments[i].enableBlend;
+                attachmentStates[i].srcColorBlendFactor = (VkBlendFactor)blendState.attachments[i].srcColorBlendFactor;
+                attachmentStates[i].dstColorBlendFactor = (VkBlendFactor)blendState.attachments[i].dstColorBlendFactor;
+                attachmentStates[i].colorBlendOp        = (VkBlendOp)blendState.attachments[i].colorBlendOp;
+                attachmentStates[i].srcAlphaBlendFactor = (VkBlendFactor)blendState.attachments[i].srcAlphaBlendFactor;
+                attachmentStates[i].dstAlphaBlendFactor = (VkBlendFactor)blendState.attachments[i].dstAlphaBlendFactor;
+                attachmentStates[i].alphaBlendOp        = (VkBlendOp)blendState.attachments[i].alphaBlendOp;
 
-        // デプス・ステンシル
-        VkPipelineDepthStencilStateCreateInfo depth_stencil_state_create_info = {};
-        depth_stencil_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        depth_stencil_state_create_info.depthTestEnable = p_depth_stencil_state.enable_depth_test;
-        depth_stencil_state_create_info.depthWriteEnable = p_depth_stencil_state.enable_depth_write;
-        depth_stencil_state_create_info.depthCompareOp = (VkCompareOp)p_depth_stencil_state.depth_compare_operator;
-        depth_stencil_state_create_info.depthBoundsTestEnable = p_depth_stencil_state.enable_depth_range;
-        depth_stencil_state_create_info.stencilTestEnable = p_depth_stencil_state.enable_stencil;
-        depth_stencil_state_create_info.front.failOp = (VkStencilOp)p_depth_stencil_state.front_op.fail;
-        depth_stencil_state_create_info.front.passOp = (VkStencilOp)p_depth_stencil_state.front_op.pass;
-        depth_stencil_state_create_info.front.depthFailOp = (VkStencilOp)p_depth_stencil_state.front_op.depth_fail;
-        depth_stencil_state_create_info.front.compareOp = (VkCompareOp)p_depth_stencil_state.front_op.compare;
-        depth_stencil_state_create_info.front.compareMask = p_depth_stencil_state.front_op.compare_mask;
-        depth_stencil_state_create_info.front.writeMask = p_depth_stencil_state.front_op.write_mask;
-        depth_stencil_state_create_info.front.reference = p_depth_stencil_state.front_op.reference;
-        depth_stencil_state_create_info.back.failOp = (VkStencilOp)p_depth_stencil_state.back_op.fail;
-        depth_stencil_state_create_info.back.passOp = (VkStencilOp)p_depth_stencil_state.back_op.pass;
-        depth_stencil_state_create_info.back.depthFailOp = (VkStencilOp)p_depth_stencil_state.back_op.depth_fail;
-        depth_stencil_state_create_info.back.compareOp = (VkCompareOp)p_depth_stencil_state.back_op.compare;
-        depth_stencil_state_create_info.back.compareMask = p_depth_stencil_state.back_op.compare_mask;
-        depth_stencil_state_create_info.back.writeMask = p_depth_stencil_state.back_op.write_mask;
-        depth_stencil_state_create_info.back.reference = p_depth_stencil_state.back_op.reference;
-        depth_stencil_state_create_info.minDepthBounds = p_depth_stencil_state.depth_range_min;
-        depth_stencil_state_create_info.maxDepthBounds = p_depth_stencil_state.depth_range_max;
-
-        // ブレンドステート
-        VkPipelineColorBlendStateCreateInfo color_blend_state_create_info = {};
-        color_blend_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-        color_blend_state_create_info.logicOpEnable = p_blend_state.enable_logic_op;
-        color_blend_state_create_info.logicOp = (VkLogicOp)p_blend_state.logic_op;
-
-        VkPipelineColorBlendAttachmentState* vk_attachment_states = ALLOCA_ARRAY(VkPipelineColorBlendAttachmentState, p_color_attachments.size());
-        {
-            for (uint32_t i = 0; i < p_color_attachments.size(); i++) {
-                vk_attachment_states[i] = {};
-                if (p_color_attachments[i] != INVALID_RENDER_ID)
-                {
-                    vk_attachment_states[i].blendEnable = p_blend_state.attachments[i].enable_blend;
-
-                    vk_attachment_states[i].srcColorBlendFactor = (VkBlendFactor)p_blend_state.attachments[i].src_color_blend_factor;
-                    vk_attachment_states[i].dstColorBlendFactor = (VkBlendFactor)p_blend_state.attachments[i].dst_color_blend_factor;
-                    vk_attachment_states[i].colorBlendOp = (VkBlendOp)p_blend_state.attachments[i].color_blend_op;
-
-                    vk_attachment_states[i].srcAlphaBlendFactor = (VkBlendFactor)p_blend_state.attachments[i].src_alpha_blend_factor;
-                    vk_attachment_states[i].dstAlphaBlendFactor = (VkBlendFactor)p_blend_state.attachments[i].dst_alpha_blend_factor;
-                    vk_attachment_states[i].alphaBlendOp = (VkBlendOp)p_blend_state.attachments[i].alpha_blend_op;
-
-                    if (p_blend_state.attachments[i].write_r) {
-                        vk_attachment_states[i].colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
-                    }
-                    if (p_blend_state.attachments[i].write_g) {
-                        vk_attachment_states[i].colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
-                    }
-                    if (p_blend_state.attachments[i].write_b) {
-                        vk_attachment_states[i].colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
-                    }
-                    if (p_blend_state.attachments[i].write_a) {
-                        vk_attachment_states[i].colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
-                    }
-                }
+                if (blendState.attachments[i].write_r) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
+                if (blendState.attachments[i].write_g) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
+                if (blendState.attachments[i].write_b) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
+                if (blendState.attachments[i].write_a) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
             }
         }
-        color_blend_state_create_info.attachmentCount = p_color_attachments.size();
-        color_blend_state_create_info.pAttachments = vk_attachment_states;
-        color_blend_state_create_info.blendConstants[0] = p_blend_state.blend_constant.r;
-        color_blend_state_create_info.blendConstants[1] = p_blend_state.blend_constant.g;
-        color_blend_state_create_info.blendConstants[2] = p_blend_state.blend_constant.b;
-        color_blend_state_create_info.blendConstants[3] = p_blend_state.blend_constant.a;
 
-        // ダイナミックステート
-        VkPipelineDynamicStateCreateInfo dynamic_state_create_info = {};
-        dynamic_state_create_info.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+        colorBlendStateCreateInfo.attachmentCount   = numColorAttachments;
+        colorBlendStateCreateInfo.pAttachments      = attachmentStates;
+        colorBlendStateCreateInfo.blendConstants[0] = blendState.blendConstant.r;
+        colorBlendStateCreateInfo.blendConstants[1] = blendState.blendConstant.g;
+        colorBlendStateCreateInfo.blendConstants[2] = blendState.blendConstant.b;
+        colorBlendStateCreateInfo.blendConstants[3] = blendState.blendConstant.a;
 
-        static const uint32 numMaxDynamicState = 9;
-        VkDynamicState* vk_dynamic_states = ALLOCA_ARRAY(VkDynamicState, numMaxDynamicState);
-        uint32 vk_dynamic_states_count = 0;
+        // ===== ダイナミックステート =====
+        VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
+        dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 
-        // ビューポート・シザー矩形は、言わずもがな動的ステートにする
-        vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_VIEWPORT;
-        vk_dynamic_states_count++;
-        vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_SCISSOR;
-        vk_dynamic_states_count++;
+        VkDynamicState* dynamicStates = SL_STACK(VkDynamicState, DYNAMIC_STATE_MAX + 2);
+        uint32 dynamicStateCount = 0;
 
-        if (p_dynamic_state.has_flag(DYNAMIC_STATE_LINE_WIDTH))
+        dynamicStates[dynamicStateCount] = VK_DYNAMIC_STATE_VIEWPORT; dynamicStateCount++;
+        dynamicStates[dynamicStateCount] = VK_DYNAMIC_STATE_SCISSOR;  dynamicStateCount++;
+
+        if (dynamicState & DYNAMIC_STATE_LINE_WIDTH)
         {
-            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_LINE_WIDTH;
-            vk_dynamic_states_count++;
+            dynamicStates[dynamicStateCount] = VK_DYNAMIC_STATE_LINE_WIDTH;
+            dynamicStateCount++;
         }
-        if (p_dynamic_state.has_flag(DYNAMIC_STATE_DEPTH_BIAS))
+        if (dynamicState & DYNAMIC_STATE_DEPTH_BIAS)
         {
-            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_DEPTH_BIAS;
-            vk_dynamic_states_count++;
+            dynamicStates[dynamicStateCount] = VK_DYNAMIC_STATE_DEPTH_BIAS;
+            dynamicStateCount++;
         }
-        if (p_dynamic_state.has_flag(DYNAMIC_STATE_BLEND_CONSTANTS))
+        if (dynamicState & DYNAMIC_STATE_BLEND_CONSTANTS)
         {
-            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_BLEND_CONSTANTS;
-            vk_dynamic_states_count++;
+            dynamicStates[dynamicStateCount] = VK_DYNAMIC_STATE_BLEND_CONSTANTS;
+            dynamicStateCount++;
         }
-        if (p_dynamic_state.has_flag(DYNAMIC_STATE_DEPTH_BOUNDS))
+        if (dynamicState & DYNAMIC_STATE_DEPTH_BOUNDS)
         {
-            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_DEPTH_BOUNDS;
-            vk_dynamic_states_count++;
+            dynamicStates[dynamicStateCount] = VK_DYNAMIC_STATE_DEPTH_BOUNDS;
+            dynamicStateCount++;
         }
-        if (p_dynamic_state.has_flag(DYNAMIC_STATE_STENCIL_COMPARE_MASK))
+        if (dynamicState & DYNAMIC_STATE_STENCIL_COMPARE_MASK)
         {
-            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK;
-            vk_dynamic_states_count++;
+            dynamicStates[dynamicStateCount] = VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK;
+            dynamicStateCount++;
         }
-        if (p_dynamic_state.has_flag(DYNAMIC_STATE_STENCIL_WRITE_MASK))
+        if (dynamicState & DYNAMIC_STATE_STENCIL_WRITE_MASK)
         {
-            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_STENCIL_WRITE_MASK;
-            vk_dynamic_states_count++;
+            dynamicStates[dynamicStateCount] = VK_DYNAMIC_STATE_STENCIL_WRITE_MASK;
+            dynamicStateCount++;
         }
-        if (p_dynamic_state.has_flag(DYNAMIC_STATE_STENCIL_REFERENCE))
+        if (dynamicState & DYNAMIC_STATE_STENCIL_REFERENCE)
         {
-            vk_dynamic_states[vk_dynamic_states_count] = VK_DYNAMIC_STATE_STENCIL_REFERENCE;
-            vk_dynamic_states_count++;
+            dynamicStates[dynamicStateCount] = VK_DYNAMIC_STATE_STENCIL_REFERENCE;
+            dynamicStateCount++;
         }
 
-        SL_ASSERT(vk_dynamic_states_count <= numMaxDynamicState);
+        dynamicStateCreateInfo.dynamicStateCount = dynamicStateCount;
+        dynamicStateCreateInfo.pDynamicStates    = dynamicStates;
 
-        dynamic_state_create_info.dynamicStateCount = vk_dynamic_states_count;
-        dynamic_state_create_info.pDynamicStates = vk_dynamic_states;
+        const VulkanShader* vkshader = (VulkanShader*)shader;
+        VkPipelineShaderStageCreateInfo* pipelineStages = SL_STACK(VkPipelineShaderStageCreateInfo, vkshader->stageCreateInfos.size());
+        for (uint32 i = 0; i < vkshader->stageCreateInfos.size(); i++)
+        {
+            pipelineStages[i] = vkshader->stageCreateInfos[i];
+        }
 
-#endif
+
+        // ===== パイプライン生成 =====
+        VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
+        pipelineCreateInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        pipelineCreateInfo.pNext               = nullptr;
+        pipelineCreateInfo.stageCount          = vkshader->stageCreateInfos.size();
+        pipelineCreateInfo.pStages             = pipelineStages;
+        pipelineCreateInfo.pVertexInputState   = vertexInputStateCreateInfo;
+        pipelineCreateInfo.pInputAssemblyState = &inputAssemblyCreateInfo;
+        pipelineCreateInfo.pTessellationState  = &tessellationCreateInfo;
+        pipelineCreateInfo.pViewportState      = &viewportStateCreateInfo;
+        pipelineCreateInfo.pRasterizationState = &rasterizationStateCreateInfo;
+        pipelineCreateInfo.pMultisampleState   = &multisampleStateCreateInfo;
+        pipelineCreateInfo.pDepthStencilState  = &depthStencilStateCreateInfo;
+        pipelineCreateInfo.pColorBlendState    = &colorBlendStateCreateInfo;
+        pipelineCreateInfo.pDynamicState       = &dynamicStateCreateInfo;
+        pipelineCreateInfo.layout              = vkshader->pipelineLayout;
+        pipelineCreateInfo.renderPass          = (VkRenderPass)((VulkanRenderPass*)(renderpass))->renderpass;
+        pipelineCreateInfo.subpass             = renderSubpass;
+
+        VkPipeline pipeline = nullptr;
+        VkResult result = vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineCreateInfo, nullptr, &pipeline);
+        SL_CHECK_VKRESULT(result, nullptr);
+
         return nullptr;
     }
 
     void VulkanAPI::DestroyPipeline(Pipeline* pipeline)
     {
+        if (pipeline)
+        {
+            VulkanPipeline* vkpipeline = (VulkanPipeline*)pipeline;
+            vkDestroyPipeline(device, vkpipeline->pipeline, nullptr);
+
+            Memory::Deallocate(vkpipeline);
+        }
     }
 }

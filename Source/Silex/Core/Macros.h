@@ -25,6 +25,8 @@
 // 引数オーバーロード解決に使用
 #define SL_ARG3(_1, _2, _3, ...) _3
 
+// インターフェース抽象化ハンドル
+#define SL_HANDLE(name) using name = Handle;
 
 // プラットフォーム固有
 #if _MSC_VER

@@ -10,9 +10,9 @@
 
 
 #if SL_RELEASE
-#define ASSIMP_DLL_NAME L"Resources/DLL/assimp-vc143-mt.dll"
+#define ASSIMP_DLL_NAME L"Resources/assimp-vc143-mt.dll"
 #else
-#define ASSIMP_DLL_NAME L"Resources/DLL/assimp-vc143-mtd.dll"
+#define ASSIMP_DLL_NAME L"Resources/assimp-vc143-mtd.dll"
 #endif
 
 

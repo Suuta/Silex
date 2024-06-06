@@ -105,14 +105,13 @@ namespace Silex
         //--------------------------------------------------
         // シェーダー
         //--------------------------------------------------
-        virtual std::vector<byte> CompileSPIRV(uint32 numSpirv, ShaderStageSPIRVData* spirv, const std::string& shaderName) = 0;
-        virtual ShaderHandle* CreateShader(const std::vector<byte>& p_shader_binary, ShaderDescription& shaderDesc, std::string& name) = 0;
+        virtual ShaderHandle* CreateShader() = 0;
         virtual void DestroyShader(ShaderHandle* shader) = 0;
 
         //--------------------------------------------------
         // デスクリプターセット
         //--------------------------------------------------
-        virtual DescriptorSet* CreateDescriptorSet(Descriptor* descriptors, uint32 numdescriptors, ShaderHandle* shader, uint32 setIndex) = 0;
+        virtual DescriptorSet* CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex) = 0;
         virtual void DestroyDescriptorSet(DescriptorSet* descriptorset) = 0;
 
         //--------------------------------------------------
@@ -127,7 +126,7 @@ namespace Silex
             PipelineDepthStencilState       depthstencilState,
             PipelineColorBlendState         blendState,
             int32*                          colorAttachments,
-            int32                           numColorAttachments,
+            uint32                          numColorAttachments,
             PipelineDynamicStateFlags       dynamicState,
             RenderPass*                     renderpass,
             uint32                          renderSubpass) = 0;

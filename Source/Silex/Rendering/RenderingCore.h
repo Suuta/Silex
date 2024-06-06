@@ -6,35 +6,33 @@
 namespace Silex
 {
     //================================================
+    // 定数
+    //================================================
+    enum : uint32 { INVALID_RENDER_ID = UINT32_MAX };
+
+    //================================================
     // ハンドル
     //================================================
-    enum : uint32
-    {
-        INVALID_RENDER_ID = UINT32_MAX,
-    };
-
     using QueueFamily = uint32;
 
-    using Surface       = Handle;
-    using CommandQueue  = Handle;
-    using CommandPool   = Handle;
-    using CommandBuffer = Handle;
-    using Fence         = Handle;
-    using Semaphore     = Handle;
-    using SwapChain     = Handle;
-    using RenderPass    = Handle;
-    using Buffer        = Handle;
-    using Pipeline      = Handle;
-    using Sampler       = Handle;
-    using DescriptorSet = Handle;
-    using VertexFormat  = Handle;
+    SL_HANDLE(Surface);
+    SL_HANDLE(CommandQueue);
+    SL_HANDLE(CommandPool);
+    SL_HANDLE(CommandBuffer);
+    SL_HANDLE(Fence);
+    SL_HANDLE(Semaphore);
+    SL_HANDLE(SwapChain);
+    SL_HANDLE(RenderPass);
+    SL_HANDLE(Buffer);
+    SL_HANDLE(Pipeline);
+    SL_HANDLE(Sampler);
+    SL_HANDLE(DescriptorSet);
+    SL_HANDLE(VertexFormat );
 
     // 命名重複のためHandleを追加 (OpenGL廃止後に修正)
-    using FramebufferHandle  = Handle;
-    using TextureHandle      = Handle;
-    using ShaderHandle       = Handle;
-
-
+    SL_HANDLE(FramebufferHandle);
+    SL_HANDLE(TextureHandle);
+    SL_HANDLE(ShaderHandle);
 
     //================================================
     // デバイス
@@ -702,7 +700,7 @@ namespace Silex
         DESCRIPTOR_TYPE_MAX
     };
 
-    struct Descriptor
+    struct DescriptorInfo
     {
         DescriptorType       type    = DESCRIPTOR_TYPE_MAX;
         uint32               binding = INVALID_RENDER_ID;
@@ -714,74 +712,24 @@ namespace Silex
     //================================================
     // シェーダー
     //================================================
-
     enum ShaderStage
     {
         SHADER_STAGE_VERTEX,
-        SHADER_STAGE_FRAGMENT,
         SHADER_STAGE_TESSELATION_CONTROL,
         SHADER_STAGE_TESSELATION_EVALUATION,
+        SHADER_STAGE_GEOMETRY,
+        SHADER_STAGE_FRAGMENT,
         SHADER_STAGE_COMPUTE,
+        SHADER_STAGE_ALL,
 
         SHADER_STAGE_MAX,
 
         SHADER_STAGE_VERTEX_BIT                 = (1 << SHADER_STAGE_VERTEX),
-        SHADER_STAGE_FRAGMENT_BIT               = (1 << SHADER_STAGE_FRAGMENT),
         SHADER_STAGE_TESSELATION_CONTROL_BIT    = (1 << SHADER_STAGE_TESSELATION_CONTROL),
         SHADER_STAGE_TESSELATION_EVALUATION_BIT = (1 << SHADER_STAGE_TESSELATION_EVALUATION),
+        SHADER_STAGE_GEOMETRY_BIT               = (1 << SHADER_STAGE_GEOMETRY),
+        SHADER_STAGE_FRAGMENT_BIT               = (1 << SHADER_STAGE_FRAGMENT),
         SHADER_STAGE_COMPUTE_BIT                = (1 << SHADER_STAGE_COMPUTE),
-    };
-
-    struct ShaderStageSPIRVData
-    {
-        ShaderStage       shaderStage = SHADER_STAGE_MAX;
-        std::vector<byte> spirv       = {};
-    };
-
-    struct ShaderUniform
-    {
-        DescriptorType type     = DESCRIPTOR_TYPE_MAX;
-        bool           writable = false;
-        uint32         binding  = 0;
-        ShaderStage    stages   = SHADER_STAGE_MAX;
-        uint32         length   = 0;
-
-        bool operator!=(const ShaderUniform& p_other) const
-        {
-            return binding != p_other.binding || type != p_other.type || writable != p_other.writable || stages != p_other.stages || length != p_other.length;
-        }
-
-        bool operator<(const ShaderUniform& p_other) const
-        {
-            if (binding != p_other.binding)
-                return binding < p_other.binding;
-
-            if (type != p_other.type)
-                return type < p_other.type;
-            
-            if (writable != p_other.writable)
-                return writable < p_other.writable;
-           
-            if (stages != p_other.stages)
-                return stages < p_other.stages;
-            
-            if (length != p_other.length)
-                return length < p_other.length;
-            
-            return false;
-        }
-    };
-
-    struct ShaderDescription
-    {
-        uint64 vertexInputMask     = 0;
-        uint32 fragmentOutputMask  = 0;
-        bool   isCompute           = false;
-        uint32 computeLocalSize[3] = {};
-        uint32 pushConstantSize    = 0;
-
-        std::vector<std::vector<ShaderUniform>> uniformSets;
-        std::vector<ShaderStage>                stages;
     };
 
     //================================================
@@ -963,10 +911,10 @@ namespace Silex
             bool           write_a             = true;
         };
 
-        static PipelineColorBlendState CreateDisabled(int p_attachments = 1)
+        static PipelineColorBlendState CreateDisabled(int attachments = 1)
         {
             PipelineColorBlendState bs;
-            for (int i = 0; i < p_attachments; i++)
+            for (int i = 0; i < attachments; i++)
             {
                 bs.attachments.push_back(Attachment());
             }
@@ -1005,6 +953,8 @@ namespace Silex
         DYNAMIC_STATE_STENCIL_COMPARE_MASK = SL_BIT(4),
         DYNAMIC_STATE_STENCIL_WRITE_MASK   = SL_BIT(5),
         DYNAMIC_STATE_STENCIL_REFERENCE    = SL_BIT(6),
+
+        DYNAMIC_STATE_MAX = 7,
     };
 
     //================================================

@@ -2,7 +2,6 @@
 #include "PCH.h"
 #include "Platform/Windows/WindowsWindow.h"
 #include "Rendering/Vulkan/Windows/WindowsVulkanContext.h"
-#include <vulkan/vulkan_win32.h>
 
 
 namespace Silex
@@ -18,6 +17,21 @@ namespace Silex
     {
     }
 
+    bool WindowsVulkanContext::Initialize(bool enableValidation)
+    {
+        bool result = false;
+
+        result = Super::Initialize(enableValidation);
+        SL_CHECK(!result, false);
+
+        CreateWin32SurfaceKHR = GET_VULKAN_INSTANCE_PROC(Super::instance, vkCreateWin32SurfaceKHR);
+        SL_CHECK(!CreateWin32SurfaceKHR, false);
+
+        DestroySurfaceKHR = GET_VULKAN_INSTANCE_PROC(Super::instance, vkDestroySurfaceKHR);
+        SL_CHECK(!DestroySurfaceKHR, false);
+
+        return result;
+    }
 
     const char* WindowsVulkanContext::GetPlatformSurfaceExtensionName()
     {
@@ -32,12 +46,8 @@ namespace Silex
         createInfo.hwnd      = windowHandle;
 
         VkSurfaceKHR vkSurface = nullptr;
-        VkResult res = vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &vkSurface);
-        if (res != VK_SUCCESS)
-        {
-            SL_LOG_ERROR("vkCreateWin32SurfaceKHR: {}", VkResultToString(res));
-            return nullptr;
-        }
+        VkResult result = CreateWin32SurfaceKHR(instance, &createInfo, nullptr, &vkSurface);
+        SL_CHECK_VKRESULT(result, nullptr);
 
         VulkanSurface* surface = Memory::Allocate<VulkanSurface>();
         surface->surface = vkSurface;
@@ -50,7 +60,7 @@ namespace Silex
         if (surface)
         {
             VulkanSurface* vkSurface = (VulkanSurface*)surface;
-            vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
+            DestroySurfaceKHR(instance, vkSurface->surface, nullptr);
 
             Memory::Deallocate(vkSurface);
         }

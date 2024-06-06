@@ -178,6 +178,7 @@ project "Silex"
         {
             "Dwmapi.lib",
             "Winmm.lib",
+            "delayimp.lib", -- 遅延 DLL 読み込み
         }
 
     -- デバッグ
@@ -191,8 +192,15 @@ project "Silex"
 
         links
         {
+            -- assimp
             "Source/External/assimp/lib/Debug/assimp-vc143-mtd.lib",
-            "delayimp",
+
+            -- spirv_cross
+            "Source/External/vulkan/lib/spirv-cross-cored.lib",
+
+            -- shaderc
+            "Source/External/vulkan/lib/shaderc_sharedd.lib",
+            "Source/External/vulkan/lib/shaderc_utild.lib",
         }
 
         linkoptions
@@ -211,8 +219,15 @@ project "Silex"
 
         links
         {
+            -- assimp
             "Source/External/assimp/lib/Release/assimp-vc143-mt.lib",
-            "delayimp",
+
+            -- spirv_cross
+            "Source/External/vulkan/lib/spirv-cross-core.lib",
+
+            -- shaderc
+            "Source/External/vulkan/lib/shaderc_shared.lib",
+            "Source/External/vulkan/lib/shaderc_util.lib",
         }
 
         linkoptions

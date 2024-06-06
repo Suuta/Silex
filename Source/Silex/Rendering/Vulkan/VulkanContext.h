@@ -60,22 +60,36 @@ namespace Silex
         RenderingAPI* CreateRendringAPI() override;
         void DestroyRendringAPI(RenderingAPI* api) override;
 
-        // プレゼント命令のサポート
-        bool DeviceCanPresent(Surface* surface) const override;
-
         // デバイス情報
         const DeviceInfo& GetDeviceInfo() const override;
 
     public:
 
+        // プレゼント命令のサポート
         bool QueueHasPresent(Surface* surface, uint32 queueIndex) const;
 
+        // 各種プロパティ取得
         const std::vector<VkQueueFamilyProperties>& GetQueueFamilyProperties() const;
         const std::vector<const char*>& GetEnabledInstanceExtensions() const;
         const std::vector<const char*>& GetEnabledDeviceExtensions() const;
 
+        // 物理デバイス
         VkPhysicalDevice GetPhysicalDevice() const;
+
+        // インスタンス
         VkInstance GetInstance() const;
+
+    public:
+
+        struct ExtensionFunctions
+        {
+            PFN_vkGetPhysicalDeviceSurfaceSupportKHR      GetPhysicalDeviceSurfaceSupportKHR      = nullptr;
+            PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR GetPhysicalDeviceSurfaceCapabilitiesKHR = nullptr;
+            PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      GetPhysicalDeviceSurfaceFormatsKHR      = nullptr;
+            PFN_vkGetPhysicalDeviceSurfacePresentModesKHR GetPhysicalDeviceSurfacePresentModesKHR = nullptr;
+        } extensionFunctions;
+
+        const ExtensionFunctions& GetExtensionFunctions() const;
 
     protected:
 
@@ -91,8 +105,8 @@ namespace Silex
         std::vector<VkQueueFamilyProperties> queueFamilyProperties = {};
 
         // デバッグメッセンジャー関数ポインタ
-        PFN_vkCreateDebugUtilsMessengerEXT  vkCreateDebugUtilsMessengerEXT_PFN  = nullptr;
-        PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessengerEXT_PFN = nullptr;
+        PFN_vkCreateDebugUtilsMessengerEXT  CreateDebugUtilsMessengerEXT  = nullptr;
+        PFN_vkDestroyDebugUtilsMessengerEXT DestroyDebugUtilsMessengerEXT = nullptr;
 
         // レイヤー
         std::unordered_set<std::string> requestLayers;

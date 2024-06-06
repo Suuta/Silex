@@ -69,7 +69,7 @@ namespace Silex
 
     VulkanContext::~VulkanContext()
     {
-        vkDestroyDebugUtilsMessengerEXT_PFN(instance, debugMessenger, nullptr);
+        DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
         vkDestroyInstance(instance, nullptr);
     }
 
@@ -182,13 +182,13 @@ namespace Silex
         SL_CHECK_VKRESULT(result, false);
 
         // デバッグメッセンジャーの関数ポインタを取得
-        vkCreateDebugUtilsMessengerEXT_PFN  = GET_VULKAN_INSTANCE_PROC(instance, vkCreateDebugUtilsMessengerEXT);
-        vkDestroyDebugUtilsMessengerEXT_PFN = GET_VULKAN_INSTANCE_PROC(instance, vkDestroyDebugUtilsMessengerEXT);
-        SL_CHECK(!vkCreateDebugUtilsMessengerEXT_PFN, false);
-        SL_CHECK(!vkDestroyDebugUtilsMessengerEXT_PFN, false);
+        CreateDebugUtilsMessengerEXT  = GET_VULKAN_INSTANCE_PROC(instance, vkCreateDebugUtilsMessengerEXT);
+        DestroyDebugUtilsMessengerEXT = GET_VULKAN_INSTANCE_PROC(instance, vkDestroyDebugUtilsMessengerEXT);
+        SL_CHECK(!CreateDebugUtilsMessengerEXT, false);
+        SL_CHECK(!DestroyDebugUtilsMessengerEXT, false);
 
         // デバッグメッセンジャー生成
-        result = vkCreateDebugUtilsMessengerEXT_PFN(instance, &debugMessengerInfo, nullptr, &debugMessenger);
+        result = CreateDebugUtilsMessengerEXT(instance, &debugMessengerInfo, nullptr, &debugMessenger);
         SL_CHECK_VKRESULT(result, false);
 
         // 物理デバイスの列挙
@@ -214,7 +214,7 @@ namespace Silex
                 deviceInfo.vendor = (DeviceVendor)property.vendorID;
                 deviceInfo.type   = (DeviceType)property.deviceType;
 
-                physicalDevice       = pd;
+                physicalDevice = pd;
                 break;
             }
         }
@@ -252,6 +252,19 @@ namespace Silex
             }
         }
 
+        // 拡張機能関数のロード
+        extensionFunctions.GetPhysicalDeviceSurfaceSupportKHR = GET_VULKAN_INSTANCE_PROC(instance, vkGetPhysicalDeviceSurfaceSupportKHR);
+        SL_CHECK(!extensionFunctions.GetPhysicalDeviceSurfaceSupportKHR, false);
+
+        extensionFunctions.GetPhysicalDeviceSurfaceCapabilitiesKHR = GET_VULKAN_INSTANCE_PROC(instance, vkGetPhysicalDeviceSurfaceCapabilitiesKHR);
+        SL_CHECK(!extensionFunctions.GetPhysicalDeviceSurfaceCapabilitiesKHR, false);
+
+        extensionFunctions.GetPhysicalDeviceSurfaceFormatsKHR = GET_VULKAN_INSTANCE_PROC(instance, vkGetPhysicalDeviceSurfaceFormatsKHR);
+        SL_CHECK(!extensionFunctions.GetPhysicalDeviceSurfaceFormatsKHR, false);
+
+        extensionFunctions.GetPhysicalDeviceSurfacePresentModesKHR = GET_VULKAN_INSTANCE_PROC(instance, vkGetPhysicalDeviceSurfacePresentModesKHR);
+        SL_CHECK(!extensionFunctions.GetPhysicalDeviceSurfacePresentModesKHR, false);
+
         return true;
     }
 
@@ -263,23 +276,6 @@ namespace Silex
     void VulkanContext::DestroyRendringAPI(RenderingAPI* api)
     {
         Memory::Deallocate(api);
-    }
-
-    bool VulkanContext::DeviceCanPresent(Surface* surface) const
-    {
-        VkSurfaceKHR vkSurface = ((VulkanSurface*)surface)->surface;
-
-        for (uint32 i = 0; i < queueFamilyProperties.size(); i++)
-        {
-            VkBool32 supported = false;
-            VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, vkSurface, &supported);
-            SL_CHECK_VKRESULT(result, false);
-
-            if (supported)
-                return true;
-        }
-
-        return false;
     }
 
     const DeviceInfo& VulkanContext::GetDeviceInfo() const
@@ -321,5 +317,10 @@ namespace Silex
     VkInstance VulkanContext::GetInstance() const
     {
         return instance;
+    }
+
+    const VulkanContext::ExtensionFunctions& VulkanContext::GetExtensionFunctions() const
+    {
+        return extensionFunctions;
     }
 }

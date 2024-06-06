@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Rendering/Vulkan/VulkanContext.h"
+#include <vulkan/vulkan_win32.h>
 
 
 namespace Silex
@@ -15,10 +16,18 @@ namespace Silex
         WindowsVulkanContext(void* platformHandle);
         ~WindowsVulkanContext();
 
+        // 初期化
+        bool Initialize(bool enableValidation) override final;
+
         // サーフェース
         const char* GetPlatformSurfaceExtensionName() override final;
         Surface*    CreateSurface()                   override final;
         void        DestroySurface(Surface* surface)  override final;
+
+    private:
+
+        PFN_vkCreateWin32SurfaceKHR  CreateWin32SurfaceKHR = nullptr;
+        PFN_vkDestroySurfaceKHR      DestroySurfaceKHR     = nullptr;
 
     private:
 
