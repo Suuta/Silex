@@ -76,17 +76,6 @@ namespace Silex
         template<class T> constexpr TRemoveRef<T>&& Move(T&& arg)                { return static_cast<TRemoveRef<T>&&>(arg); }
     }
 
-    template <class T>
-    constexpr void Swap(T& l, T& r)
-    {
-        T tmp = Traits::Move(l);
-        l     = Traits::Move(r);
-        r     = Traits::Move(tmp);
-    }
-
-
-
-
     //============================================
     // 抽象化汎用ハンドル
     //============================================
@@ -97,33 +86,5 @@ namespace Silex
         virtual ~Handle() {};
 
         uint64 pointer = 0;
-    };
-
-    //============================================
-    // 生配列 / std::array / std::vector 読み取り
-    //============================================
-    template<typename T>
-    class ArrayView
-    {
-        const T*     ptr  = nullptr;
-        const uint32 size = 0;
-
-    public:
-
-        const T*     Ptr()  const { return ptr;  }
-        const uint32 Size() const { return size; }
-
-        ArrayView() = default;
-        ArrayView(const T* ptr, uint32 size = 1) : ptr(ptr), size(size) {}
-        ArrayView(const std::vector<T>& other)   : ptr(other.data()), size(other.size()) {}
-
-        const T& operator[](uint32 index) { return ptr[index]; }
-
-    public:
-
-        ArrayView(const ArrayView<T>&)  = delete;
-        ArrayView(const ArrayView<T>&&) = delete;
-        const ArrayView& operator=(const ArrayView<T>&)  = delete;
-        const ArrayView& operator=(const ArrayView<T>&&) = delete;
     };
 }

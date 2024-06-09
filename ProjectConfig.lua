@@ -204,8 +204,10 @@ project "Silex"
         }
 
         linkoptions
-        { 
-            "/DELAYLOAD:assimp-vc143-mtd.dll", -- 遅延 DLL 読み込み
+        {
+            -- 遅延 DLL 読み込み
+            "/DELAYLOAD:assimp-vc143-mtd.dll",
+            "/DELAYLOAD:shaderc_sharedd.dll",
         }
 
     -- リリース
@@ -232,5 +234,7 @@ project "Silex"
 
         linkoptions
         { 
-            "/DELAYLOAD:assimp-vc143-mt.dll", -- 遅延 DLL 読み込み
+            -- 遅延 DLL 読み込み
+            "/DELAYLOAD:assimp-vc143-mt.dll",
+            "/DELAYLOAD:shaderc_shared.dll",
         }

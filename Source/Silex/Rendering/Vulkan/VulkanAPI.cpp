@@ -2,6 +2,7 @@
 #include "PCH.h"
 #include "Rendering/Vulkan/VulkanAPI.h"
 #include "Rendering/Vulkan/VulkanContext.h"
+#include "Rendering/ShaderCompiler.h"
 
 
 namespace Silex
@@ -169,43 +170,43 @@ namespace Silex
                 sizes++;
                 sizeCount++;
             }
-            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE])
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE_SAMPLER])
             {
                 *sizes = {};
                 sizes->type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE] * MaxDescriptorsetPerPool;
-                sizes++;
-                sizeCount++;
-            }
-            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_TEXTURE])
-            {
-                *sizes = {};
-                sizes->type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_TEXTURE] * MaxDescriptorsetPerPool;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE_SAMPLER] * MaxDescriptorsetPerPool;
                 sizes++;
                 sizeCount++;
             }
             if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE])
             {
                 *sizes = {};
-                sizes->type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                sizes->type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
                 sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE] * MaxDescriptorsetPerPool;
                 sizes++;
                 sizeCount++;
             }
-            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_TEXTURE_BUFFER] || key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE_BUFFER])
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_STORAGE_IMAGE])
             {
                 *sizes = {};
-                sizes->type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-                sizes->descriptorCount = (key.descriptorTypeCounts[DESCRIPTOR_TYPE_TEXTURE_BUFFER] + key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE_BUFFER]) * MaxDescriptorsetPerPool;
+                sizes->type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_STORAGE_IMAGE] * MaxDescriptorsetPerPool;
                 sizes++;
                 sizeCount++;
             }
-            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE_BUFFER])
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_UNIFORM_TEXTURE_BUFFER])
+            {
+                *sizes = {};
+                sizes->type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_UNIFORM_TEXTURE_BUFFER] * MaxDescriptorsetPerPool;
+                sizes++;
+                sizeCount++;
+            }
+            if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_STORAGE_TEXTURE_BUFFER])
             {
                 *sizes = {};
                 sizes->type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER;
-                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE_BUFFER] * MaxDescriptorsetPerPool;
+                sizes->descriptorCount = key.descriptorTypeCounts[DESCRIPTOR_TYPE_STORAGE_TEXTURE_BUFFER] * MaxDescriptorsetPerPool;
                 sizes++;
                 sizeCount++;
             }
@@ -1741,19 +1742,186 @@ namespace Silex
     }
 
 
+    // ■シェーダー・レイアウト系
+    // バインディングを生成（シェーダーステージ・バインディング・タイプ・サイズ（通常１、イメージ配列なら複数））
+    // レイアウトを生成（各バインディングを合わせて、1つのデスクリプターセットのレイアウトにする）
+
+    // ■デスクリプターセット
+    // レイアウト（個数・データ）を指定し、アロケーションする　※フレーム分用意する（2個？）
+    // 書き込み＆更新 そのレイアウトと同じ必要な実データ（イメージ・バッファ）を指定して更新
+
+
     //==================================================================================
     // シェーダー
     //==================================================================================
-    ShaderHandle* VulkanAPI::CreateShader()
+    ShaderHandle* VulkanAPI::CreateShader(const ShaderCompiledData& compiledData)
     {
-        //TODO: デスクリプターセットレイアウト
-        //...
+        VkResult result;
+        ShaderReflectionData reflectData = compiledData.reflection;
+        const auto& spirvData            = compiledData.shaderBinaries;
 
-        //TODO: パイプラインレイアウト
-        //...
+        uint32 numDescriptorsets = reflectData.descriptorSets.size();
+        uint32 numPushConstants  = reflectData.pushConstantRanges.size();
+
+        std::vector<VkDescriptorSetLayoutBinding>    layoutBindings;
+        std::vector<VkDescriptorSetLayout>           layouts(numDescriptorsets);
+        std::vector<VkPushConstantRange>             pushConstantRanges(numPushConstants);
+        std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+
+        // デスクリプターセットレイアウト  
+        for (uint32 setIndex = 0; setIndex < numDescriptorsets; setIndex++)
+        {
+            const ShaderDescriptorSet& descriptorsets = reflectData.descriptorSets[setIndex];
+
+            // ユニフォーム
+            for (const auto& [index, uniform] : descriptorsets.uniformBuffers)
+            {
+                VkDescriptorSetLayoutBinding& binding = layoutBindings.emplace_back();
+                binding.descriptorType     = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                binding.binding            = index;
+                binding.descriptorCount    = 1;
+                binding.stageFlags         = uniform.stage;
+                binding.pImmutableSamplers = nullptr;
+            }
+
+            // ストレージ
+            for (const auto& [index, storage] : descriptorsets.storageBuffers)
+            {
+                VkDescriptorSetLayoutBinding& binding = layoutBindings.emplace_back();
+                binding.descriptorType     = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                binding.binding            = index;
+                binding.descriptorCount    = 1;
+                binding.stageFlags         = storage.stage;
+                binding.pImmutableSamplers = nullptr;
+            }
+
+            // イメージサンプラー
+            for (const auto& [index, storage] : descriptorsets.imageSamplers)
+            {
+                VkDescriptorSetLayoutBinding& binding = layoutBindings.emplace_back();
+                binding.descriptorType     = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                binding.binding            = index;
+                binding.descriptorCount    = storage.arraySize;
+                binding.stageFlags         = storage.stage;
+                binding.pImmutableSamplers = nullptr;
+            }
+
+            // イメージ
+            for (const auto& [index, imageSampler] : descriptorsets.separateTextures)
+            {
+                VkDescriptorSetLayoutBinding& binding = layoutBindings.emplace_back();
+                binding.descriptorType     = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                binding.descriptorCount    = imageSampler.arraySize;
+                binding.stageFlags         = imageSampler.stage;
+                binding.pImmutableSamplers = nullptr;
+                binding.binding            = index;
+            }
+
+            // サンプラー
+            for (const auto& [index, imageSampler] : descriptorsets.separateSamplers)
+            {
+                VkDescriptorSetLayoutBinding& binding = layoutBindings.emplace_back();
+                binding.descriptorType     = VK_DESCRIPTOR_TYPE_SAMPLER;
+                binding.descriptorCount    = imageSampler.arraySize;
+                binding.stageFlags         = imageSampler.stage;
+                binding.pImmutableSamplers = nullptr;
+                binding.binding            = index;
+            }
+
+            // ストレージイメージ
+            for (auto& [index, imageSampler] : descriptorsets.storageImages)
+            {
+                VkDescriptorSetLayoutBinding& binding = layoutBindings.emplace_back();
+                binding.descriptorType     = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                binding.descriptorCount    = imageSampler.arraySize;
+                binding.stageFlags         = imageSampler.stage;
+                binding.pImmutableSamplers = nullptr;
+                binding.binding            = index;
+            }
+
+            // ユニフォーム テクセル
+            //for (auto& [index, imageSampler] : descriptorsets.storageImages)
+            //{
+            //}
+
+            // ストレージ テクセル
+            //for (auto& [index, imageSampler] : descriptorsets.storageImages)
+            //{
+            //}
+
+            // インプットアタッチメント
+            //for (auto& [index, imageSampler] : descriptorsets.storageImages)
+            //{
+            //}
 
 
+            // デスクリプターセットレイアウト生成
+            VkDescriptorSetLayoutCreateInfo descriptorsetLayoutCreateInfo = {};
+            descriptorsetLayoutCreateInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            descriptorsetLayoutCreateInfo.pNext        = nullptr;
+            descriptorsetLayoutCreateInfo.bindingCount = layoutBindings.size();
+            descriptorsetLayoutCreateInfo.pBindings    = layoutBindings.data();
+
+            VkDescriptorSetLayout vkdescriptorsetLayout = nullptr;
+            result = vkCreateDescriptorSetLayout(device, &descriptorsetLayoutCreateInfo ,nullptr, &vkdescriptorsetLayout);
+            SL_CHECK_VKRESULT(result, nullptr);
+
+            layouts[setIndex] = vkdescriptorsetLayout;
+        }
+
+        // プッシュ定数レンジ
+        for (uint32 i = 0; i < pushConstantRanges.size(); i++)
+        {
+            pushConstantRanges[i].stageFlags = reflectData.pushConstantRanges[i].stage;
+            pushConstantRanges[i].offset     = reflectData.pushConstantRanges[i].offset;
+            pushConstantRanges[i].size       = reflectData.pushConstantRanges[i].size;
+        }
+
+        // パイプラインレイアウト
+        VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo = {};
+        pipelineLayoutCreateInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutCreateInfo.pNext                  = nullptr;
+        pipelineLayoutCreateInfo.setLayoutCount         = layouts.size();
+        pipelineLayoutCreateInfo.pSetLayouts            = layouts.data();
+        pipelineLayoutCreateInfo.pushConstantRangeCount = pushConstantRanges.size();
+        pipelineLayoutCreateInfo.pPushConstantRanges    = pushConstantRanges.data();
+
+        VkPipelineLayout vkpipelineLayout = nullptr;
+        result = vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &vkpipelineLayout);
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        // シェーダーモジュール
+        VkShaderStageFlags stageFlags = 0;
+        for (const auto& [stage, binary] : spirvData)
+        {
+            VkShaderModuleCreateInfo moduleCreateInfo = {};
+            moduleCreateInfo.sType    = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+            moduleCreateInfo.codeSize = binary.size() * sizeof(uint32);
+            moduleCreateInfo.pCode    = binary.data();
+
+            // シェーダーモジュール生成
+            VkShaderModule shaderModule = nullptr;
+            result = vkCreateShaderModule(device, &moduleCreateInfo, nullptr, &shaderModule);
+            SL_CHECK_VKRESULT(result, nullptr);
+
+            // シェーダーステージ情報格納
+            VkPipelineShaderStageCreateInfo shaderStage = {};
+            shaderStage.sType  = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            shaderStage.stage  = (VkShaderStageFlagBits)stage;
+            shaderStage.module = shaderModule;
+            shaderStage.pName  = "main";
+
+            shaderStages.push_back(shaderStage);
+            stageFlags |= (VkShaderStageFlagBits)stage;
+        }
+
+        // Vulkanデータ生成
         VulkanShader* vkshader = Memory::Allocate<VulkanShader>();
+        vkshader->descriptorsetLayouts = layouts;
+        vkshader->stageFlags           = stageFlags;
+        vkshader->pipelineLayout       = vkpipelineLayout;
+        vkshader->stageCreateInfos     = shaderStages;
+
         return vkshader;
     }
 
@@ -1784,9 +1952,10 @@ namespace Silex
     //==================================================================================
     DescriptorSet* VulkanAPI::CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex)
     {
+        // 同一シグネチャ（型と数の一致）のプールを識別するキー ※同一プールは デフォルトで64個まで確保され、超えた場合は別プールが確保される
         DescriptorSetPoolKey key = {};
 
-        // key 追加
+        // デスクリプタに実データ（イメージ・バッファ）書き込み
         VkWriteDescriptorSet* writes = SL_STACK(VkWriteDescriptorSet, numdescriptors);
         for (uint32 i = 0; i < numdescriptors; i++)
         {
@@ -1799,6 +1968,39 @@ namespace Silex
 
             switch (descriptor.type)
             {
+                // ユニフォームバッファ
+                case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                {
+                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
+
+                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0];
+                    *bufferInfo = {};
+                    bufferInfo->buffer = buffer->buffer;
+                    bufferInfo->range  = buffer->size;
+
+                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                    writes[i].pBufferInfo    = bufferInfo;
+
+                    break;
+                }
+
+                // ストレージバッファ
+                case DESCRIPTOR_TYPE_STORAGE_BUFFER:
+                {
+                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
+
+                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0];
+                    *bufferInfo = {};
+                    bufferInfo->buffer = buffer->buffer;
+                    bufferInfo->range  = buffer->size;
+
+                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                    writes[i].pBufferInfo    = bufferInfo;
+
+                    break;
+                }
+                
+                // サンプラー
                 case DESCRIPTOR_TYPE_SAMPLER:
                 {
                     numDescriptors = descriptor.handles.size();
@@ -1817,7 +2019,28 @@ namespace Silex
 
                     break;
                 }
-                case DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE:
+
+                // テクスチャ
+                case DESCRIPTOR_TYPE_IMAGE:
+                {
+                    numDescriptors = descriptor.handles.size();
+                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
+
+                    for (uint32 j = 0; j < numDescriptors; j++)
+                    {
+                        imageInfos[j] = {};
+                        imageInfos[j].imageView   = ((VulkanTexture*)(descriptor.handles[j]))->imageView;
+                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    }
+
+                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                    writes[i].pImageInfo     = imageInfos;
+
+                    break;
+                }
+
+                // テクスチャ + サンプル
+                case DESCRIPTOR_TYPE_IMAGE_SAMPLER:
                 {
                     numDescriptors = descriptor.handles.size() / 2;
                     VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
@@ -1835,24 +2058,9 @@ namespace Silex
 
                     break;
                 }
-                case DESCRIPTOR_TYPE_TEXTURE:
-                {
-                    numDescriptors = descriptor.handles.size();
-                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
 
-                    for (uint32 j = 0; j < numDescriptors; j++)
-                    {
-                        imageInfos[j] = {};
-                        imageInfos[j].imageView   = ((VulkanTexture*)(descriptor.handles[j]))->imageView;
-                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                    }
-
-                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-                    writes[i].pImageInfo     = imageInfos;
-
-                    break;
-                }
-                case DESCRIPTOR_TYPE_IMAGE:
+                // ストレージイメージ
+                case DESCRIPTOR_TYPE_STORAGE_IMAGE:
                 {
                     numDescriptors = descriptor.handles.size();
                     VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
@@ -1869,111 +2077,32 @@ namespace Silex
 
                     break;
                 }
-                case DESCRIPTOR_TYPE_TEXTURE_BUFFER:
-                {
-                    numDescriptors = descriptor.handles.size();
-                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, numDescriptors);
-                    VkBufferView* views                = SL_STACK(VkBufferView, numDescriptors);
 
-                    for (uint32 j = 0; j < numDescriptors; j++)
-                    {
-                        VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[j];
-                        bufferInfo[j] = {};
-                        bufferInfo[j].buffer = buffer->buffer;
-                        bufferInfo[j].range  = buffer->size;
-
-                        views[j] = buffer->view;
-                    }
-
-                    writes[i].descriptorType   = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-                    writes[i].pBufferInfo      = bufferInfo;
-                    writes[i].pTexelBufferView = views;
-
-                    break;
-                }
-                case DESCRIPTOR_TYPE_SAMPLER_WITH_TEXTURE_BUFFER:
-                {
-                    numDescriptors = descriptor.handles.size() / 2;
-                    VkDescriptorImageInfo*  imageInfos  = SL_STACK(VkDescriptorImageInfo, numDescriptors);
-                    VkDescriptorBufferInfo* bufferInfos = SL_STACK(VkDescriptorBufferInfo, numDescriptors);
-                    VkBufferView*           views       = SL_STACK(VkBufferView, numDescriptors);
-
-                    for (uint32 j = 0; j < numDescriptors; j++)
-                    {
-                        VulkanSampler* sampler = (VulkanSampler*)descriptor.handles[j * 2 + 0];
-                        VulkanBuffer* buffer   = (VulkanBuffer*)descriptor.handles[j * 2 + 1];
-
-                        imageInfos[j] = {};
-                        imageInfos[j].sampler = sampler->sampler;
-
-                        bufferInfos[j] = {};
-                        bufferInfos[j].buffer = buffer->buffer;
-                        bufferInfos[j].range  = buffer->size;
-
-                        views[j] = buffer->view;
-                    }
-
-                    writes[i].descriptorType   = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
-                    writes[i].pImageInfo       = imageInfos;
-                    writes[i].pBufferInfo      = bufferInfos;
-                    writes[i].pTexelBufferView = views;
-
-                    break;
-                }
-                case DESCRIPTOR_TYPE_IMAGE_BUFFER:
+                // テクセルバッファ
+                case DESCRIPTOR_TYPE_UNIFORM_TEXTURE_BUFFER:
                 {
                     SL_ASSERT(false, "未実装");
                     break;
                 }
-                case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+
+                // ストレージ テクセルバッファ
+                case DESCRIPTOR_TYPE_STORAGE_TEXTURE_BUFFER:
                 {
-                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
-
-                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0];
-                    *bufferInfo = {};
-                    bufferInfo->buffer = buffer->buffer;
-                    bufferInfo->range  = buffer->size;
-
-                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                    writes[i].pBufferInfo    = bufferInfo;
-
+                    SL_ASSERT(false, "未実装");
                     break;
                 }
-                case DESCRIPTOR_TYPE_STORAGE_BUFFER:
-                {
-                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
 
-                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0];
-                    *bufferInfo = {};
-                    bufferInfo->buffer = buffer->buffer;
-                    bufferInfo->range  = buffer->size;
-
-                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                    writes[i].pBufferInfo    = bufferInfo;
-
-                    break;
-                }
+                // インプットアタッチメント
                 case DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
                 {
-                    numDescriptors = descriptor.handles.size();
-                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
-
-                    for (uint32 j = 0; j < numDescriptors; j++)
-                    {
-                        imageInfos[j] = {};
-                        imageInfos[j].imageView   = ((VulkanTexture*)descriptor.handles[j])->imageView;
-                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                    }
-
-                    writes[i].descriptorType = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
-                    writes[i].pImageInfo     = imageInfos;
-
+                    SL_ASSERT(false, "未実装");
                     break;
                 }
 
                 default: SL_ASSERT(false);
             }
 
+            // キーに使用デスクリプタ型の個数を加算
             writes[i].descriptorCount = numDescriptors;
             key.descriptorTypeCounts[descriptor.type] += numDescriptors;
         }

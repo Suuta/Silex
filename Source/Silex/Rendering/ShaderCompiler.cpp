@@ -52,6 +52,31 @@ namespace Silex
         return SHADER_STAGE_MAX;
     }
 
+    static ShaderDataType ToShaderDataType(const spirv_cross::SPIRType& type)
+    {
+        switch (type.basetype)
+        {
+            case spirv_cross::SPIRType::Boolean:  return SHADER_DATA_TYPE_BOOL;
+            case spirv_cross::SPIRType::Int:
+                if (type.vecsize == 1)            return SHADER_DATA_TYPE_INT;
+                if (type.vecsize == 2)            return SHADER_DATA_TYPE_IVEC2;
+                if (type.vecsize == 3)            return SHADER_DATA_TYPE_IVEC3;
+                if (type.vecsize == 4)            return SHADER_DATA_TYPE_IVEC4;
+
+            case spirv_cross::SPIRType::UInt:     return SHADER_DATA_TYPE_UINT;
+            case spirv_cross::SPIRType::Float:
+                if (type.columns == 3)            return SHADER_DATA_TYPE_MAT3;
+                if (type.columns == 4)            return SHADER_DATA_TYPE_MAT4;
+
+                if (type.vecsize == 1)            return SHADER_DATA_TYPE_FLOAT;
+                if (type.vecsize == 2)            return SHADER_DATA_TYPE_VEC2;
+                if (type.vecsize == 3)            return SHADER_DATA_TYPE_VEC3;
+                if (type.vecsize == 4)            return SHADER_DATA_TYPE_VEC4;
+        }
+
+        return SHADER_DATA_TYPE_NONE;
+    }
+
 
 #if SHADERC
     static shaderc_shader_kind ToShaderC(const ShaderStage stage)
@@ -168,7 +193,7 @@ namespace Silex
 #if SHADERC
         shaderc::Compiler compiler;
 
-        // プリプロセス: SPIR-Vテキスト
+        // プリプロセス: SPIR-V テキスト形式へコンパイル
         const shaderc::PreprocessedSourceCompilationResult preProcess = compiler.PreprocessGlsl(source, ToShaderC(stage), filepath.c_str(), {});
         if (preProcess.GetCompilationStatus() != shaderc_compilation_status_success)
         {
@@ -177,7 +202,7 @@ namespace Silex
 
         std::string preProcessedSource = std::string(preProcess.begin(), preProcess.end());
 
-        // コンパイル: SPIR-Vバイナリ
+        // コンパイル: SPIR-V バイナリ形式へコンパイル
         shaderc::CompileOptions options;
         options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
         options.SetWarningsAsErrors();
@@ -188,9 +213,10 @@ namespace Silex
             return compileResult.GetErrorMessage();
         }
 
+        // SPIR-V は 4バイトアラインメント
         out_putSpirv = std::vector<uint32>(compileResult.begin(), compileResult.end());
+        return {};
 #else
-
         glslang::InitializeProcess();
         EShLanguage glslangStage = ToGlslang(stage);
         EShMessages messages     = (EShMessages)(EShMsgSpvRules | EShMsgVulkanRules);
@@ -219,9 +245,8 @@ namespace Silex
 
         glslang::GlslangToSpv(*program.getIntermediate(glslangStage), out_putSpirv);
         glslang::FinalizeProcess();
-#endif
-
         return {};
+#endif
     }
 
     void ShaderCompiler::_ReflectStage(ShaderStage stage, const std::vector<uint32>& spirv)
@@ -237,7 +262,7 @@ namespace Silex
 
             if (activeBuffers.size())
             {
-                const std::string& name    = resource.name;
+                const auto& name           = resource.name;
                 const auto& bufferType     = compiler.get_type(resource.base_type_id);
                 const uint32 memberCount   = bufferType.member_types.size();
                 const uint32 binding       = compiler.get_decoration(resource.id, spv::DecorationBinding);
@@ -283,7 +308,7 @@ namespace Silex
 
             if (activeBuffers.size())
             {
-                const std::string& name    = resource.name;
+                const auto& name           = resource.name;
                 const auto& bufferType     = compiler.get_type(resource.base_type_id);
                 const uint32 memberCount   = bufferType.member_types.size();
                 const uint32 binding       = compiler.get_decoration(resource.id, spv::DecorationBinding);
@@ -323,13 +348,186 @@ namespace Silex
         }
 
         // プッシュ定数
+        for (const auto& resource : resources.push_constant_buffers)
+        {
+            const auto& name       = resource.name;
+            const auto& bufferType = compiler.get_type(resource.base_type_id);
+            uint32 bufferSize      = compiler.get_declared_struct_size(bufferType);
+            uint32 memberCount     = bufferType.member_types.size();
+            uint32 bufferOffset    = 0;
 
-        // サンプルイメージ
+            if (ReflectionData.pushConstantRanges.size())
+                bufferOffset = ReflectionData.pushConstantRanges.back().offset + ReflectionData.pushConstantRanges.back().size;
+
+            auto& pushConstantRange  = ReflectionData.pushConstantRanges.emplace_back();
+            pushConstantRange.stage  = stage;
+            pushConstantRange.size   = bufferSize - bufferOffset;
+            pushConstantRange.offset = bufferOffset;
+
+            if (name.empty())
+                continue;
+
+            ShaderPushConstant& buffer = ReflectionData.pushConstants[name];
+            buffer.name = name;
+            buffer.size = bufferSize - bufferOffset;
+
+            SL_LOG_TRACE("  Name: {}",         name);
+            SL_LOG_TRACE("  Member Count: {}", memberCount);
+            SL_LOG_TRACE("  Size: {}",         bufferSize);
+
+            for (uint32 i = 0; i < memberCount; i++)
+            {
+                const auto& memberName = compiler.get_member_name(bufferType.self, i);
+                auto& type             = compiler.get_type(bufferType.member_types[i]);
+                uint32 size            = compiler.get_declared_struct_member_size(bufferType, i);
+                uint32 offset          = compiler.type_struct_member_offset(bufferType, i) - bufferOffset;
+
+                std::string uniformName = std::format("{}.{}", name, memberName);
+
+                PushConstantData& pushConstantData = buffer.costants[uniformName];
+                pushConstantData.name   = uniformName;
+                pushConstantData.type   = ToShaderDataType(type);
+                pushConstantData.offset = offset;
+                pushConstantData.size   = size;
+            }
+        }
+
+        // イメージサンプラー
+        for (const auto& resource : resources.sampled_images)
+        {
+            const auto& name     = resource.name;
+            const auto& baseType = compiler.get_type(resource.base_type_id);
+            const auto& type     = compiler.get_type(resource.type_id);
+            uint32 binding       = compiler.get_decoration(resource.id, spv::DecorationBinding);
+            uint32 descriptorSet = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+            uint32 dimension     = baseType.image.dim;
+            uint32 arraySize     = type.array[0];
+
+            if (arraySize == 0)
+                arraySize = 1;
+
+            if (descriptorSet >= ReflectionData.descriptorSets.size())
+                ReflectionData.descriptorSets.resize(descriptorSet + 1);
+
+            ShaderImage& imageSampler = ReflectionData.descriptorSets[descriptorSet].imageSamplers[binding];
+            imageSampler.bindingPoint = binding;
+            imageSampler.setIndex     = descriptorSet;
+            imageSampler.name         = name;
+            imageSampler.stage        = stage;
+            imageSampler.dimension    = dimension;
+            imageSampler.arraySize    = arraySize;
+
+            ShaderResourceDeclaration& resource = ReflectionData.resources[name]; 
+            resource.name          = name;
+            resource.setIndex      = descriptorSet;
+            resource.registerIndex = binding;
+            resource.count         = arraySize;
+
+            SL_LOG_TRACE("  {} ({}, {})", name, descriptorSet, binding);
+        }
 
         // イメージ
+        for (const auto& resource : resources.separate_images)
+        {
+            const auto& name     = resource.name;
+            const auto& baseType = compiler.get_type(resource.base_type_id);
+            const auto& type     = compiler.get_type(resource.type_id);
+            uint32 binding       = compiler.get_decoration(resource.id, spv::DecorationBinding);
+            uint32 descriptorSet = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+            uint32 dimension     = baseType.image.dim;
+            uint32 arraySize     = type.array[0];
+
+            if (arraySize == 0)
+                arraySize = 1;
+
+            if (descriptorSet >= ReflectionData.descriptorSets.size())
+                ReflectionData.descriptorSets.resize(descriptorSet + 1);
+
+            ShaderDescriptorSet& shaderDescriptorSet = ReflectionData.descriptorSets[descriptorSet];
+            auto& imageSampler        = shaderDescriptorSet.separateTextures[binding];
+            imageSampler.bindingPoint = binding;
+            imageSampler.setIndex     = descriptorSet;
+            imageSampler.name         = name;
+            imageSampler.stage        = stage;
+            imageSampler.dimension    = dimension;
+            imageSampler.arraySize    = arraySize;
+
+            ShaderResourceDeclaration& resource = ReflectionData.resources[name];
+            resource.name          = name;
+            resource.setIndex      = descriptorSet;
+            resource.registerIndex = binding;
+            resource.count         = arraySize;
+
+            SL_LOG_TRACE("  {0} ({1}, {2})", name, descriptorSet, binding);
+        }
 
         // サンプラー
+        for (const auto& resource : resources.separate_samplers)
+        {
+            const auto& name     = resource.name;
+            const auto& baseType = compiler.get_type(resource.base_type_id);
+            const auto& type     = compiler.get_type(resource.type_id);
+            uint32 binding       = compiler.get_decoration(resource.id, spv::DecorationBinding);
+            uint32 descriptorSet = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+            uint32 dimension     = baseType.image.dim;
+            uint32 arraySize     = type.array[0];
+
+            if (arraySize == 0)
+                arraySize = 1;
+
+            if (descriptorSet >= ReflectionData.descriptorSets.size())
+                ReflectionData.descriptorSets.resize(descriptorSet + 1);
+
+            ShaderDescriptorSet& shaderDescriptorSet = ReflectionData.descriptorSets[descriptorSet];
+            auto& imageSampler = shaderDescriptorSet.separateSamplers[binding];
+            imageSampler.bindingPoint = binding;
+            imageSampler.setIndex     = descriptorSet;
+            imageSampler.name         = name;
+            imageSampler.stage        = stage;
+            imageSampler.dimension    = dimension;
+            imageSampler.arraySize    = arraySize;
+
+            ShaderResourceDeclaration& resource = ReflectionData.resources[name];
+            resource.name          = name;
+            resource.setIndex      = descriptorSet;
+            resource.registerIndex = binding;
+            resource.count         = arraySize;
+
+            SL_LOG_TRACE("  {0} ({1}, {2})", name, descriptorSet, binding);
+        }
 
         // ストレージイメージ
+        for (const auto& resource : resources.storage_images)
+        {
+            const auto& name     = resource.name;
+            const auto& type     = compiler.get_type(resource.type_id);
+            uint32 binding       = compiler.get_decoration(resource.id, spv::DecorationBinding);
+            uint32 descriptorSet = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
+            uint32 dimension     = type.image.dim;
+            uint32 arraySize     = type.array[0];
+
+            if (arraySize == 0)
+                arraySize = 1;
+
+            if (descriptorSet >= ReflectionData.descriptorSets.size())
+                ReflectionData.descriptorSets.resize(descriptorSet + 1);
+
+            ShaderDescriptorSet& shaderDescriptorSet = ReflectionData.descriptorSets[descriptorSet];
+            auto& imageSampler = shaderDescriptorSet.storageImages[binding];
+            imageSampler.bindingPoint = binding;
+            imageSampler.setIndex     = descriptorSet;
+            imageSampler.name         = name;
+            imageSampler.dimension    = dimension;
+            imageSampler.arraySize    = arraySize;
+            imageSampler.stage        = stage;
+
+            ShaderResourceDeclaration& resource = ReflectionData.resources[name];
+            resource.name          = name;
+            resource.setIndex      = descriptorSet;
+            resource.registerIndex = binding;
+            resource.count         = arraySize;
+
+            SL_LOG_TRACE("  {0} ({1}, {2})", name, descriptorSet, binding);
+        }
     }
 }

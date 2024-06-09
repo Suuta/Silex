@@ -130,7 +130,7 @@ namespace Silex
         //--------------------------------------------------
         // シェーダー
         //--------------------------------------------------
-        ShaderHandle* CreateShader() override;
+        ShaderHandle* CreateShader(const ShaderCompiledData& compiledData) override;
         void DestroyShader(ShaderHandle* shader) override;
 
         //--------------------------------------------------

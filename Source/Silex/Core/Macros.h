@@ -139,3 +139,19 @@ inline void* operator new[](size_t, void* where, SLEmpty) noexcept { return wher
 inline void  operator delete  (void*, void*, SLEmpty) noexcept { return; }
 inline void  operator delete[](void*, void*, SLEmpty) noexcept { return; }
 #endif
+
+
+//===========================================================================================================================
+// 列挙子が有効かどうかの静的チェック
+//===========================================================================================================================
+#define SL_DECLARE_ENUMERATOR_TRAITS(type, name) \
+struct name##_t\
+{\
+private:\
+    template <class T>\
+    static constexpr decltype(T::name, bool{}) call(T)   { return std::true_type::value;  } \
+    static constexpr bool                      call(...) { return std::false_type::value; } \
+public:\
+    static constexpr bool inline value = name##_t::call(type{});\
+};
+

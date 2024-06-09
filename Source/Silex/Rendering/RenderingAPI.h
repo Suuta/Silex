@@ -7,6 +7,8 @@
 
 namespace Silex
 {
+    struct ShaderCompiledData;
+
     class RenderingAPI : public Object
     {
         SL_CLASS(RenderingAPI, Object)
@@ -105,7 +107,7 @@ namespace Silex
         //--------------------------------------------------
         // シェーダー
         //--------------------------------------------------
-        virtual ShaderHandle* CreateShader() = 0;
+        virtual ShaderHandle* CreateShader(const ShaderCompiledData& compiledData) = 0;
         virtual void DestroyShader(ShaderHandle* shader) = 0;
 
         //--------------------------------------------------

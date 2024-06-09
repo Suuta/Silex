@@ -10,16 +10,19 @@
 
 
 #if SL_RELEASE
-#define ASSIMP_DLL_NAME L"Resources/assimp-vc143-mt.dll"
+#define ASSIMP_DLL_NAME  L"Resources/assimp-vc143-mt.dll"
+#define SHADERC_DLL_NAME L"Resources/shaderc_shared.dll"
 #else
-#define ASSIMP_DLL_NAME L"Resources/assimp-vc143-mtd.dll"
+#define ASSIMP_DLL_NAME  L"Resources/assimp-vc143-mtd.dll"
+#define SHADERC_DLL_NAME L"Resources/shaderc_sharedd.dll"
 #endif
 
 
 namespace Silex
 {
-    // Assimp DLL
+    // DLL ハンドル
     static HMODULE assimpDLL = nullptr;
+    static HMODULE shadercDLL = nullptr;
 
 
     std::wstring ToUTF16(const std::string& utf8)
@@ -100,8 +103,9 @@ namespace Silex
         outputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
 
 #endif
-        // Assimp DLL ロード
-        assimpDLL = LoadLibraryW(ASSIMP_DLL_NAME);
+        // DLL ロード
+        assimpDLL  = ::LoadLibraryW(ASSIMP_DLL_NAME);
+        shadercDLL = ::LoadLibraryW(SHADERC_DLL_NAME);
 
         // Windows OS バージョンを取得
         CheckOSVersion();
@@ -130,8 +134,9 @@ namespace Silex
         ::glfwTerminate();
         ::timeEndPeriod(1);
 
-        // Assimp DLL 解放
-        FreeLibrary(assimpDLL);
+        // DLL 解放
+        ::FreeLibrary(assimpDLL);
+        ::FreeLibrary(shadercDLL);
     }
 
     uint64 WindowsOS::GetTickSeconds()
@@ -244,13 +249,18 @@ namespace Silex
     int32 WindowsOS::Message(OSMessageType type, const std::wstring& message)
     {
         uint32 messageType = type == OS_MESSEGA_TYPE_ALERT ? MB_OK | MB_ICONERROR : MB_OK | MB_ICONINFORMATION;
-        return MessageBoxW(NULL, message.c_str(), L"Error", messageType);
+        return ::MessageBoxW(NULL, message.c_str(), L"Error", messageType);
     }
 
-    // Windows 11 以降　ウィンドウ角丸のスタイルの設定
+
+    // SDKで定義されているかどうかを確認（ver 10.0.22000.0 ~)
+    SL_DECLARE_ENUMERATOR_TRAITS(DWMWINDOWATTRIBUTE,           DWMWA_WINDOW_CORNER_PREFERENCE);
+    SL_DECLARE_ENUMERATOR_TRAITS(DWM_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND);
+    SL_DECLARE_ENUMERATOR_TRAITS(DWM_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND);
+
     HRESULT WindowsOS::TrySetWindowCornerStyle(HWND hWnd, bool tryRound)
     {
-        HRESULT hr = E_FAIL;
+        HRESULT hr = NOERROR;
 
         //----------------------------------------------------------
         // NOTE:
@@ -259,12 +269,17 @@ namespace Silex
         //----------------------------------------------------------
         if (osBuildNumber >= 22000)
         {
-#if 0
-            const DWM_WINDOW_CORNER_PREFERENCE corner = tryRound ? DWMWCP_ROUND : DWMWCP_DONOTROUND;
-            hr = DwmSetWindowAttribute(hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(DWM_WINDOW_CORNER_PREFERENCE));
-#endif
-            const int32 corner = tryRound ? 2 : 1;
-            hr = DwmSetWindowAttribute(hWnd, 33, &corner, sizeof(int32));
+            if constexpr (DWMWA_WINDOW_CORNER_PREFERENCE_t::value && DWMWCP_ROUND_t::value && DWMWCP_DONOTROUND_t::value)
+            {
+                const DWM_WINDOW_CORNER_PREFERENCE corner = tryRound ? DWMWCP_ROUND : DWMWCP_DONOTROUND;
+                hr = DwmSetWindowAttribute(hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(DWM_WINDOW_CORNER_PREFERENCE));
+            }
+            else
+            {
+                // エラーではないが、SDKバージョンで定義される値が一致していると確証できないため、現状は実行しない
+                // const int32 corner = tryRound ? 2 : 1;
+                // hr = DwmSetWindowAttribute(hWnd, 33, &corner, sizeof(int32));
+            }
         }
 
         return hr;
