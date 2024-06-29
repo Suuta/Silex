@@ -157,7 +157,7 @@ namespace Silex
 
 
         // 1.0 を除き、GPU側がサポートしている限りは、指定バージョンに関係なくGPUバージョンレベルの機能が利用可能
-        // つまり、物理デバイスのバージョンではなく、開発の最低保証バージョンを指定した方が良い
+        // つまり、物理デバイスのバージョンではなく、開発の最低保証バージョンを指定した方が良い？
         uint32 apiVersion = instanceVersion == VK_API_VERSION_1_0 ? VK_API_VERSION_1_0 : VK_API_VERSION_1_2;
 
         // アプリ情報
@@ -235,6 +235,9 @@ namespace Silex
         // 要求デバイス拡張
         requestDeviceExtensions.insert(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
         requestDeviceExtensions.insert(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+        //requestDeviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+        //requestDeviceExtensions.insert(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+        //requestDeviceExtensions.insert(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
 
         // デバイス拡張機能のクエリ
         uint32 deviceExtensionCount = 0;
@@ -283,12 +286,13 @@ namespace Silex
         return deviceInfo;
     }
 
+    // D3D12は常に true
     bool VulkanContext::QueueHasPresent(Surface* surface, uint32 queueIndex) const
     {
         VkSurfaceKHR vkSurface = ((VulkanSurface*)surface)->surface;
         VkBool32 supported = false;
 
-        VkResult result = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueIndex, vkSurface, &supported);
+        VkResult result = extensionFunctions.GetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueIndex, vkSurface, &supported);
         SL_CHECK_VKRESULT(result, false);
 
         return supported;

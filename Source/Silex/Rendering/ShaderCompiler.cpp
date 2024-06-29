@@ -19,6 +19,9 @@
 #include <spirv_cross/spirv_glsl.hpp>
 
 
+#define USE_INCLUDE_PREPROCESS 0
+
+
 namespace Silex
 {
     static bool ReadFile(std::string& out_result, const std::string& filepath)
@@ -44,12 +47,22 @@ namespace Silex
 
     static ShaderStage ToShaderStage(const std::string& type)
     {
-        if (type == "VERTEX")   return SHADER_STAGE_VERTEX;
-        if (type == "FRAGMENT") return SHADER_STAGE_FRAGMENT;
-        if (type == "GEOMETRY") return SHADER_STAGE_GEOMETRY;
-        if (type == "COMPUTE")  return SHADER_STAGE_COMPUTE;
+        if (type == "VERTEX")   return SHADER_STAGE_VERTEX_BIT;
+        if (type == "FRAGMENT") return SHADER_STAGE_FRAGMENT_BIT;
+        if (type == "GEOMETRY") return SHADER_STAGE_GEOMETRY_BIT;
+        if (type == "COMPUTE")  return SHADER_STAGE_COMPUTE_BIT;
 
         return SHADER_STAGE_MAX;
+    }
+
+    static const char* ToStageString(const ShaderStage stage)
+    {
+        if (stage == SHADER_STAGE_VERTEX   || stage == SHADER_STAGE_VERTEX_BIT)   return "VERTEX";
+        if (stage == SHADER_STAGE_FRAGMENT || stage == SHADER_STAGE_FRAGMENT_BIT) return "FRAGMENT";
+        if (stage == SHADER_STAGE_GEOMETRY || stage == SHADER_STAGE_GEOMETRY_BIT) return "GEOMETRY";
+        if (stage == SHADER_STAGE_COMPUTE  || stage == SHADER_STAGE_COMPUTE_BIT)  return "COMPUTE";
+
+        return "SHADER_STAGE_MAX";
     }
 
     static ShaderDataType ToShaderDataType(const spirv_cross::SPIRType& type)
@@ -83,10 +96,10 @@ namespace Silex
     {
         switch (stage)
         {
-            case SHADER_STAGE_VERTEX:   return shaderc_vertex_shader;
-            case SHADER_STAGE_FRAGMENT: return shaderc_fragment_shader;
-            case SHADER_STAGE_COMPUTE:  return shaderc_compute_shader;
-            case SHADER_STAGE_GEOMETRY: return shaderc_geometry_shader;
+            case SHADER_STAGE_VERTEX_BIT:   return shaderc_vertex_shader;
+            case SHADER_STAGE_FRAGMENT_BIT: return shaderc_fragment_shader;
+            case SHADER_STAGE_COMPUTE_BIT:  return shaderc_compute_shader;
+            case SHADER_STAGE_GEOMETRY_BIT: return shaderc_geometry_shader;
         }
 
         return {};
@@ -96,10 +109,10 @@ namespace Silex
     {
         switch (stage)
         {
-            case SHADER_STAGE_VERTEX:    return EShLangVertex;
-            case SHADER_STAGE_FRAGMENT:  return EShLangFragment;
-            case SHADER_STAGE_COMPUTE:   return EShLangCompute;
-            case SHADER_STAGE_GEOMETRY:  return EShLangGeometry;
+            case SHADER_STAGE_VERTEX_BIT:    return EShLangVertex;
+            case SHADER_STAGE_FRAGMENT_BIT:  return EShLangFragment;
+            case SHADER_STAGE_COMPUTE_BIT:   return EShLangCompute;
+            case SHADER_STAGE_GEOMETRY_BIT:  return EShLangGeometry;
         }
 
         return {};
@@ -113,7 +126,7 @@ namespace Silex
     static std::unordered_map<uint32, std::unordered_map<uint32, ShaderBuffer>> ExistStorageBuffers;
     static ShaderReflectionData                                                 ReflectionData;
 
-    ShaderCompiler* ShaderCompiler::Get() const
+    ShaderCompiler* ShaderCompiler::Get()
     {
         return instance;
     }
@@ -191,9 +204,12 @@ namespace Silex
     std::string ShaderCompiler::_CompileStage(ShaderStage stage, const std::string& source, std::vector<uint32>& out_putSpirv, const std::string& filepath)
     {
 #if SHADERC
+
         shaderc::Compiler compiler;
 
-        // プリプロセス: SPIR-V テキスト形式へコンパイル
+#if USE_INCLUDE_PREPROCESS
+
+        // プリプロセス: SPIR-V テキスト形式へコンパイル + #include ディレクティブ解決等...
         const shaderc::PreprocessedSourceCompilationResult preProcess = compiler.PreprocessGlsl(source, ToShaderC(stage), filepath.c_str(), {});
         if (preProcess.GetCompilationStatus() != shaderc_compilation_status_success)
         {
@@ -201,13 +217,14 @@ namespace Silex
         }
 
         std::string preProcessedSource = std::string(preProcess.begin(), preProcess.end());
+#endif
 
         // コンパイル: SPIR-V バイナリ形式へコンパイル
         shaderc::CompileOptions options;
         options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
         options.SetWarningsAsErrors();
 
-        const shaderc::SpvCompilationResult compileResult = compiler.CompileGlslToSpv(preProcessedSource, ToShaderC(stage), filepath.c_str(), options);
+        const shaderc::SpvCompilationResult compileResult = compiler.CompileGlslToSpv(source, ToShaderC(stage), filepath.c_str(), options);
         if (compileResult.GetCompilationStatus() != shaderc_compilation_status_success)
         {
             return compileResult.GetErrorMessage();
@@ -215,6 +232,8 @@ namespace Silex
 
         // SPIR-V は 4バイトアラインメント
         out_putSpirv = std::vector<uint32>(compileResult.begin(), compileResult.end());
+
+        // エラーメッセージ無し
         return {};
 #else
         glslang::InitializeProcess();
@@ -251,6 +270,10 @@ namespace Silex
 
     void ShaderCompiler::_ReflectStage(ShaderStage stage, const std::vector<uint32>& spirv)
     {
+        SL_LOG_TRACE("----------------------------------------");
+        SL_LOG_TRACE("{}", ToStageString(stage));
+        SL_LOG_TRACE("----------------------------------------");
+
         // リソースデータ取得
         spirv_cross::Compiler compiler(spirv);
         const spirv_cross::ShaderResources resources = compiler.get_shader_resources();
@@ -276,6 +299,7 @@ namespace Silex
                 if (ExistUniformBuffers[descriptorSet].find(binding) == ExistUniformBuffers[descriptorSet].end())
                 {
                     ShaderBuffer uniformBuffer;
+                    uniformBuffer.setIndex     = descriptorSet;
                     uniformBuffer.bindingPoint = binding;
                     uniformBuffer.size         = size;
                     uniformBuffer.name         = name;
@@ -294,10 +318,7 @@ namespace Silex
 
                 shaderDescriptorSet.uniformBuffers[binding] = ExistUniformBuffers.at(descriptorSet).at(binding);
 
-                SL_LOG_TRACE("  {} (set: {}, bind: {})", name, descriptorSet, binding);
-                SL_LOG_TRACE("  members: {}", memberCount);
-                SL_LOG_TRACE("  size:    {}", size);
-                SL_LOG_TRACE("-------------------");
+                SL_LOG_TRACE("  (set: {}, bind: {}) uniform {}", descriptorSet, binding, name);
             }
         }
 
@@ -322,6 +343,7 @@ namespace Silex
                 if (ExistStorageBuffers[descriptorSet].find(binding) == ExistStorageBuffers[descriptorSet].end())
                 {
                     ShaderBuffer storageBuffer;
+                    storageBuffer.setIndex     = descriptorSet;
                     storageBuffer.bindingPoint = binding;
                     storageBuffer.size         = size;
                     storageBuffer.name         = name;
@@ -340,10 +362,7 @@ namespace Silex
 
                 shaderDescriptorSet.storageBuffers[binding] = ExistStorageBuffers.at(descriptorSet).at(binding);
 
-                SL_LOG_TRACE("  {} (set: {}, bind: {})", name, descriptorSet, binding);
-                SL_LOG_TRACE("  members: {}", memberCount);
-                SL_LOG_TRACE("  size:    {}", size);
-                SL_LOG_TRACE("-------------------");
+                SL_LOG_TRACE("  (set: {}, bind: {}) buffer {}", descriptorSet, binding, name);
             }
         }
 
@@ -371,9 +390,7 @@ namespace Silex
             buffer.name = name;
             buffer.size = bufferSize - bufferOffset;
 
-            SL_LOG_TRACE("  Name: {}",         name);
-            SL_LOG_TRACE("  Member Count: {}", memberCount);
-            SL_LOG_TRACE("  Size: {}",         bufferSize);
+            SL_LOG_TRACE("  push_constant: {}", name);
 
             for (uint32 i = 0; i < memberCount; i++)
             {
@@ -384,11 +401,11 @@ namespace Silex
 
                 std::string uniformName = std::format("{}.{}", name, memberName);
 
-                PushConstantData& pushConstantData = buffer.costants[uniformName];
-                pushConstantData.name   = uniformName;
-                pushConstantData.type   = ToShaderDataType(type);
-                pushConstantData.offset = offset;
-                pushConstantData.size   = size;
+                PushConstantMember& pushConstantMember = buffer.members[uniformName];
+                pushConstantMember.name   = uniformName;
+                pushConstantMember.type   = ToShaderDataType(type);
+                pushConstantMember.offset = offset;
+                pushConstantMember.size   = size;
             }
         }
 
@@ -401,10 +418,10 @@ namespace Silex
             uint32 binding       = compiler.get_decoration(resource.id, spv::DecorationBinding);
             uint32 descriptorSet = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet);
             uint32 dimension     = baseType.image.dim;
-            uint32 arraySize     = type.array[0];
+            uint32 arraySize     = 1;
 
-            if (arraySize == 0)
-                arraySize = 1;
+            if (!type.array.empty())
+                arraySize = type.array[0];
 
             if (descriptorSet >= ReflectionData.descriptorSets.size())
                 ReflectionData.descriptorSets.resize(descriptorSet + 1);
@@ -423,7 +440,7 @@ namespace Silex
             resource.registerIndex = binding;
             resource.count         = arraySize;
 
-            SL_LOG_TRACE("  {} ({}, {})", name, descriptorSet, binding);
+            SL_LOG_TRACE("  (set: {}, bind: {}) sampled_image {}", descriptorSet, binding, name);
         }
 
         // イメージ
@@ -458,7 +475,7 @@ namespace Silex
             resource.registerIndex = binding;
             resource.count         = arraySize;
 
-            SL_LOG_TRACE("  {0} ({1}, {2})", name, descriptorSet, binding);
+            SL_LOG_TRACE("  (set: {}, bind: {}) image {}", descriptorSet, binding, name);
         }
 
         // サンプラー
@@ -493,7 +510,7 @@ namespace Silex
             resource.registerIndex = binding;
             resource.count         = arraySize;
 
-            SL_LOG_TRACE("  {0} ({1}, {2})", name, descriptorSet, binding);
+            SL_LOG_TRACE("  (set: {}, bind: {}) sampler {}", descriptorSet, binding, name);
         }
 
         // ストレージイメージ
@@ -527,7 +544,7 @@ namespace Silex
             resource.registerIndex = binding;
             resource.count         = arraySize;
 
-            SL_LOG_TRACE("  {0} ({1}, {2})", name, descriptorSet, binding);
+            SL_LOG_TRACE("  (set: {}, bind: {}) storage_image {}", descriptorSet, binding, name);
         }
     }
 }

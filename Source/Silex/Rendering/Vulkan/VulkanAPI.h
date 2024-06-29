@@ -142,20 +142,8 @@ namespace Silex
         //--------------------------------------------------
         // パイプライン
         //--------------------------------------------------
-        virtual Pipeline* CreatePipeline(
-            ShaderHandle*              shader,
-            VertexFormat*              vertexFormat,
-            PrimitiveTopology          primitive,
-            PipelineRasterizationState rasterizationState,
-            PipelineMultisampleState   multisampleState,
-            PipelineDepthStencilState  depthstencilState,
-            PipelineColorBlendState    blendState,
-            int32*                     colorAttachments,
-            uint32                     numColorAttachments,
-            PipelineDynamicStateFlags  dynamicState,
-            RenderPass*                renderpass,
-            uint32                     renderSubpass) override;
-
+        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PrimitiveTopology primitive, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, int32* colorAttachments, uint32 numColorAttachments, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass) override;
+        virtual Pipeline* CreateComputePipeline(ShaderHandle* shader) override;
         void DestroyPipeline(Pipeline* pipeline) override;
 
         //--------------------------------------------------

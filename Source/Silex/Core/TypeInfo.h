@@ -6,8 +6,8 @@
 
 namespace Silex
 {
-#define QUERY_TYPE_INFO(T) TypeInfo{ sizeof(T), alignof(T), Hash::StaticFNV(SL_FUNCSIG) } 
 
+#define QUERY_TYPE_INFO(T) TypeInfo{ sizeof(T), alignof(T), Hash::StaticFNV(SL_FUNCSIG) } 
 
     struct TypeInfo
     {

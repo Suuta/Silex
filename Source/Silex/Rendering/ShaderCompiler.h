@@ -28,7 +28,7 @@ namespace Silex
     //------------------------------------
     // プッシュ定数
     //------------------------------------
-    struct PushConstantData
+    struct PushConstantMember
     {
         ShaderDataType type;
         std::string    name;
@@ -41,12 +41,12 @@ namespace Silex
         std::string name;
         uint32      size;
 
-        std::unordered_map<std::string, PushConstantData> costants;
+        std::unordered_map<std::string, PushConstantMember> members;
     };
 
     struct PushConstantRange
     {
-        ShaderStage stage  = SHADER_STAGE_MAX;
+        ShaderStage stage  = SHADER_STAGE_ALL;
         uint32      offset = 0;
         uint32      size   = 0;
     };
@@ -59,6 +59,7 @@ namespace Silex
         ShaderStage stage;
         std::string name;
         uint32      size;
+        uint32      setIndex;
         uint32      bindingPoint;
     };
 
@@ -120,7 +121,9 @@ namespace Silex
     };
 
 
+    //------------------------------------
     // シェーダーコンパイラ
+    //------------------------------------
     class ShaderCompiler : Object
     {
         SL_CLASS(ShaderCompiler, Object)
@@ -130,7 +133,7 @@ namespace Silex
         ShaderCompiler()  { instance = this;    }
         ~ShaderCompiler() { instance = nullptr; }
 
-        ShaderCompiler* Get() const;
+        static ShaderCompiler* Get();
 
     public:
 

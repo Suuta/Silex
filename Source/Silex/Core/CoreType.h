@@ -76,15 +76,50 @@ namespace Silex
         template<class T> constexpr TRemoveRef<T>&& Move(T&& arg)                { return static_cast<TRemoveRef<T>&&>(arg); }
     }
 
+
+    //========================================
+    // クラス情報インターフェース
+    //========================================
+    class Class
+    {
+    public:
+
+        Class() {};
+        virtual ~Class() {};
+
+        virtual const char* GetRuntimeClassName() const = 0;
+        virtual uint64      GetRuntimeHashID()    const = 0;
+
+    public:
+
+        // 自身と'T'が一致しているかどうかを調べる
+        template<class T>
+        bool IsClassOf()
+        {
+            static_assert(Traits::IsBaseOf<Class, T>(), "T は Class を継承する必要があります");
+            return T::staticHashID == GetRuntimeHashID();
+        }
+
+        // T と T2 を比較する
+        template<class T, class T2>
+        static bool IsSameClassOf(T* a, T2* b)
+        {
+            static_assert(Traits::IsBaseOf<Class, T>() && Traits::IsBaseOf<Class, T2>(), "T / T2 は Class を継承する必要があります");
+            return a->GetRuntimeHashID() == b->GetRuntimeHashID();
+        }
+    };
+
+
     //============================================
     // 抽象化汎用ハンドル
     //============================================
     struct Handle
     {
-        Handle() : pointer(uint64(this)) {}
-        Handle(void* ptr) : pointer(uint64(ptr)) {}
-        virtual ~Handle() {};
-
         uint64 pointer = 0;
+
+        Handle()          : pointer(uint64(this)) {}
+        Handle(void* ptr) : pointer(uint64(ptr))  {}
+
+        virtual ~Handle() {};
     };
 }

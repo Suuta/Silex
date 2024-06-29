@@ -81,6 +81,7 @@ namespace Silex
         while (true)
         {
             Window::Get()->PumpMessage();
+
             if (!Engine::Get()->MainLoop())
             {
                 break;
@@ -115,9 +116,9 @@ namespace Silex
         ::QueryPerformanceFrequency((LARGE_INTEGER*)&tickPerSecond);
         ::QueryPerformanceCounter((LARGE_INTEGER*)&startTickCount);
 
-        //========================================================
-        // glfw初期化  ※実装内容確定後、WinAPI に置き換え
-        //========================================================
+        //==============================================
+        // glfw初期化 ※WindowsWindow の WinAPI移行後に削除
+        //==============================================
         ::glfwInit();
 
         // 各プラットフォーム生成関数を登録
@@ -130,7 +131,6 @@ namespace Silex
 #if SL_DEBUG
         SetConsoleOutputCP(defaultConsoleCP);
 #endif
-
         ::glfwTerminate();
         ::timeEndPeriod(1);
 
@@ -242,7 +242,6 @@ namespace Silex
 
     void WindowsOS::OutputDebugConsole(const std::string& message)
     {
-        // VisualStudio コンソール出力
         ::OutputDebugStringW(ToUTF16(message).c_str());
     }
 
@@ -269,10 +268,10 @@ namespace Silex
         //----------------------------------------------------------
         if (osBuildNumber >= 22000)
         {
-            if constexpr (DWMWA_WINDOW_CORNER_PREFERENCE_t::value && DWMWCP_ROUND_t::value && DWMWCP_DONOTROUND_t::value)
+            if constexpr (DWMWA_WINDOW_CORNER_PREFERENCE_t::defined && DWMWCP_ROUND_t::defined && DWMWCP_DONOTROUND_t::defined)
             {
                 const DWM_WINDOW_CORNER_PREFERENCE corner = tryRound ? DWMWCP_ROUND : DWMWCP_DONOTROUND;
-                hr = DwmSetWindowAttribute(hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(DWM_WINDOW_CORNER_PREFERENCE));
+                hr = ::DwmSetWindowAttribute(hWnd, DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(DWM_WINDOW_CORNER_PREFERENCE));
             }
             else
             {
@@ -287,10 +286,10 @@ namespace Silex
 
     void WindowsOS::CheckOSVersion()
     {
-        const auto hModule = LoadLibraryW(TEXT("ntdll.dll"));
+        const auto hModule = ::LoadLibraryW(TEXT("ntdll.dll"));
         if (hModule)
         {
-            const auto address = GetProcAddress(hModule, "RtlGetVersion");
+            const auto address = ::GetProcAddress(hModule, "RtlGetVersion");
             if (address)
             {
                 using RtlGetVersionType = NTSTATUS(WINAPI*)(OSVERSIONINFOEXW*);
@@ -305,7 +304,7 @@ namespace Silex
                 }
             }
 
-            FreeLibrary(hModule);
+            ::FreeLibrary(hModule);
         }
     }
 }

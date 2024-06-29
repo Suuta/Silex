@@ -19,16 +19,20 @@ namespace Silex
 
     public:
 
+        // 時間
         uint64 GetTickSeconds()       override;
         void   Sleep(uint32 millisec) override;
 
+        // ファイル
         std::string OpenFile(const char* filter = "All\0*.*\0")                                  override;
         std::string SaveFile(const char* filter = "All\0*.*\0", const char* extention = nullptr) override;
 
+        // コンソール
         void SetConsoleAttribute(uint16 color)                      override;
         void OutputConsole(uint8 color, const std::string& message) override;
         void OutputDebugConsole(const std::string& message)         override;
 
+        // メッセージ
         int32 Message(OSMessageType type, const std::wstring& message) override;
 
     private:

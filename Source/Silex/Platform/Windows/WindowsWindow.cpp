@@ -28,10 +28,7 @@ namespace Silex
         static void OnScroll(GLFWwindow* window, double xOffset, double yOffset);
         static void OnCursorPos(GLFWwindow* window, double x, double y);
     }
-    
-    //===========================================================
-    // TODO: エラーハンドリング出来るようにする（戻り値が返せる方式にする）
-    //===========================================================
+
     WindowsWindow::WindowsWindow(const char* title, uint32 width, uint32 height)
     {
         windowData.width  = width;
@@ -56,6 +53,10 @@ namespace Silex
         glfwWindowHint(GLFW_VISIBLE, FALSE);
         glfwWindowHint(GLFW_CLIENT_API , GLFW_NO_API); // Vulkan / D3D は GLFW_NO_API を指定する
 #endif
+
+        //====================================================================
+        // TODO: 抽象化しておきながら <glfw> を使用しているので WindowsAPI 置き換える
+        //====================================================================
 
         // glfwWindow 生成
         window = glfwCreateWindow((int32)windowData.width, (int32)windowData.height, windowData.title.c_str(), nullptr, nullptr);

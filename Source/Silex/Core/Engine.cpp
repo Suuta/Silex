@@ -108,7 +108,6 @@ namespace Silex
         // エディター
         editor = Memory::Allocate<Editor>();
         editor->Init();
-
 #endif
         // ウィンドウ表示
         window->Show();

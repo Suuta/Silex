@@ -87,7 +87,7 @@ namespace Silex
             PFN_vkGetPhysicalDeviceSurfaceCapabilitiesKHR GetPhysicalDeviceSurfaceCapabilitiesKHR = nullptr;
             PFN_vkGetPhysicalDeviceSurfaceFormatsKHR      GetPhysicalDeviceSurfaceFormatsKHR      = nullptr;
             PFN_vkGetPhysicalDeviceSurfacePresentModesKHR GetPhysicalDeviceSurfacePresentModesKHR = nullptr;
-        } extensionFunctions;
+        };
 
         const ExtensionFunctions& GetExtensionFunctions() const;
 
@@ -119,5 +119,8 @@ namespace Silex
         // デバイス拡張
         std::unordered_set<std::string> requestDeviceExtensions;
         std::vector<const char*>        enableDeviceExtensions;
+
+        // 拡張機能関数
+        ExtensionFunctions extensionFunctions;
     };
 }

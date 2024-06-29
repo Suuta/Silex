@@ -1,44 +1,18 @@
 Scene: Untitled
 Entities:
-  - Entity: 10375330136932207328
+  - Entity: 78345995723053183
     InstanceComponent:
-      name: Cube
+      name: Sphere
       active: true
     TransformComponent:
-      position: [-0.5, 1.5, 0.5]
+      position: [-1.76545894, 1, 1.81600535]
       rotation: [0, 0, 0]
       scale: [1, 1, 1]
     MeshComponent:
-      mesh: 3
-      castShadow: true
-      material:
-        0: 5
-  - Entity: 4659925131673948981
-    InstanceComponent:
-      name: Floor
-      active: true
-    TransformComponent:
-      position: [0, 0, 0]
-      rotation: [0, 0, 0]
-      scale: [32, 1, 32]
-    MeshComponent:
-      mesh: 3
+      mesh: 4
       castShadow: true
       material:
         0: 6754722118927369052
-  - Entity: 13622721094780882598
-    InstanceComponent:
-      name: Cube
-      active: true
-    TransformComponent:
-      position: [0, 1, 0]
-      rotation: [0, 0, 0]
-      scale: [0.999993324, 0.99999404, 1]
-    MeshComponent:
-      mesh: 3
-      castShadow: true
-      material:
-        0: 5
   - Entity: 9391669668212887990
     InstanceComponent:
       name: Lighting
@@ -70,16 +44,42 @@ Entities:
       enableTonemap: true
       exposure: 2
       gammaCorrection: 1
-  - Entity: 78345995723053183
+  - Entity: 13622721094780882598
     InstanceComponent:
-      name: Sphere
+      name: Cube
       active: true
     TransformComponent:
-      position: [-1.76545894, 1, 1.81600535]
+      position: [0, 1, 0]
+      rotation: [0, 0, 0]
+      scale: [0.999993324, 0.99999404, 1]
+    MeshComponent:
+      mesh: 3
+      castShadow: true
+      material:
+        0: 6754722118927369052
+  - Entity: 4659925131673948981
+    InstanceComponent:
+      name: Floor
+      active: true
+    TransformComponent:
+      position: [0, 0, 0]
+      rotation: [0, 0, 0]
+      scale: [32, 1, 32]
+    MeshComponent:
+      mesh: 3
+      castShadow: true
+      material:
+        0: 6754722118927369052
+  - Entity: 10375330136932207328
+    InstanceComponent:
+      name: Cube
+      active: true
+    TransformComponent:
+      position: [-0.5, 1.5, 0.5]
       rotation: [0, 0, 0]
       scale: [1, 1, 1]
     MeshComponent:
-      mesh: 4
+      mesh: 3
       castShadow: true
       material:
-        0: 5
+        0: 6754722118927369052

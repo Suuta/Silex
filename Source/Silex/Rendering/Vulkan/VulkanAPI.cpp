@@ -129,7 +129,7 @@ namespace Silex
     };
 
     // パイプライン
-    struct VulkanPipeline
+    struct VulkanPipeline : public Pipeline
     {
         VkPipeline pipeline = nullptr;
     };
@@ -162,6 +162,7 @@ namespace Silex
         uint32 sizeCount = 0;
         {
             VkDescriptorPoolSize* sizes = sizesPtr;
+
             if (key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER])
             {
                 *sizes = {};
@@ -342,12 +343,25 @@ namespace Silex
             }
         }
 
-        // デバイス機能を取得
-        VkPhysicalDeviceFeatures features;
-        vkGetPhysicalDeviceFeatures(context->GetPhysicalDevice(), &features);
+        VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures = {};
+        VkPhysicalDeviceBufferAddressFeaturesEXT   bufferAdressFeatures       = {};
 
-        // 拡張機能ポインタチェイン
-        void* createInfoNext = nullptr;
+
+        // デバイス機能を取得
+        VkPhysicalDeviceVulkan11Features features_11 = {};
+        features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
+        features_11.pNext = nullptr;
+
+        VkPhysicalDeviceVulkan12Features features_12 = {};
+        features_12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+        features_12.pNext = &features_11;
+
+        VkPhysicalDeviceFeatures2 features2 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+        features2.pNext = &features_12;
+        vkGetPhysicalDeviceFeatures2(context->GetPhysicalDevice(), &features2);
+
+        // 拡張ポインタチェイン
+        void* createInfoNext = &features_12;
 
         // デバイス生成
         VkDeviceCreateInfo deviceCreateInfo = {};
@@ -357,7 +371,7 @@ namespace Silex
         deviceCreateInfo.pQueueCreateInfos       = queueCreateInfos.data();
         deviceCreateInfo.enabledExtensionCount   = context->GetEnabledDeviceExtensions().size();
         deviceCreateInfo.ppEnabledExtensionNames = context->GetEnabledDeviceExtensions().data();
-        deviceCreateInfo.pEnabledFeatures        = &features;
+        deviceCreateInfo.pEnabledFeatures        = &features2.features;
 
         // NOTE:===================================================================
         // 以前の実装では、インスタンスの検証レイヤーとデバイス固有の検証レイヤーが区別されていたが
@@ -967,13 +981,13 @@ namespace Silex
         {
             if (isSrc && !isDst)
             {
-                // 書き込み場合は、正しい順序で読み込まれることを保証する
+                // 正しい順序で書き込まれることを保証する
                 allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             }
 
             if (!isSrc && isDst)
             {
-                // 読み戻しの場合は、ランダムに読み込まれることを許す
+                // ランダムに読み込まれることを許す
                 allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
             }
 
@@ -996,6 +1010,7 @@ namespace Silex
         VulkanBuffer* buffer = Memory::Allocate<VulkanBuffer>();
         buffer->allocationHandle = allocation;
         buffer->allocationSize   = allocationInfo.size;
+        buffer->size             = size;
         buffer->buffer           = vkbuffer;
         buffer->view             = nullptr;
 
@@ -1840,17 +1855,17 @@ namespace Silex
             }
 
             // ユニフォーム テクセル
-            //for (auto& [index, imageSampler] : descriptorsets.storageImages)
+            //for (auto& [index, ] : descriptorsets.)
             //{
             //}
 
             // ストレージ テクセル
-            //for (auto& [index, imageSampler] : descriptorsets.storageImages)
+            //for (auto& [index, ] : descriptorsets.)
             //{
             //}
 
             // インプットアタッチメント
-            //for (auto& [index, imageSampler] : descriptorsets.storageImages)
+            //for (auto& [index, ] : descriptorsets.)
             //{
             //}
 
@@ -1867,6 +1882,7 @@ namespace Silex
             SL_CHECK_VKRESULT(result, nullptr);
 
             layouts[setIndex] = vkdescriptorsetLayout;
+            layoutBindings.clear();
         }
 
         // プッシュ定数レンジ
@@ -1952,6 +1968,8 @@ namespace Silex
     //==================================================================================
     DescriptorSet* VulkanAPI::CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex)
     {
+        VulkanShader* vkShader = (VulkanShader*)shader;
+
         // 同一シグネチャ（型と数の一致）のプールを識別するキー ※同一プールは デフォルトで64個まで確保され、超えた場合は別プールが確保される
         DescriptorSetPoolKey key = {};
 
@@ -2109,13 +2127,13 @@ namespace Silex
 
         // デスクリプタープール取得 (keyをもとに、生成済みのプールがあれば取得、なければ新規生成)
         VkDescriptorPool vkPool = _FindOrCreateDescriptorPool(key);
-        SL_CHECK(vkPool, nullptr);
+        SL_CHECK(!vkPool, nullptr);
 
         VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
         descriptorSetAllocateInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
         descriptorSetAllocateInfo.descriptorPool     = vkPool;
         descriptorSetAllocateInfo.descriptorSetCount = 1;
-        descriptorSetAllocateInfo.pSetLayouts        = &((VulkanShader*)shader)->descriptorsetLayouts[setIndex];
+        descriptorSetAllocateInfo.pSetLayouts        = &vkShader->descriptorsetLayouts[setIndex];
 
         // デスクリプターセット生成
         VkDescriptorSet vkdescriptorset = nullptr;
@@ -2161,7 +2179,7 @@ namespace Silex
     //==================================================================================
     // パイプライン
     //==================================================================================
-    Pipeline* VulkanAPI::CreatePipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PrimitiveTopology primitive, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, int32* colorAttachments, uint32 numColorAttachments, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass)
+    Pipeline* VulkanAPI::CreateGraphicsPipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PrimitiveTopology primitive, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, int32* colorAttachments, uint32 numColorAttachments, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass)
     {
         // ===== 頂点レイアウト =====
         const VkPipelineVertexInputStateCreateInfo* vertexInputStateCreateInfo = nullptr;
@@ -2354,11 +2372,34 @@ namespace Silex
         pipelineCreateInfo.renderPass          = (VkRenderPass)((VulkanRenderPass*)(renderpass))->renderpass;
         pipelineCreateInfo.subpass             = renderSubpass;
 
-        VkPipeline pipeline = nullptr;
-        VkResult result = vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineCreateInfo, nullptr, &pipeline);
+        VkPipeline vkpipeline = nullptr;
+        VkResult result = vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineCreateInfo, nullptr, &vkpipeline);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        return nullptr;
+        VulkanPipeline* pipeline = Memory::Allocate<VulkanPipeline>();
+        pipeline->pipeline = vkpipeline;
+
+        return pipeline;
+    }
+
+    Pipeline* VulkanAPI::CreateComputePipeline(ShaderHandle* shader)
+    {
+        VulkanShader* vkshader = (VulkanShader*)shader;
+
+        VkComputePipelineCreateInfo pipelineCreateInfo = {};
+        pipelineCreateInfo.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+        pipelineCreateInfo.pNext  = nullptr;
+        pipelineCreateInfo.stage  = vkshader->stageCreateInfos[0];
+        pipelineCreateInfo.layout = vkshader->pipelineLayout;
+
+        VkPipeline vkpipeline = nullptr;
+        VkResult result = vkCreateComputePipelines(device, nullptr, 1, &pipelineCreateInfo, nullptr, &vkpipeline);
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        VulkanPipeline* pipeline = Memory::Allocate<VulkanPipeline>();
+        pipeline->pipeline = vkpipeline;
+
+        return pipeline;
     }
 
     void VulkanAPI::DestroyPipeline(Pipeline* pipeline)

@@ -9,11 +9,11 @@ FOR /F "delims=." %%a IN ("%VS_VERSION%") DO (
 )
 
 IF "%VS_MAJOR_VERSION%"=="17" (
-    call Premake\premake5.exe vs2022 --file=ProjectConfig.lua
+    call Premake\premake5.exe vs2022 --file=properties.lua
 ) ELSE IF "%VS_MAJOR_VERSION%"=="16" (
-    call Premake\premake5.exe vs2019 --file=ProjectConfig.lua
+    call Premake\premake5.exe vs2019 --file=properties.lua
 ) ELSE IF "%VS_MAJOR_VERSION%"=="15" (
-    call Premake\premake5.exe vs2017 --file=ProjectConfig.lua
+    call Premake\premake5.exe vs2017 --file=properties.lua
 ) ELSE (
     echo 対応していないVisual Studioバージョンです
 )

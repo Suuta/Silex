@@ -222,6 +222,8 @@ namespace Silex
             std::string fileName = metadata.FilePath.filename().string();
             m_CurrentDirectoryAssetItems[id] = (CreateShared<AssetBrowserItem>(AssetItemType::Asset, id, std::move(fileName), m_AssetIcons[metadata.Type]));
         }
+
+        m_CurrentDirectory = directory;
     }
 
     void AssetBrowserPanel::DrawDirectory(const Shared<DirectoryNode>& node)
@@ -260,13 +262,15 @@ namespace Silex
                     {
                         // アセットパスを
                         std::string filename = std::filesystem::path(filePath).filename().string();
-                        std::string path = m_CurrentDirectory->FilePath.string() + filename;
+
+                        std::string directory = m_CurrentDirectory->FilePath.string();
+                        std::string path      = directory + "/" + filename;
 
                         // 新規アセット生成
                         Shared<Material> materialAsset = AssetManager::Get()->CreateAsset<Material>(path);
 
                         // アセットブラウザのアセットリストに追加
-                        m_CurrentDirectoryAssetItems[materialAsset->GetAssetID()] = (CreateShared<AssetBrowserItem>(AssetItemType::Asset, materialAsset->GetAssetID(), std::move(filename)));
+                        m_CurrentDirectoryAssetItems[materialAsset->GetAssetID()] = (CreateShared<AssetBrowserItem>(AssetItemType::Asset, materialAsset->GetAssetID(), std::move(filename), m_AssetIcons[AssetType::Material]));
                     }
                 }
 

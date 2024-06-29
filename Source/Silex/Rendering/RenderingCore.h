@@ -550,7 +550,6 @@ namespace Silex
         PIPELINE_STAGE_HOST_BIT                           = SL_BIT(14),
         PIPELINE_STAGE_ALL_GRAPHICS_BIT                   = SL_BIT(15),
         PIPELINE_STAGE_ALL_COMMANDS_BIT                   = SL_BIT(16),
-        PIPELINE_STAGE_NONE                               = 0,
     };
 
     enum BarrierAccessBits
@@ -707,8 +706,6 @@ namespace Silex
         uint32               binding = INVALID_RENDER_ID;
         std::vector<Handle*> handles;
     };
-
-
 
     //================================================
     // シェーダー
@@ -964,11 +961,7 @@ namespace Silex
     union RenderPassClearValue
     {
         glm::vec4 color = {};
-        struct
-        {
-            float  depth;
-            uint32 stencil;
-        };
+        struct { float  depth; uint32 stencil; };
     };
 
     struct AttachmentClear

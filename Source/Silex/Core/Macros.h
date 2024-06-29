@@ -28,7 +28,7 @@
 // インターフェース抽象化ハンドル
 #define SL_HANDLE(name) using name = Handle;
 
-// プラットフォーム固有
+// プラットフォーム固有 (Windowsオンリーなので実質、分岐はしない)
 #if _MSC_VER
     #define SL_DEBUG_BREAK() __debugbreak();
     #define SL_FORCEINLINE   __forceinline
@@ -101,9 +101,9 @@
 //===========================================================================================================================
 // ■Class ランタイム型比較
 //---------------------------------------------------------------------------------------------------------------------------
-// ClassID:   整数型 識別子
-// ClassName: 文字列 識別子
-// HashID:    ハッシュ値
+// ClassID:   整数型 クラス識別子
+// ClassName: 文字列 クラス識別子
+// HashID:    クラスハッシュ値
 // Super:     親クラス型
 //===========================================================================================================================
 
@@ -152,6 +152,6 @@ private:\
     static constexpr decltype(T::name, bool{}) call(T)   { return std::true_type::value;  } \
     static constexpr bool                      call(...) { return std::false_type::value; } \
 public:\
-    static constexpr bool inline value = name##_t::call(type{});\
+    static constexpr bool inline defined = name##_t::call(type{});\
 };
 
