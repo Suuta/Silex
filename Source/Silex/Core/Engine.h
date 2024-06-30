@@ -48,6 +48,10 @@ namespace Silex
 
     private:
 
+        RenderingDevice* renderingDevice = nullptr;
+
+    private:
+
         Editor*   editor   = nullptr;
         EditorUI* editorUI = nullptr;
 

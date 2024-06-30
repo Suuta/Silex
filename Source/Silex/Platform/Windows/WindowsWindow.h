@@ -27,6 +27,10 @@ namespace Silex
 
         bool SetupRenderingContext() override;
         void CleanupRenderingContext() override;
+
+        bool CreateSwapChain() override;
+        void DestroySwapChain() override;
+
         void PumpMessage()override;
 
         glm::ivec2 GetSize()      const override;
@@ -45,14 +49,15 @@ namespace Silex
         GLFWwindow*       GetGLFWWindow()   const override;
         const WindowData& GetWindowData()   const override;
 
-        Surface* GetSurface() const override;
+        Surface*          GetSurface()          const override;
+        RenderingContext* GetRenderingContext() const override;
 
     private:
 
         // レンダリングコンテキスト
         RenderingContext* renderingContext = nullptr;
-        RenderingDevice*  renderingDevice  = nullptr;
         Surface*          renderingSurface = nullptr;
+        SwapChain*        swapchain        = nullptr;
 
         // ウィンドウデータ
         GLFWwindow* window = nullptr;

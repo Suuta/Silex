@@ -23,17 +23,23 @@ namespace Silex
         ~RenderingDevice();
 
         bool Initialize(RenderingContext* context);
-        bool CreateSwapChain();
+        void Finalize();
+
+        SwapChain* CreateSwapChain(Surface* surface);
+        void DestoySwapChain(SwapChain* swapchain);
+
+        static RenderingDevice* Get();
 
     private:
 
         // フレームデータ
         struct FrameData
         {
-            CommandPool*   commandPool   = nullptr;
-            CommandBuffer* commandBuffer = nullptr;
-            Semaphore*     semaphore     = nullptr;
-            Fence*         fence         = nullptr;
+            CommandPool*   commandPool      = nullptr;
+            CommandBuffer* commandBuffer    = nullptr;
+            Semaphore*     presentSemaphore = nullptr;
+            Semaphore*     renderSemaphore  = nullptr;
+            Fence*         fence            = nullptr;
         };
 
         std::vector<FrameData> frameData  = {};
@@ -46,8 +52,6 @@ namespace Silex
 
         QueueFamily   graphicsQueueFamily = INVALID_RENDER_ID;
         CommandQueue* graphicsQueue       = nullptr;
-
-        SwapChain* swapchain = nullptr;
 
     private:
 

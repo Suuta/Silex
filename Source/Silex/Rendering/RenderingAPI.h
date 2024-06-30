@@ -46,6 +46,9 @@ namespace Silex
         //--------------------------------------------------
         // セマフォ
         //--------------------------------------------------
+#ifdef CreateSemaphore
+#undef CreateSemaphore // マクロを使わずに CreateSemaphoreA/W を使えばよい
+#endif
         virtual Semaphore* CreateSemaphore() = 0;
         virtual void DestroySemaphore(Semaphore* semaphore) = 0;
 

@@ -141,23 +141,31 @@ namespace Silex
         renderingSurface = renderingContext->CreateSurface();
         SL_CHECK(!renderingSurface, false);
 
-        // レンダリングデバイス生成 (描画APIを抽象化)
-        renderingDevice = Memory::Allocate<RenderingDevice>();
-        result = renderingDevice->Initialize(renderingContext);
-        SL_CHECK(!result, false);
-
-        // スワップチェイン生成
-        result = renderingDevice->CreateSwapChain();
-        SL_CHECK(!result, false);
-
         return true;
     }
 
     void WindowsWindow::CleanupRenderingContext()
     {
-        Memory::Deallocate(renderingDevice);
         renderingContext->DestroySurface(renderingSurface);
         Memory::Deallocate(renderingContext);
+    }
+
+    bool WindowsWindow::CreateSwapChain()
+    {
+        bool result = false;
+
+        swapchain = RenderingDevice::Get()->CreateSwapChain(renderingSurface);
+        SL_CHECK(!swapchain, false);
+
+        return true;
+    }
+
+    void WindowsWindow::DestroySwapChain()
+    {
+        if (swapchain)
+        {
+            RenderingDevice::Get()->DestoySwapChain(swapchain);
+        }
     }
 
     glm::ivec2 WindowsWindow::GetSize() const
@@ -231,6 +239,11 @@ namespace Silex
     Surface* WindowsWindow::GetSurface() const
     {
         return renderingSurface;
+    }
+
+    RenderingContext* WindowsWindow::GetRenderingContext() const
+    {
+        return renderingContext;
     }
 
     

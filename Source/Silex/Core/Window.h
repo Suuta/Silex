@@ -99,6 +99,10 @@ namespace Silex
         virtual bool SetupRenderingContext() = 0;
         virtual void CleanupRenderingContext() = 0;
 
+        // スワップチェイン生成
+        virtual bool CreateSwapChain()  = 0;
+        virtual void DestroySwapChain() = 0;
+
         // ウィンドウメッセージ
         virtual void PumpMessage() = 0;
 
@@ -118,10 +122,11 @@ namespace Silex
         virtual void        SetTitle(const char* title) = 0;
 
         // ウィンドウデータ
-        virtual void*             GetWindowHandle() const = 0;
-        virtual GLFWwindow*       GetGLFWWindow()   const = 0;
-        virtual const WindowData& GetWindowData()   const = 0;
-        virtual Surface*          GetSurface()      const = 0;
+        virtual void*             GetWindowHandle()     const = 0;
+        virtual GLFWwindow*       GetGLFWWindow()       const = 0;
+        virtual const WindowData& GetWindowData()       const = 0;
+        virtual Surface*          GetSurface()          const = 0;
+        virtual RenderingContext* GetRenderingContext() const = 0;
 
     public:
 

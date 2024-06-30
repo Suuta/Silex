@@ -704,7 +704,11 @@ namespace Silex
     {
         DescriptorType       type    = DESCRIPTOR_TYPE_MAX;
         uint32               binding = INVALID_RENDER_ID;
-        std::vector<Handle*> handles;
+        std::vector<Handle*> handles = {};
+
+        Handle* image   = nullptr;
+        Handle* sampler = nullptr;
+        Handle* buffer  = nullptr;
     };
 
     //================================================

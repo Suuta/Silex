@@ -17,6 +17,11 @@ namespace Silex
 
 
 
+    RenderingDevice* RenderingDevice::Get()
+    {
+        return instance;
+    }
+
     RenderingDevice::RenderingDevice()
     {
         instance = this;
@@ -24,17 +29,7 @@ namespace Silex
 
     RenderingDevice::~RenderingDevice()
     {
-        api->DestroySwapChain(swapchain);
-
-        for (uint32 i = 0; i < frameData.size(); i++)
-        {
-            api->DestroyCommandPool(frameData[i].commandPool);
-            api->DestroySemaphore(frameData[i].semaphore);
-            api->DestroyFence(frameData[i].fence);
-        }
-
-        api->DestroyCommandQueue(graphicsQueue);
-        renderingContext->DestroyRendringAPI(api);
+        
 
         instance = nullptr;
     }
@@ -68,8 +63,11 @@ namespace Silex
             SL_CHECK(!frameData[i].commandBuffer, false);
 
             // セマフォ生成
-            frameData[i].semaphore = api->CreateSemaphore();
-            SL_CHECK(!frameData[i].semaphore, false);
+            frameData[i].presentSemaphore = api->CreateSemaphore();
+            SL_CHECK(!frameData[i].presentSemaphore, false);
+
+            frameData[i].renderSemaphore = api->CreateSemaphore();
+            SL_CHECK(!frameData[i].renderSemaphore, false);
 
             // フェンス生成
             frameData[i].fence = api->CreateFence();
@@ -81,23 +79,26 @@ namespace Silex
         //----------------------------------------
         //  (set: 0, bind: 0) uniform SceneData
         //  (set: 1, bind: 0) uniform GLTFMaterialData
-        //   push_constant: constants
+        //   push_constant: Constants
         //----------------------------------------
         // FRAGMENT
         //----------------------------------------
-        //  (set: 0, bind: 0) uniform SceneData
+        //  (set: 0, bind: 0) uniform       SceneData
         //  (set: 1, bind: 1) sampled_image colorTex
         //  (set: 1, bind: 2) sampled_image metalRoughTex
 
 
+        //----------------------------------------------
         // (set: 0, bind: 0) uniform SceneData
         //----------------------------------------------
-        // (set: 1, bind: 0) uniform GLTFMaterialData
+        // (set: 1, bind: 0) uniform       GLTFMaterialData
         // (set: 1, bind: 1) sampled_image colorTex
         // (set: 1, bind: 2) sampled_image metalRoughTex
         //----------------------------------------------
         //  push_constant: constants
+        //----------------------------------------------
 
+#if 0
         struct SceneData
         {
             glm::mat4 view;
@@ -119,20 +120,18 @@ namespace Silex
         DescriptorInfo info = {};
         info.binding = 0;
         info.type    = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        info.handles.push_back(uniform);
+        info.buffer  = uniform;
 
         DescriptorSet* set = api->CreateDescriptorSet(1, &info, shader, 0);
 
         byte* mapped = api->MapBuffer(uniform);
-
         memcpy(mapped, &sd, sizeof(SceneData));
-
         api->UnmapBuffer(uniform);
-
 
         api->DestroyDescriptorSet(set);
         api->DestroyShader(shader);
         api->DestroyBuffer(uniform);
+#endif
 
         //======================================================================================================
         // TODO: DescriptorInfo を生成するクラスを実装する ???
@@ -150,19 +149,41 @@ namespace Silex
         return true;
     }
 
-
-    bool RenderingDevice::CreateSwapChain()
+    void RenderingDevice::Finalize()
     {
+        for (uint32 i = 0; i < frameData.size(); i++)
+        {
+            api->DestroyCommandPool(frameData[i].commandPool);
+            api->DestroySemaphore(frameData[i].presentSemaphore);
+            api->DestroySemaphore(frameData[i].renderSemaphore);
+            api->DestroyFence(frameData[i].fence);
+        }
+
+        api->DestroyCommandQueue(graphicsQueue);
+        renderingContext->DestroyRendringAPI(api);
+    }
+
+
+    SwapChain* RenderingDevice::CreateSwapChain(Surface* surface)
+    {
+        SwapChain* swapchain = nullptr;
         bool result = false;
-        Surface* surface = Window::Get()->GetSurface();
 
         swapchain = api->CreateSwapChain(surface);
-        SL_CHECK(!swapchain, false);
+        SL_CHECK(!swapchain, nullptr);
 
         result = api->ResizeSwapChain(swapchain, swapchainBufferCount, VSYNC_MODE_DISABLED);
-        SL_CHECK(!result, false);
+        SL_CHECK(!result, nullptr);
 
-        return true;
+        return swapchain;
+    }
+
+    void RenderingDevice::DestoySwapChain(SwapChain* swapchain)
+    {
+        if (swapchain)
+        {
+            api->DestroySwapChain(swapchain);
+        }
     }
 }
 

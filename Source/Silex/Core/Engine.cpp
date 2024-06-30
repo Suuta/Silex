@@ -5,6 +5,7 @@
 #include "Asset/Asset.h"
 #include "Editor/SplashImage.h"
 #include "Rendering/Renderer.h"
+#include "Rendering/RenderingDevice.h"
 #include "Rendering/OpenGL/GLEditorUI.h"
 
 
@@ -80,13 +81,25 @@ namespace Silex
         SL_CHECK(!result, false);
 
 #if !SL_REGACY
+
         // レンダリングコンテキスト
         result = window->SetupRenderingContext();
         SL_CHECK(!result, false);
+
+        // レンダリングデバイス生成 (描画APIを抽象化)
+        renderingDevice = Memory::Allocate<RenderingDevice>();
+        result = renderingDevice->Initialize(window->GetRenderingContext());
+        SL_CHECK(!result, false);
+
+        // スワップチェイン生成
+        result = window->CreateSwapChain();
+        SL_CHECK(!result, false);
+
 #endif
 
         // コールバック登録
         window->BindWindowCloseEvent(this,  &Engine::OnWindowClose);
+
 #if SL_REGACY
         window->BindWindowResizeEvent(this, &Engine::OnWindowResize);
         window->BindMouseMoveEvent(this,    &Engine::OnMouseMove);
@@ -158,12 +171,16 @@ namespace Silex
         Renderer::Get()->Shutdown();
 #endif
 
+        // スワップチェイン破棄
+        window->DestroySwapChain();
+
+        // レンダリングデバイス破棄
+        renderingDevice->Finalize();
+        Memory::Deallocate(renderingDevice);
+
         // ウィンドウ破棄
-        if (window)
-        {
-            window->Finalize();
-            Memory::Deallocate(window);
-        }
+        window->Finalize();
+        Memory::Deallocate(window);
     }
 
     // OnWindowCloseイベント（Xボタン / Alt + F4）以外で、エンジンループを終了させる場合に使用
