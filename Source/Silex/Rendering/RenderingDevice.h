@@ -23,10 +23,11 @@ namespace Silex
         ~RenderingDevice();
 
         bool Initialize(RenderingContext* context);
-        void Finalize();
 
-        SwapChain* CreateSwapChain(Surface* surface);
+        SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode);
+        bool ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode);
         void DestoySwapChain(SwapChain* swapchain);
+
 
         static RenderingDevice* Get();
 

@@ -8,7 +8,7 @@ namespace Silex
 {
     struct WindowsWindowHandle
     {
-        HWND      windowHandle = nullptr;
+        HWND      windowHandle   = nullptr;
         HINSTANCE instanceHandle = nullptr;
     };
 
@@ -23,41 +23,43 @@ namespace Silex
         ~WindowsWindow();
 
         bool Initialize() override;
-        void Finalize()   override;
+        void ProcessMessage()override;
 
-        bool SetupRenderingContext() override;
-        void CleanupRenderingContext() override;
+        // ウィンドウステート
+        void Maximize() override;
+        void Minimize() override;
+        void Restore()  override;
+        void Show()     override;
+        void Hide()     override;
 
-        bool CreateSwapChain() override;
-        void DestroySwapChain() override;
+        // Get / Set
+        void        SetTitle(const char* title)       override;
+        const char* GetTitle()                  const override;
+        glm::ivec2  GetSize()                   const override;
+        glm::ivec2  GetWindowPos()              const override;
+        void*       GetPlatformHandle()         const override;
+        GLFWwindow* GetGLFWWindow()             const override;
+        WindowData* GetWindowData()             const override;
+        Surface*    GetSurface()                const override;
 
-        void PumpMessage()override;
+        // レンダーコンテキスト
+        bool SetupWindowContext(RenderingContext* context)   override;
+        void CleanupWindowContext(RenderingContext* context) override;
 
-        glm::ivec2 GetSize()      const override;
-        glm::ivec2 GetWindowPos() const override;
-
-        virtual void Maximize() override;
-        virtual void Minimize() override;
-        virtual void Restore()  override;
-        virtual void Show()     override;
-        virtual void Hide()     override;
-
-        virtual const char* GetTitle() const            override;
-        virtual void        SetTitle(const char* title) override;
-
-        void*             GetWindowHandle() const override;
-        GLFWwindow*       GetGLFWWindow()   const override;
-        const WindowData& GetWindowData()   const override;
-
-        Surface*          GetSurface()          const override;
-        RenderingContext* GetRenderingContext() const override;
+        // ウィンドウイベント
+        void OnWindowClose(WindowCloseEvent& e)                 override;
+        void OnWindowResize(WindowResizeEvent& e)               override;
+        void OnKeyPressed(KeyPressedEvent& e)                   override;
+        void OnKeyReleased(KeyReleasedEvent& e)                 override;
+        void OnMouseButtonPressed(MouseButtonPressedEvent& e)   override;
+        void OnMouseButtonReleased(MouseButtonReleasedEvent& e) override;
+        void OnMouseScroll(MouseScrollEvent& e)                 override;
+        void OnMouseMove(MouseMoveEvent& e)                     override;
 
     private:
 
-        // レンダリングコンテキスト
-        RenderingContext* renderingContext = nullptr;
-        Surface*          renderingSurface = nullptr;
-        SwapChain*        swapchain        = nullptr;
+        Surface*   renderingSurface = nullptr;
+        SwapChain* swapchain        = nullptr;
 
         // ウィンドウデータ
         GLFWwindow* window = nullptr;

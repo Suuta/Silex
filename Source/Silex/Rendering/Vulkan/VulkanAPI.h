@@ -82,8 +82,8 @@ namespace Silex
         //--------------------------------------------------
         // スワップチェイン
         //--------------------------------------------------
-        SwapChain* CreateSwapChain(Surface* surface) override;
-        bool ResizeSwapChain(SwapChain* swapchain, uint32 requestFramebufferCount, VSyncMode mode) override;
+        SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) override;
+        bool ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) override;
         FramebufferHandle* GetSwapChainNextFramebuffer(SwapChain* swapchain, Semaphore* semaphore) override;
         RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) override;
         RenderingFormat GetSwapChainFormat(SwapChain* swapchain) override;

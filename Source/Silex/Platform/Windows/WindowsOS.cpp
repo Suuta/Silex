@@ -80,7 +80,7 @@ namespace Silex
     {
         while (true)
         {
-            Window::Get()->PumpMessage();
+            Window::Get()->ProcessMessage();
 
             if (!Engine::Get()->MainLoop())
             {
@@ -184,9 +184,11 @@ namespace Silex
         OPENFILENAMEA ofn;
         CHAR szFile[260] = { 0 };
 
+        WindowsWindowHandle* handle = (WindowsWindowHandle*)Window::Get()->GetPlatformHandle();
+
         std::memset(&ofn, 0, sizeof(OPENFILENAME));
         ofn.lStructSize  = sizeof(OPENFILENAME);
-        ofn.hwndOwner    = (HWND)Window::Get()->GetWindowHandle();
+        ofn.hwndOwner    = handle->windowHandle;
         ofn.lpstrFile    = szFile;
         ofn.nMaxFile     = sizeof(szFile);
         ofn.lpstrFilter  = filter;
@@ -204,9 +206,11 @@ namespace Silex
         OPENFILENAMEA ofn;
         CHAR szFile[260] = { 0 };
 
+        WindowsWindowHandle* handle = (WindowsWindowHandle*)Window::Get()->GetPlatformHandle();
+
         std::memset(&ofn, 0, sizeof(OPENFILENAME));
         ofn.lStructSize  = sizeof(OPENFILENAME);
-        ofn.hwndOwner    = (HWND)Window::Get()->GetWindowHandle();
+        ofn.hwndOwner    = handle->windowHandle;
         ofn.lpstrFile    = szFile;
         ofn.nMaxFile     = sizeof(szFile);
         ofn.lpstrFilter  = filter;

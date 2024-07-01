@@ -121,7 +121,7 @@ namespace Silex
                 enableInstanceExtensions.push_back(itr->c_str());
             }
         }
-
+        
         // バリデーションが有効な場合
         if (enableValidation)
         {

@@ -628,8 +628,14 @@ namespace Silex
     //==================================================================================
     // スワップチェイン
     //==================================================================================
-    SwapChain* VulkanAPI::CreateSwapChain(Surface* surface)
+    SwapChain* VulkanAPI::CreateSwapChain(Surface* surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode)
     {
+        if (width == 0 || height == 0)
+        {
+            SL_LOG_LOCATION_ERROR("width, height 共に 0以上である必要があります");
+            return nullptr;
+        }
+
         VkResult result;
 
         VkPhysicalDevice physicalDevice = context->GetPhysicalDevice();
@@ -709,55 +715,39 @@ namespace Silex
         VulkanRenderPass* renderpass = Memory::Allocate<VulkanRenderPass>();
         renderpass->renderpass = vkRenderPass;
 
-        VulkanSwapChain* swapchain = Memory::Allocate<VulkanSwapChain>();
-        swapchain->surface    = ((VulkanSurface*)surface);
-        swapchain->format     = format;
-        swapchain->colorspace = colorspace;
-        swapchain->renderpass = renderpass;
-
-        return swapchain;
-    }
-
-    bool VulkanAPI::ResizeSwapChain(SwapChain* swapchain, uint32 requestFramebufferCount, VSyncMode mode)
-    {
-        VkPhysicalDevice physicalDevice = context->GetPhysicalDevice();
-        VulkanSwapChain* vkSwapchain = (VulkanSwapChain*)swapchain;
-        VulkanSurface* surface = vkSwapchain->surface;
+        VulkanSwapChain* vkSwapchain = Memory::Allocate<VulkanSwapChain>();
+        vkSwapchain->surface    = ((VulkanSurface*)surface);
+        vkSwapchain->format     = format;
+        vkSwapchain->colorspace = colorspace;
+        vkSwapchain->renderpass = renderpass;
 
         // サーフェース仕様取得
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
-        VkResult result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface->surface, &surfaceCapabilities);
-        SL_CHECK_VKRESULT(result, false);
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vkSurface, &surfaceCapabilities);
+        SL_CHECK_VKRESULT(result, nullptr);
 
         // サイズ
         VkExtent2D extent;
         if (surfaceCapabilities.currentExtent.width == 0xFFFFFFFF) // == (uint32)-1
         {
             // 0xFFFFFFFF の場合は、仕様が許す限り好きなサイズで生成できることを表す
-            extent.width  = std::clamp(surface->width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
-            extent.height = std::clamp(surface->height, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
+            extent.width  = std::clamp(width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
+            extent.height = std::clamp(height, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
         }
         else
         {
             // 0xFFFFFFFF 以外は、指定された値で生成する必要がある
             extent = surfaceCapabilities.currentExtent;
-            surface->width  = extent.width;
-            surface->height = extent.height;
-        }
-
-        if (surface->width == 0 || surface->height == 0)
-        {
-            return false;
         }
 
         // プレゼントモード
         uint32 presentModeCount = 0;
-        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface->surface, &presentModeCount, nullptr);
-        SL_CHECK_VKRESULT(result, false);
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vkSurface, &presentModeCount, nullptr);
+        SL_CHECK_VKRESULT(result, nullptr);
 
         VkPresentModeKHR* presentModes = SL_STACK(VkPresentModeKHR, presentModeCount);
-        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface->surface, &presentModeCount, presentModes);
-        SL_CHECK_VKRESULT(result, false);
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vkSurface, &presentModeCount, presentModes);
+        SL_CHECK_VKRESULT(result, nullptr);
 
         VkPresentModeKHR selectMode = (VkPresentModeKHR)mode;
         bool findRequestMode = false;
@@ -766,7 +756,6 @@ namespace Silex
             if (selectMode == presentModes[i])
             {
                 findRequestMode = true;
-                surface->vsyncMode = (VSyncMode)selectMode;
                 break;
             }
         }
@@ -774,9 +763,7 @@ namespace Silex
         // 見つからない場合は、必ずサポートされている（VK_PRESENT_MODE_FIFO_KHR）モードを選択
         if (!findRequestMode)
         {
-            surface->vsyncMode = VSYNC_MODE_ENABLED;
-            selectMode         = VK_PRESENT_MODE_FIFO_KHR;
-
+            selectMode = VK_PRESENT_MODE_FIFO_KHR;
             SL_LOG_WARN("指定されたプレゼントモードがサポートされていないので、FIFOモードが選択されました。");
         }
 
@@ -819,7 +806,203 @@ namespace Silex
         // スワップチェイン生成
         VkSwapchainCreateInfoKHR swapCreateInfo = {};
         swapCreateInfo.sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-        swapCreateInfo.surface          = surface->surface;
+        swapCreateInfo.surface          = vkSurface;
+        swapCreateInfo.minImageCount    = requestImageCount;
+        swapCreateInfo.imageFormat      = vkSwapchain->format;
+        swapCreateInfo.imageColorSpace  = vkSwapchain->colorspace;
+        swapCreateInfo.imageExtent      = extent;
+        swapCreateInfo.imageArrayLayers = 1;
+        swapCreateInfo.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        swapCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        swapCreateInfo.preTransform     = surfaceTransformBits;
+        swapCreateInfo.compositeAlpha   = compositeAlpha;
+        swapCreateInfo.presentMode      = selectMode;
+        swapCreateInfo.clipped          = true;
+
+        //------------------------------------------------------------------------------------------
+        // NOTE: VK_ERROR_NATIVE_WINDOW_IN_USE_KHR OpenGL でウィンドウコンテキストが生成されている場合に発生
+        //------------------------------------------------------------------------------------------
+        result = CreateSwapchainKHR(device, &swapCreateInfo, nullptr, &vkSwapchain->swapchain);
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        // イメージ取得
+        uint32 imageCount = 0;
+        result = GetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, nullptr);
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        vkSwapchain->images.resize(imageCount);
+        result = GetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, vkSwapchain->images.data());
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        // イメージビュー生成
+        VkImageViewCreateInfo viewCreateInfo = {};
+        viewCreateInfo.sType                       = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewCreateInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
+        viewCreateInfo.format                      = vkSwapchain->format;
+        viewCreateInfo.components.r                = VK_COMPONENT_SWIZZLE_R;
+        viewCreateInfo.components.g                = VK_COMPONENT_SWIZZLE_G;
+        viewCreateInfo.components.b                = VK_COMPONENT_SWIZZLE_B;
+        viewCreateInfo.components.a                = VK_COMPONENT_SWIZZLE_A;
+        viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        viewCreateInfo.subresourceRange.levelCount = 1;
+        viewCreateInfo.subresourceRange.layerCount = 1;
+
+        for (uint32 i = 0; i < imageCount; i++)
+        {
+            VkImageView view = nullptr;
+            viewCreateInfo.image = vkSwapchain->images[i];
+
+            result = vkCreateImageView(device, &viewCreateInfo, nullptr, &view);
+            SL_CHECK_VKRESULT(result, nullptr);
+
+            vkSwapchain->views.push_back(view);
+        }
+
+        // フレームバッファ生成
+        VkFramebufferCreateInfo framebufferCreateInfo = {};
+        framebufferCreateInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferCreateInfo.renderPass      = vkSwapchain->renderpass->renderpass;
+        framebufferCreateInfo.attachmentCount = 1;
+        framebufferCreateInfo.width           = extent.width;
+        framebufferCreateInfo.height          = extent.height;
+        framebufferCreateInfo.layers          = 1;
+
+        for (uint32 i = 0; i < imageCount; i++)
+        {
+            framebufferCreateInfo.pAttachments = &vkSwapchain->views[i];
+
+            VkFramebuffer framebuffer = nullptr;
+            result = vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &framebuffer);
+            SL_CHECK_VKRESULT(result, nullptr);
+
+            VulkanFramebuffer* vkFramebuffer = Memory::Allocate<VulkanFramebuffer>();
+            vkFramebuffer->framebuffer = framebuffer;
+
+            vkSwapchain->framebuffers.push_back(vkFramebuffer);
+        }
+
+        return vkSwapchain;
+    }
+
+    bool VulkanAPI::ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode)
+    {
+        if (width == 0 || height == 0)
+        {
+            return true;
+        }
+
+        VkPhysicalDevice physicalDevice = context->GetPhysicalDevice();
+        VulkanSwapChain* vkSwapchain    = (VulkanSwapChain*)swapchain;
+        VulkanSurface*   vkSurface      = vkSwapchain->surface;
+
+        // 解放コード
+        {
+            // フレームバッファ破棄
+            for (uint32 i = 0; i < vkSwapchain->framebuffers.size(); i++)
+            {
+                VulkanFramebuffer* vkfb = (VulkanFramebuffer*)vkSwapchain->framebuffers[i];
+                vkDestroyFramebuffer(device, vkfb->framebuffer, nullptr);
+            }
+
+            // イメージビュー破棄
+            for (uint32 i = 0; i < vkSwapchain->images.size(); i++)
+            {
+                vkDestroyImageView(device, vkSwapchain->views[i], nullptr);
+            }
+
+            // スワップチェイン破棄
+            DestroySwapchainKHR(device, vkSwapchain->swapchain, nullptr);
+
+            vkSwapchain->framebuffers.clear();
+            vkSwapchain->views.clear();
+        }
+
+        // サーフェース仕様取得
+        VkSurfaceCapabilitiesKHR surfaceCapabilities;
+        VkResult result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vkSurface->surface, &surfaceCapabilities);
+        SL_CHECK_VKRESULT(result, false);
+
+        // サイズ
+        VkExtent2D extent;
+        if (surfaceCapabilities.currentExtent.width == 0xFFFFFFFF) // == (uint32)-1
+        {
+            // 0xFFFFFFFF の場合は、仕様が許す限り好きなサイズで生成できることを表す
+            extent.width  = std::clamp(width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
+            extent.height = std::clamp(height, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
+        }
+        else
+        {
+            // 0xFFFFFFFF 以外は、指定された値で生成する必要がある
+            extent = surfaceCapabilities.currentExtent;
+        }
+
+        // プレゼントモード
+        uint32 presentModeCount = 0;
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vkSurface->surface, &presentModeCount, nullptr);
+        SL_CHECK_VKRESULT(result, false);
+
+        VkPresentModeKHR* presentModes = SL_STACK(VkPresentModeKHR, presentModeCount);
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vkSurface->surface, &presentModeCount, presentModes);
+        SL_CHECK_VKRESULT(result, false);
+
+        VkPresentModeKHR selectMode = (VkPresentModeKHR)mode;
+        bool findRequestMode = false;
+        for (uint32 i = 0; i < presentModeCount; i++)
+        {
+            if (selectMode == presentModes[i])
+            {
+                findRequestMode = true;
+                break;
+            }
+        }
+
+        // 見つからない場合は、必ずサポートされている（VK_PRESENT_MODE_FIFO_KHR）モードを選択
+        if (!findRequestMode)
+        {
+            selectMode = VK_PRESENT_MODE_FIFO_KHR;
+            SL_LOG_WARN("指定されたプレゼントモードがサポートされていないので、FIFOモードが選択されました。");
+        }
+
+        // トランスフォーム情報（回転・反転）
+        VkSurfaceTransformFlagBitsKHR surfaceTransformBits;
+        if (surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+        {
+            surfaceTransformBits = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+        }
+        else
+        {
+            surfaceTransformBits = surfaceCapabilities.currentTransform;
+        }
+
+        // アルファモードが有効なら（現状: 使用しない）
+        VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        if (false || !(surfaceCapabilities.supportedCompositeAlpha & compositeAlpha))
+        {
+            VkCompositeAlphaFlagBitsKHR compositeAlphaFlags[4] =
+            {
+                VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+                VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+                VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+                VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+            };
+
+            for (uint32 i = 0; i < std::size(compositeAlphaFlags); i++)
+            {
+                if (surfaceCapabilities.supportedCompositeAlpha & compositeAlphaFlags[i])
+                {
+                    compositeAlpha = compositeAlphaFlags[i];
+                    break;
+                }
+            }
+        }
+
+        // フレームバッファ数決定（現状: 3）
+        uint32 requestImageCount = std::clamp(requestFramebufferCount, surfaceCapabilities.minImageCount, surfaceCapabilities.maxImageCount);
+
+        // スワップチェイン生成
+        VkSwapchainCreateInfoKHR swapCreateInfo = {};
+        swapCreateInfo.sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        swapCreateInfo.surface          = vkSurface->surface;
         swapCreateInfo.minImageCount    = requestImageCount;
         swapCreateInfo.imageFormat      = vkSwapchain->format;
         swapCreateInfo.imageColorSpace  = vkSwapchain->colorspace;
@@ -876,8 +1059,8 @@ namespace Silex
         framebufferCreateInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferCreateInfo.renderPass      = vkSwapchain->renderpass->renderpass;
         framebufferCreateInfo.attachmentCount = 1;
-        framebufferCreateInfo.width           = surface->width;
-        framebufferCreateInfo.height          = surface->height;
+        framebufferCreateInfo.width           = extent.width;
+        framebufferCreateInfo.height          = extent.height;
         framebufferCreateInfo.layers          = 1;
 
         for (uint32 i = 0; i < imageCount; i++)

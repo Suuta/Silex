@@ -5,14 +5,15 @@
 #include "Asset/Asset.h"
 #include "Editor/SplashImage.h"
 #include "Rendering/Renderer.h"
+#include "Rendering/RenderingContext.h"
 #include "Rendering/RenderingDevice.h"
 #include "Rendering/OpenGL/GLEditorUI.h"
 
 
 namespace Silex
 {
-    static Engine* engine = nullptr;
-    static Window* window = nullptr;
+    static Engine* engine     = nullptr;
+    static Window* mainWindow = nullptr;
 
 
     bool LaunchEngine()
@@ -76,56 +77,70 @@ namespace Silex
         bool result = false;
 
         // ウィンドウ
-        window = Window::Create("Silex", 1280, 720);
-        result = window->Initialize();
+        mainWindow = Window::Create("Silex", 1280, 720);
+        result = mainWindow->Initialize();
         SL_CHECK(!result, false);
 
-#if !SL_REGACY
-
-        // レンダリングコンテキスト
-        result = window->SetupRenderingContext();
+        // レンダリングコンテキスト生成
+        renderingContext = RenderingContext::Create(mainWindow->GetPlatformHandle());
+        result = renderingContext->Initialize(true);
         SL_CHECK(!result, false);
 
         // レンダリングデバイス生成 (描画APIを抽象化)
         renderingDevice = Memory::Allocate<RenderingDevice>();
-        result = renderingDevice->Initialize(window->GetRenderingContext());
+        result = renderingDevice->Initialize(renderingContext);
         SL_CHECK(!result, false);
 
-        // スワップチェイン生成
-        result = window->CreateSwapChain();
+        // ウィンドウコンテキスト生成
+        result = mainWindow->SetupWindowContext(renderingContext);
         SL_CHECK(!result, false);
-
-#endif
 
         // コールバック登録
-        window->BindWindowCloseEvent(this,  &Engine::OnWindowClose);
-
-#if SL_REGACY
-        window->BindWindowResizeEvent(this, &Engine::OnWindowResize);
-        window->BindMouseMoveEvent(this,    &Engine::OnMouseMove);
-        window->BindMouseScrollEvent(this,  &Engine::OnMouseScroll);
-#endif
+        mainWindow->BindWindowCloseEvent(this,  &Engine::OnWindowClose);
+        mainWindow->BindWindowResizeEvent(this, &Engine::OnWindowResize);
+        //mainWindow->BindMouseMoveEvent(this,    &Engine::OnMouseMove);
+        //mainWindow->BindMouseScrollEvent(this,  &Engine::OnMouseScroll);
 
 
-#if SL_REGACY
         // レンダラー
-        Renderer::Get()->Init();
+        //Renderer::Get()->Init();
 
         // アセットマネージャー
-        AssetManager::Get()->Init();
+        //AssetManager::Get()->Init();
 
         // エディターUI (ImGui)
-        editorUI = EditorUI::Create();
-        editorUI->Init();
+        //editorUI = EditorUI::Create();
+        //editorUI->Init();
 
         // エディター
-        editor = Memory::Allocate<Editor>();
-        editor->Init();
-#endif
+        //editor = Memory::Allocate<Editor>();
+        //editor->Init();
+
         // ウィンドウ表示
-        window->Show();
+        mainWindow->Show();
 
         return true;
+    }
+
+    void Engine::Finalize()
+    {
+        // if (editor)   editor->Shutdown();
+        // if (editorUI) editorUI->Shutdown();
+        //AssetManager::Get()->Shutdown();
+        //Renderer::Get()->Shutdown();
+
+
+        // ウィンドウコンテキスト破棄
+        mainWindow->CleanupWindowContext(renderingContext);
+
+        // レンダリングデバイス破棄
+        Memory::Deallocate(renderingDevice);
+
+        // レンダリングコンテキスト破棄
+        Memory::Deallocate(renderingContext);
+
+        // ウィンドウ破棄
+        Memory::Deallocate(mainWindow);
     }
 
     bool Engine::MainLoop()
@@ -134,16 +149,14 @@ namespace Silex
 
         if (!minimized)
         {
-#if SL_REGACY
-            Renderer::Get()->BeginFrame();
-            editorUI->BeginFrame();
+            //Renderer::Get()->BeginFrame();
+            //editorUI->BeginFrame();
 
-            editor->Update(deltaTime);
-            editor->Render();
+            //editor->Update(deltaTime);
+            //editor->Render();
 
-            editorUI->EndFrame();
-            Renderer::Get()->EndFrame();
-#endif
+            //editorUI->EndFrame();
+            //Renderer::Get()->EndFrame();
 
             Input::Flush();
         }
@@ -152,41 +165,6 @@ namespace Silex
 
         // メインループ抜け出し確認
         return isRunning;
-    }
-
-    void Engine::Finalize()
-    {
-#if SL_REGACY
-        if (editor)
-        {
-            editor->Shutdown();
-        }
-
-        if (editorUI)
-        {
-            editorUI->Shutdown();
-        }
-
-        AssetManager::Get()->Shutdown();
-        Renderer::Get()->Shutdown();
-#endif
-
-        // スワップチェイン破棄
-        window->DestroySwapChain();
-
-        // レンダリングデバイス破棄
-        renderingDevice->Finalize();
-        Memory::Deallocate(renderingDevice);
-
-        // ウィンドウ破棄
-        window->Finalize();
-        Memory::Deallocate(window);
-    }
-
-    // OnWindowCloseイベント（Xボタン / Alt + F4）以外で、エンジンループを終了させる場合に使用
-    void Engine::Close()
-    {
-        isRunning = false;
     }
 
     void Engine::OnWindowResize(WindowResizeEvent& e)
@@ -198,7 +176,6 @@ namespace Silex
         }
 
         minimized = false;
-        Renderer::Get()->Resize(e.width, e.height);
     }
 
     void Engine::OnWindowClose(WindowCloseEvent& e)
@@ -215,7 +192,6 @@ namespace Silex
     {
         editor->OnMouseScroll(e);
     }
-
 
     void Engine::CalcurateFrameTime()
     {
@@ -235,6 +211,10 @@ namespace Silex
             secondLeft = 0.0f;
         }
     }
+
+    // OnWindowCloseイベント（Xボタン / Alt + F4）以外で、エンジンループを終了させる場合に使用
+    void Engine::Close()
+    {
+        isRunning = false;
+    }
 }
-
-

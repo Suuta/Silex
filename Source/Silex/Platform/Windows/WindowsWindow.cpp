@@ -38,27 +38,20 @@ namespace Silex
 
     WindowsWindow::~WindowsWindow()
     {
+        Memory::Deallocate(callbacks);
+        glfwDestroyWindow(window);
     }
 
     bool WindowsWindow::Initialize()
     {
-        SL_LOG_TRACE("WindowsWindow::Create");
+        SL_LOG_TRACE("WindowsWindow::Initialize");
 
-#if SL_REGACY
         glfwWindowHint(GLFW_VISIBLE, FALSE);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-#else
-        glfwWindowHint(GLFW_VISIBLE, FALSE);
-        glfwWindowHint(GLFW_CLIENT_API , GLFW_NO_API); // Vulkan / D3D は GLFW_NO_API を指定する
-#endif
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API); // Vulkan / D3D は GLFW_NO_API を指定する
 
         //====================================================================
         // TODO: 抽象化しておきながら <glfw> を使用しているので WindowsAPI 置き換える
         //====================================================================
-
-        // glfwWindow 生成
         window = glfwCreateWindow((int32)windowData.width, (int32)windowData.height, windowData.title.c_str(), nullptr, nullptr);
         SL_CHECK(window == nullptr, false);
 
@@ -68,12 +61,12 @@ namespace Silex
         // リサイズはレンダラー生成後はレンダラーに依存するので、初期化前にリサイズしておく
         glfwMaximizeWindow(window);
 
-        // ウィンドウコンテキストに登録するデータを設定 (※ glfwGetWindowUserPointerで取り出し)
-        glfwSetWindowUserPointer(window, &windowData);
+        // ウィンドウに紐づけるデータを設定 (※ glfwGetWindowUserPointerで取り出し)
+        glfwSetWindowUserPointer(window, this);
 
-        callbacks = Memory::Allocate<WindowEventCallback>();
+        // コールバック登録
+        callbacks            = Memory::Allocate<WindowEventCallback>();
         windowData.callbacks = callbacks;
-
         glfwSetWindowSizeCallback(window,  Callback::OnWindowSize);  // リサイズ
         glfwSetWindowCloseCallback(window, Callback::OnWindowClose); // ウィンドウクローズ
         glfwSetKeyCallback(window,         Callback::OnKey);         // キー入力
@@ -81,11 +74,9 @@ namespace Silex
         glfwSetScrollCallback(window,      Callback::OnScroll);      // マウススクロール
         glfwSetCursorPosCallback(window,   Callback::OnCursorPos);   // マウス位置
 
+
         // ウィンドウサイズ同期（既に最大化で変化しているので、同期が必要）
-        int32 w, h;
-        glfwGetWindowSize(window, &w, &h);
-        windowData.width  = w;
-        windowData.height = h;
+        glfwGetWindowSize(window, (int*)&windowData.width, (int*)&windowData.height);
 
         // アイコン設定
         GLFWimage icon;
@@ -95,77 +86,29 @@ namespace Silex
         icon.height = reader.Data.Height;
         glfwSetWindowIcon(window, 1, &icon);
 
-#if SL_REGACY
-        // ウィンドウコンテキストを更新（指定されたウィンドウのコンテキストを、このスレッドに対して生成する）
-        // 1度に1つのスレッド上でのみ更新することが可能で、スレッドごとに1つだけ持つことが出来る
-        glfwMakeContextCurrent(window);
-
-        // NOTE: 垂直同期の設定は、glfwMakeContextCurrent呼び出し後に行う必要がある(GLコマンドだからか？)
-        glfwSwapInterval(false);
-#endif
-
         return true;
     }
 
-    void WindowsWindow::Finalize()
+    bool WindowsWindow::SetupWindowContext(RenderingContext* context)
     {
-        // ウィンドウイベントへのバインドを解除
-        callbacks->windowCloseEvent.Unbind();
-        callbacks->windowResizeEvent.Unbind();
-        callbacks->mouseMoveEvent.Unbind();
-        callbacks->mouseScrollEvent.Unbind();
-        callbacks->keyPressedEvent.Unbind();
-        callbacks->keyReleasedEvent.Unbind();
-        Memory::Deallocate(callbacks);
-
-#if !SL_REGACY
-        // レンダリングコンテキスト破棄
-        CleanupRenderingContext();
-#endif
-
-        // ウィンドウ破棄
-        Hide();
-        glfwDestroyWindow(window);
-    }
-
-    bool WindowsWindow::SetupRenderingContext()
-    {
-        bool result = false;
-
-        // レンダリングコンテキスト生成
-        renderingContext = RenderingContext::Create(&handle);
-        result = renderingContext->Initialize(true);
-        SL_CHECK(!result, false);
-
         // サーフェース生成
-        renderingSurface = renderingContext->CreateSurface();
+        renderingSurface = context->CreateSurface();
         SL_CHECK(!renderingSurface, false);
 
-        return true;
-    }
-
-    void WindowsWindow::CleanupRenderingContext()
-    {
-        renderingContext->DestroySurface(renderingSurface);
-        Memory::Deallocate(renderingContext);
-    }
-
-    bool WindowsWindow::CreateSwapChain()
-    {
-        bool result = false;
-
-        swapchain = RenderingDevice::Get()->CreateSwapChain(renderingSurface);
+        // スワップチェイン生成
+        swapchain = RenderingDevice::Get()->CreateSwapChain(renderingSurface, windowData.width, windowData.height, windowData.vsync);
         SL_CHECK(!swapchain, false);
 
         return true;
     }
 
-    void WindowsWindow::DestroySwapChain()
+    void WindowsWindow::CleanupWindowContext(RenderingContext* context)
     {
-        if (swapchain)
-        {
-            RenderingDevice::Get()->DestoySwapChain(swapchain);
-        }
+        // スワップチェイン破棄
+        RenderingDevice::Get()->DestoySwapChain(swapchain);
+
+        // サーフェース破棄
+        context->DestroySurface(renderingSurface);
     }
 
     glm::ivec2 WindowsWindow::GetSize() const
@@ -180,7 +123,7 @@ namespace Silex
         return { x, y };
     }
 
-    void WindowsWindow::PumpMessage()
+    void WindowsWindow::ProcessMessage()
     {
         glfwPollEvents();
     }
@@ -226,14 +169,14 @@ namespace Silex
         return window;
     }
 
-    void* WindowsWindow::GetWindowHandle() const
+    void* WindowsWindow::GetPlatformHandle() const
     {
-        return glfwGetWin32Window(window);
+        return (void*)&handle;
     }
 
-    const WindowData& WindowsWindow::GetWindowData() const
+    WindowData* WindowsWindow::GetWindowData() const
     {
-        return windowData;
+        return (WindowData*)&windowData;
     }
 
     Surface* WindowsWindow::GetSurface() const
@@ -241,35 +184,72 @@ namespace Silex
         return renderingSurface;
     }
 
-    RenderingContext* WindowsWindow::GetRenderingContext() const
+
+
+    void WindowsWindow::OnWindowClose(WindowCloseEvent& e)
     {
-        return renderingContext;
     }
 
-    
+    void WindowsWindow::OnWindowResize(WindowResizeEvent& e)
+    {
+        SL_LOG_TRACE("Resize Swapchain: {}, {}", e.width, e.height);
+        RenderingDevice::Get()->ResizeSwapChain(swapchain, windowData.width, windowData.height, windowData.vsync);
+    }
+
+    void WindowsWindow::OnKeyPressed(KeyPressedEvent& e)
+    {
+    }
+
+    void WindowsWindow::OnKeyReleased(KeyReleasedEvent& e)
+    {
+    }
+
+    void WindowsWindow::OnMouseButtonPressed(MouseButtonPressedEvent& e)
+    {
+    }
+
+    void WindowsWindow::OnMouseButtonReleased(MouseButtonReleasedEvent& e)
+    {
+    }
+
+    void WindowsWindow::OnMouseScroll(MouseScrollEvent& e)
+    {
+    }
+
+    void WindowsWindow::OnMouseMove(MouseMoveEvent& e)
+    {
+    }
+
+
+
+
+
     namespace Callback
     {
         static void OnWindowClose(GLFWwindow* window)
         {
-            WindowData* data = ((WindowData*)glfwGetWindowUserPointer(window));
-
             WindowCloseEvent event;
-            data->callbacks->windowCloseEvent.Execute(event);
+
+            WindowsWindow* data = ((WindowsWindow*)glfwGetWindowUserPointer(window));
+            data->OnWindowClose(event);
+            data->GetWindowData()->callbacks->windowCloseEvent.Execute(event);
         }
 
         static void OnWindowSize(GLFWwindow* window, int width, int height)
         {
-            WindowData* data = ((WindowData*)glfwGetWindowUserPointer(window));
-
             WindowResizeEvent event((uint32)width, (uint32)height);
-            data->width  = width;
-            data->height = height;
-            data->callbacks->windowResizeEvent.Execute(event);
+
+            WindowsWindow* data = ((WindowsWindow*)glfwGetWindowUserPointer(window));
+            data->GetWindowData()->width  = width;
+            data->GetWindowData()->height = height;
+
+            data->OnWindowResize(event);
+            data->GetWindowData()->callbacks->windowResizeEvent.Execute(event);
         }
 
         static void OnKey(GLFWwindow* window, int key, int scancode, int action, int mods)
         {
-            WindowData* data = ((WindowData*)glfwGetWindowUserPointer(window));
+            WindowsWindow* data = ((WindowsWindow*)glfwGetWindowUserPointer(window));
 
             switch (action)
             {
@@ -278,7 +258,9 @@ namespace Silex
                     Input::ProcessKey((Keys)key, true);
 
                     KeyPressedEvent event((Keys)key);
-                    data->callbacks->keyPressedEvent.Execute(event);
+                    data->OnKeyPressed(event);
+                    data->GetWindowData()->callbacks->keyPressedEvent.Execute(event);
+
                     break;
                 }
                 case GLFW_RELEASE:
@@ -286,7 +268,8 @@ namespace Silex
                     Input::ProcessKey((Keys)key, false);
 
                     KeyReleasedEvent event((Keys)key);
-                    data->callbacks->keyReleasedEvent.Execute(event);
+                    data->OnKeyReleased(event);
+                    data->GetWindowData()->callbacks->keyReleasedEvent.Execute(event);
                     break;
                 }
 
@@ -296,7 +279,7 @@ namespace Silex
 
         static void OnMouseButton(GLFWwindow* window, int button, int action, int mods)
         {
-            WindowData* data = ((WindowData*)glfwGetWindowUserPointer(window));
+            WindowsWindow* data = ((WindowsWindow*)glfwGetWindowUserPointer(window));
 
             switch (action)
             {
@@ -305,7 +288,8 @@ namespace Silex
                     Input::ProcessButton((Mouse)button, true);
 
                     MouseButtonPressedEvent event(button);
-                    data->callbacks->mouseButtonPressedEvent.Execute(event);
+                    data->OnMouseButtonPressed(event);
+                    data->GetWindowData()->callbacks->mouseButtonPressedEvent.Execute(event);
                     break;
                 }
                 case GLFW_RELEASE:
@@ -313,7 +297,8 @@ namespace Silex
                     Input::ProcessButton((Mouse)button, false);
 
                     MouseButtonReleasedEvent event(button);
-                    data->callbacks->mouseButtonReleasedEvent.Execute(event);
+                    data->OnMouseButtonReleased(event);
+                    data->GetWindowData()->callbacks->mouseButtonReleasedEvent.Execute(event);
                     break;
                 }
 
@@ -323,19 +308,22 @@ namespace Silex
 
         static void OnScroll(GLFWwindow* window, double xOffset, double yOffset)
         {
-            WindowData* data = ((WindowData*)glfwGetWindowUserPointer(window));
+            WindowsWindow* data = ((WindowsWindow*)glfwGetWindowUserPointer(window));
 
             MouseScrollEvent event((float)xOffset, (float)yOffset);
-            data->callbacks->mouseScrollEvent.Execute(event);
+            data->OnMouseScroll(event);
+            data->GetWindowData()->callbacks->mouseScrollEvent.Execute(event);
         }
 
         static void OnCursorPos(GLFWwindow* window, double x, double y)
         {
+            WindowsWindow* data = ((WindowsWindow*)glfwGetWindowUserPointer(window));
+
             Input::ProcessMove((int16)x, (int16)y);
 
-            WindowData* data = ((WindowData*)glfwGetWindowUserPointer(window));
             MouseMoveEvent event((float)x, (float)y);
-            data->callbacks->mouseMoveEvent.Execute(event);
+            data->OnMouseMove(event);
+            data->GetWindowData()->callbacks->mouseMoveEvent.Execute(event);
         }
     }
 }

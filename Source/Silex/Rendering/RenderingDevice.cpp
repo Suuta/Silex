@@ -29,7 +29,16 @@ namespace Silex
 
     RenderingDevice::~RenderingDevice()
     {
-        
+        for (uint32 i = 0; i < frameData.size(); i++)
+        {
+            api->DestroyCommandPool(frameData[i].commandPool);
+            api->DestroySemaphore(frameData[i].presentSemaphore);
+            api->DestroySemaphore(frameData[i].renderSemaphore);
+            api->DestroyFence(frameData[i].fence);
+        }
+
+        api->DestroyCommandQueue(graphicsQueue);
+        renderingContext->DestroyRendringAPI(api);
 
         instance = nullptr;
     }
@@ -74,116 +83,29 @@ namespace Silex
             SL_CHECK(!frameData[i].fence, false);
         }
 
-        //----------------------------------------
-        // VERTEX
-        //----------------------------------------
-        //  (set: 0, bind: 0) uniform SceneData
-        //  (set: 1, bind: 0) uniform GLTFMaterialData
-        //   push_constant: Constants
-        //----------------------------------------
-        // FRAGMENT
-        //----------------------------------------
-        //  (set: 0, bind: 0) uniform       SceneData
-        //  (set: 1, bind: 1) sampled_image colorTex
-        //  (set: 1, bind: 2) sampled_image metalRoughTex
-
-
-        //----------------------------------------------
-        // (set: 0, bind: 0) uniform SceneData
-        //----------------------------------------------
-        // (set: 1, bind: 0) uniform       GLTFMaterialData
-        // (set: 1, bind: 1) sampled_image colorTex
-        // (set: 1, bind: 2) sampled_image metalRoughTex
-        //----------------------------------------------
-        //  push_constant: constants
-        //----------------------------------------------
-
-#if 0
-        struct SceneData
-        {
-            glm::mat4 view;
-            glm::mat4 proj;
-            glm::mat4 viewproj;
-            glm::vec4 ambientColor;
-            glm::vec4 sunlightDirection;
-            glm::vec4 sunlightColor;
-        };
-
-        SceneData sd = {};
-
-        ShaderCompiledData compiledData;
-        ShaderCompiler::Get()->Compile("Assets/Shaders/mesh.glsl", compiledData);
-
-        ShaderHandle* shader  = api->CreateShader(compiledData);
-        Buffer*       uniform = api->CreateBuffer(sizeof(SceneData), BufferUsageBits(BUFFER_USAGE_UNIFORM_BIT | BUFFER_USAGE_TRANSFER_DST_BIT), MEMORY_ALLOCATION_TYPE_CPU);
-
-        DescriptorInfo info = {};
-        info.binding = 0;
-        info.type    = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        info.buffer  = uniform;
-
-        DescriptorSet* set = api->CreateDescriptorSet(1, &info, shader, 0);
-
-        byte* mapped = api->MapBuffer(uniform);
-        memcpy(mapped, &sd, sizeof(SceneData));
-        api->UnmapBuffer(uniform);
-
-        api->DestroyDescriptorSet(set);
-        api->DestroyShader(shader);
-        api->DestroyBuffer(uniform);
-#endif
-
-        //======================================================================================================
-        // TODO: DescriptorInfo を生成するクラスを実装する ???
-        //======================================================================================================
-        // デスクリプターセットレイアウトと一対一であるリフレクションデータを使って、デスクリプターセットに必要なイメージやバッファ
-        // を受け取って、Infoを生成する。結局のところ、更新するイメージバッファ数がわかっても、実データが用意できるまで更新できないので
-        // CreateDescriptorSet関数は、実データの用意と同タイミングで行う様にする
-        
-        //====================================================================
-        // ????? マテリアル生成毎に互換性のあるセットが再生成されるのは仕方ないのか ?????
-        //--------------------------------------------------------------------
-        // 良くなさそうなら、プールと同様に、セットのハッシュキーで管理すればよさそう？
-        //====================================================================
-
         return true;
     }
 
-    void RenderingDevice::Finalize()
+
+    SwapChain* RenderingDevice::CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode)
     {
-        for (uint32 i = 0; i < frameData.size(); i++)
-        {
-            api->DestroyCommandPool(frameData[i].commandPool);
-            api->DestroySemaphore(frameData[i].presentSemaphore);
-            api->DestroySemaphore(frameData[i].renderSemaphore);
-            api->DestroyFence(frameData[i].fence);
-        }
-
-        api->DestroyCommandQueue(graphicsQueue);
-        renderingContext->DestroyRendringAPI(api);
-    }
-
-
-    SwapChain* RenderingDevice::CreateSwapChain(Surface* surface)
-    {
-        SwapChain* swapchain = nullptr;
-        bool result = false;
-
-        swapchain = api->CreateSwapChain(surface);
+        SwapChain* swapchain = api->CreateSwapChain(surface, width, height, swapchainBufferCount, mode);
         SL_CHECK(!swapchain, nullptr);
-
-        result = api->ResizeSwapChain(swapchain, swapchainBufferCount, VSYNC_MODE_DISABLED);
-        SL_CHECK(!result, nullptr);
 
         return swapchain;
     }
 
     void RenderingDevice::DestoySwapChain(SwapChain* swapchain)
     {
-        if (swapchain)
-        {
-            api->DestroySwapChain(swapchain);
-        }
+        api->DestroySwapChain(swapchain);
+    }
+
+    bool RenderingDevice::ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode)
+    {
+        bool result = api->ResizeSwapChain(swapchain, width, height, swapchainBufferCount, mode);
+        SL_CHECK(!result, false);
+
+        return false;
     }
 }
 

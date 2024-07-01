@@ -21,5 +21,4 @@ namespace Silex
         uint64 alignSize;
         uint64 hashID;
     };
-
 }

@@ -30,10 +30,7 @@ namespace Silex
     //=============================================
     struct VulkanSurface : public Surface
     {
-        VkSurfaceKHR surface   = nullptr;
-        uint32       width     = 0;
-        uint32       height    = 0;
-        VSyncMode    vsyncMode = VSYNC_MODE_DISABLED;
+        VkSurfaceKHR surface = nullptr;
     };
 
     //=============================================

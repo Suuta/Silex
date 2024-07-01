@@ -45,6 +45,18 @@ namespace Silex
     // イベントコールバック
     struct WindowEventCallback
     {
+        ~WindowEventCallback()
+        {
+            windowCloseEvent.Unbind();
+            windowResizeEvent.Unbind();
+            keyPressedEvent.Unbind();
+            keyReleasedEvent.Unbind();
+            mouseButtonPressedEvent.Unbind();
+            mouseButtonReleasedEvent.Unbind();
+            mouseScrollEvent.Unbind();
+            mouseMoveEvent.Unbind();
+        }
+
         WindowCloseDelegate         windowCloseEvent;
         WindowResizeDelegate        windowResizeEvent;
         KeyPressedDelegate          keyPressedEvent;
@@ -61,6 +73,7 @@ namespace Silex
         std::string title  = "";
         uint32      width  = 0;
         uint32      height = 0;
+        VSyncMode   vsync  = VSYNC_MODE_DISABLED;
 
         WindowEventCallback* callbacks = nullptr;
     };
@@ -93,18 +106,9 @@ namespace Silex
         ~Window() { instance = nullptr; }
 
         virtual bool Initialize() = 0;
-        virtual void Finalize()   = 0;
-
-        // レンダリングコンテキスト
-        virtual bool SetupRenderingContext() = 0;
-        virtual void CleanupRenderingContext() = 0;
-
-        // スワップチェイン生成
-        virtual bool CreateSwapChain()  = 0;
-        virtual void DestroySwapChain() = 0;
 
         // ウィンドウメッセージ
-        virtual void PumpMessage() = 0;
+        virtual void ProcessMessage() = 0;
 
         // ウィンドウサイズ
         virtual glm::ivec2 GetSize()      const = 0;
@@ -122,11 +126,31 @@ namespace Silex
         virtual void        SetTitle(const char* title) = 0;
 
         // ウィンドウデータ
-        virtual void*             GetWindowHandle()     const = 0;
-        virtual GLFWwindow*       GetGLFWWindow()       const = 0;
-        virtual const WindowData& GetWindowData()       const = 0;
-        virtual Surface*          GetSurface()          const = 0;
-        virtual RenderingContext* GetRenderingContext() const = 0;
+        virtual GLFWwindow* GetGLFWWindow()       const = 0;
+        virtual WindowData* GetWindowData()       const = 0;
+        virtual Surface*    GetSurface()          const = 0;
+        virtual void*       GetPlatformHandle()   const = 0;
+
+        // レンダリングコンテキスト
+        virtual bool SetupWindowContext(RenderingContext* context)   = 0;
+        virtual void CleanupWindowContext(RenderingContext* context) = 0;
+
+        // ウィンドウイベント
+        virtual void OnWindowClose(WindowCloseEvent& e)                 = 0;
+        virtual void OnWindowResize(WindowResizeEvent& e)               = 0;
+        virtual void OnKeyPressed(KeyPressedEvent& e)                   = 0;
+        virtual void OnKeyReleased(KeyReleasedEvent& e)                 = 0;
+        virtual void OnMouseButtonPressed(MouseButtonPressedEvent& e)   = 0;
+        virtual void OnMouseButtonReleased(MouseButtonReleasedEvent& e) = 0;
+        virtual void OnMouseScroll(MouseScrollEvent& e)                 = 0;
+        virtual void OnMouseMove(MouseMoveEvent& e)                     = 0;
+
+    protected:
+
+        WindowEventCallback* callbacks = nullptr;
+
+        static inline Window*              instance;
+        static inline WindowCreateFunction createFunction;
 
     public:
 
@@ -177,16 +201,7 @@ namespace Silex
         void BindMouseMoveEvent(T* instance, F memberFunc);
         template <typename T>
         void BindMouseMoveEvent(T&& func);
-
-
-    protected:
-
-        WindowEventCallback* callbacks = nullptr;
-
-        static inline Window*              instance;
-        static inline WindowCreateFunction createFunction;
     };
-
 
 
 
