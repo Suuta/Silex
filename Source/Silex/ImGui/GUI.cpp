@@ -1,7 +1,7 @@
 
 #include "PCH.h"
 
-#include "Editor/EditorUI.h"
+#include "ImGui/GUI.h"
 
 #include <glfw/glfw3.h>
 #include <imgui/imgui.h>
@@ -10,15 +10,14 @@
 
 namespace Silex
 {
-    void EditorUI::Init()
+    void GUI::Init()
     {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-
-        //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
         io.FontDefault = io.Fonts->AddFontFromFileTTF("Assets/Fonts/VL-Gothic-Regular.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
 
@@ -78,24 +77,24 @@ namespace Silex
         }
     }
 
-    void EditorUI::Shutdown()
+    void GUI::Shutdown()
     {
         ImGui::DestroyContext();
         Memory::Deallocate(this);
     }
 
-    void EditorUI::BeginFrame()
+    void GUI::BeginFrame()
     {
         ImGui::NewFrame();
         ImGuizmo::BeginFrame();
     }
 
-    void EditorUI::Render()
+    void GUI::Render()
     {
         ImGui::Render();
     }
 
-    void EditorUI::EndFrame()
+    void GUI::EndFrame()
     {
         //==============================================================
         // ビューポートを有効にする場合（メインウィンドウ以外でのImGui描画）

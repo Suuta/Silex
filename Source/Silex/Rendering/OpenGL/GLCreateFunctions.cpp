@@ -24,10 +24,10 @@ namespace Silex
     //========================================
     // エディター
     //========================================
-    EditorUI* EditorUI::Create()
-    {
-        return Memory::Allocate<GLEditorUI>();
-    }
+    //GUI* GUI::Create()
+    //{
+    //    return Memory::Allocate<GLEditorUI>();
+    //}
 
     //========================================
     // テクスチャ

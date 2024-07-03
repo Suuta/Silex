@@ -5,7 +5,7 @@
 #include "Core/Window.h"
 #include "Core/Timer.h"
 #include "Editor/Editor.h"
-#include "Editor/EditorUI.h"
+#include "ImGui/GUI.h"
 
 
 namespace Silex
@@ -54,8 +54,10 @@ namespace Silex
 
     private:
 
-        Editor*   editor   = nullptr;
-        EditorUI* editorUI = nullptr;
+        std::string engineName = "Silex";
+
+        Editor* editor = nullptr;
+        GUI*    gui    = nullptr;
 
         bool isRunning = true;
         bool minimized = false;

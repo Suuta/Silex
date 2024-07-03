@@ -4,6 +4,7 @@
 #include "Platform/Windows/WindowsOS.h"
 #include "Platform/Windows/WindowsWindow.h"
 #include "Rendering/Vulkan/Windows/WindowsVulkanContext.h"
+#include "ImGui/Vulkan/VulkanGUI.h"
 
 #include <GLFW/glfw3.h>
 #include <dwmapi.h>
@@ -64,6 +65,11 @@ namespace Silex
         return Memory::Allocate<WindowsVulkanContext>(platformHandle);
     }
 
+    // VulkanGUI
+    static GUI* CreateVulkanGUI()
+    {
+        return Memory::Allocate<VulkanGUI>();
+    }
 
 
     WindowsOS::WindowsOS()
@@ -121,9 +127,11 @@ namespace Silex
         //==============================================
         ::glfwInit();
 
+
         // 各プラットフォーム生成関数を登録
         Window::RegisterCreateFunction(&CreateWindowsWindow);
         RenderingContext::ResisterCreateFunction(&CreateVulkanRenderContext);
+        VulkanGUI::ResisterCreateFunction(&CreateVulkanGUI);
     }
 
     void WindowsOS::Finalize()

@@ -7,9 +7,9 @@
 
 namespace Silex
 {
-    class GLEditorUI : public GUI
+    class VulkanGUI : public GUI
     {
-        SL_CLASS(GLEditorUI, GUI)
+        SL_CLASS(VulkanGUI, GUI)
 
     public:
 

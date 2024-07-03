@@ -77,7 +77,7 @@ namespace Silex
         bool result = false;
 
         // ウィンドウ
-        mainWindow = Window::Create("Silex", 1280, 720);
+        mainWindow = Window::Create(engineName.c_str(), 1280, 720);
         result = mainWindow->Initialize();
         SL_CHECK(!result, false);
 
@@ -109,8 +109,8 @@ namespace Silex
         //AssetManager::Get()->Init();
 
         // エディターUI (ImGui)
-        //editorUI = EditorUI::Create();
-        //editorUI->Init();
+        //gui = GUI::Create();
+        //gui->Init();
 
         // エディター
         //editor = Memory::Allocate<Editor>();
@@ -124,11 +124,10 @@ namespace Silex
 
     void Engine::Finalize()
     {
-        // if (editor)   editor->Shutdown();
-        // if (editorUI) editorUI->Shutdown();
+        //if (editor) editor->Shutdown();
+        //if (gui)    gui->Shutdown();
         //AssetManager::Get()->Shutdown();
         //Renderer::Get()->Shutdown();
-
 
         // ウィンドウコンテキスト破棄
         mainWindow->CleanupWindowContext(renderingContext);
@@ -150,12 +149,12 @@ namespace Silex
         if (!minimized)
         {
             //Renderer::Get()->BeginFrame();
-            //editorUI->BeginFrame();
+            //gui->BeginFrame();
 
             //editor->Update(deltaTime);
             //editor->Render();
 
-            //editorUI->EndFrame();
+            //gui->EndFrame();
             //Renderer::Get()->EndFrame();
 
             Input::Flush();

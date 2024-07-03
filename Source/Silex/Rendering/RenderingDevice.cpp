@@ -83,6 +83,39 @@ namespace Silex
             SL_CHECK(!frameData[i].fence, false);
         }
 
+        struct SceneData
+        {
+            glm::mat4 view;
+            glm::mat4 proj;
+            glm::mat4 viewproj;
+            glm::vec4 ambientColor;
+            glm::vec4 sunlightDirection;
+            glm::vec4 sunlightColor;
+        };
+
+        SceneData sd = {};
+
+        ShaderCompiledData compiledData;
+        ShaderCompiler::Get()->Compile("Assets/Shaders/test.glsl", compiledData);
+
+        ShaderHandle* shader = api->CreateShader(compiledData);
+        Buffer* uniform = api->CreateBuffer(sizeof(SceneData), BufferUsageBits(BUFFER_USAGE_UNIFORM_BIT | BUFFER_USAGE_TRANSFER_DST_BIT), MEMORY_ALLOCATION_TYPE_CPU);
+
+        DescriptorInfo info = {};
+        info.binding = 0;
+        info.type    = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        info.handles.push_back(uniform);
+
+        DescriptorSet* set = api->CreateDescriptorSet(1, &info, shader, 0);
+
+        byte* mapped = api->MapBuffer(uniform);
+        memcpy(mapped, &sd, sizeof(SceneData));
+        api->UnmapBuffer(uniform);
+
+        api->DestroyDescriptorSet(set);
+        api->DestroyShader(shader);
+        api->DestroyBuffer(uniform);
+
         return true;
     }
 

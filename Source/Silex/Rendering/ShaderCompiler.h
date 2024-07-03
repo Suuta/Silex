@@ -142,7 +142,7 @@ namespace Silex
 
     private:
 
-        // コンパイル前にシェーダーステージごとに分割する
+        // コンパイル前処理
         std::unordered_map<ShaderStage, std::string> _SplitStages(const std::string& source);
 
         // コンパイル(spirvバイナリ)を生成

@@ -2052,7 +2052,6 @@ namespace Silex
             //{
             //}
 
-
             // デスクリプターセットレイアウト生成
             VkDescriptorSetLayoutCreateInfo descriptorsetLayoutCreateInfo = {};
             descriptorsetLayoutCreateInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;

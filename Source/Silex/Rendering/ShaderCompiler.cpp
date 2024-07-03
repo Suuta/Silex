@@ -1,6 +1,7 @@
 
 #include "PCH.h"
 #include "Rendering/ShaderCompiler.h"
+#include <regex>
 
 //==========================================================================
 // NOTE:
@@ -19,9 +20,6 @@
 #include <spirv_cross/spirv_glsl.hpp>
 
 
-#define USE_INCLUDE_PREPROCESS 0
-
-
 namespace Silex
 {
     static bool ReadFile(std::string& out_result, const std::string& filepath)
@@ -37,13 +35,49 @@ namespace Silex
         }
         else
         {
-            SL_LOG_ERROR("シェーダーファイルの読み込みに失敗しました: {}", filepath.c_str());
+            SL_LOG_ERROR("ファイルの読み込みに失敗しました: {}", filepath.c_str());
             return false;
         }
 
         in.close();
         return true;
     }
+
+    class ShaderIncluder : public shaderc::CompileOptions::IncluderInterface
+    {
+    public:
+
+        shaderc_include_result* GetInclude(const char* requestedSource, shaderc_include_type type, const char* requestingSource, size_t includeDepth) override 
+        {
+            std::filesystem::path readSource = std::filesystem::path(requestingSource).parent_path() / requestedSource;
+            std::string includePath = readSource.string();
+
+            std::replace(includePath.begin(), includePath.end(), '\\', '/');
+
+            std::string content;
+            bool res = ReadFile(content, includePath);
+
+            shaderc_include_result* result = new shaderc_include_result;
+            result->source_name        = strdup(includePath.c_str());
+            result->source_name_length = includePath.length();
+            result->content            = strdup(content.c_str());
+            result->content_length     = content.length();
+            result->user_data          = nullptr;
+
+            return result;
+        }
+
+        void ReleaseInclude(shaderc_include_result* include_result) override
+        {
+            if (include_result)
+            {
+                free((void*)include_result->source_name);
+                free((void*)include_result->content);
+                delete include_result;
+            }
+        }
+    };
+
 
     static ShaderStage ToShaderStage(const std::string& type)
     {
@@ -144,6 +178,10 @@ namespace Silex
         std::unordered_map<ShaderStage, std::string> parsedRawSources;
         parsedRawSources = _SplitStages(rawSource);
 
+        SL_LOG_TRACE("**************************************************");
+        SL_LOG_TRACE("Compile: {}", filePath.c_str());
+        SL_LOG_TRACE("**************************************************");
+
         // ステージごとにコンパイル
         std::unordered_map<ShaderStage, std::vector<uint32>> spirvBinaries;
         for (const auto& [stage, source] : parsedRawSources)
@@ -162,6 +200,8 @@ namespace Silex
             _ReflectStage(stage, binary);
         }
 
+        SL_LOG_TRACE("**************************************************");
+
         // コンパイル結果
         out_compiledData.reflection     = ReflectionData;
         out_compiledData.shaderBinaries = spirvBinaries;
@@ -175,12 +215,46 @@ namespace Silex
         return true;
     }
 
+
+    static std::vector<std::string> _FindIncludeDirective(const std::string& shaderCode)
+    {
+        std::vector<std::string> includes;
+        std::regex includePattern(R"(#include\s*"[^"]+\.glsl"\s*)");
+        std::smatch matches;
+
+        std::string::const_iterator searchStart(shaderCode.cbegin());
+        while (std::regex_search(searchStart, shaderCode.cend(), matches, includePattern))
+        {
+            includes.push_back(matches[0]);
+            searchStart = matches.suffix().first;
+        }
+
+        return includes;
+    }
+
+    static void _TrimBraces(std::string& str)
+    {
+        size_t startPos = str.find('{');
+
+        if (startPos != std::string::npos)
+            str.erase(startPos, 1);
+
+        size_t endPos = str.rfind('}');
+
+        if (endPos != std::string::npos)
+            str.erase(endPos, 1);
+
+        SL_ASSERT(true);
+    }
+
     std::unordered_map<ShaderStage, std::string> ShaderCompiler::_SplitStages(const std::string& source)
     {
         std::unordered_map<ShaderStage, std::string> shaderSources;
+        std::string type;
 
         uint64 keywordLength = strlen("#pragma");
-        uint64 pos = source.find("#pragma", 0);
+        uint64 pos           = source.find("#pragma", 0);
+        uint64 lastPos       = 0;
 
         while (pos != std::string::npos)
         {
@@ -188,14 +262,19 @@ namespace Silex
             SL_ASSERT(eol != std::string::npos, "シンタックスエラー: シェーダーステージ指定が見つかりません");
 
             uint64 begin = pos + keywordLength + 1;
-            std::string type = source.substr(begin, eol - begin);
+            uint64 end   = source.find_first_of(" \r\n", begin);
+            type = source.substr(begin, end - begin);
 
             SL_ASSERT(type == "VERTEX" || type == "FRAGMENT" || type == "GEOMETRY" || type == "COMPUTE", "無効なシェーダーステージです");
 
             uint64 nextLinePos = source.find_first_not_of("\r\n", eol);
             pos = source.find("#pragma", nextLinePos);
-
+            
+            // #pragma XXXX を取り除いたソースを追加
             shaderSources[ToShaderStage(type)] = source.substr(nextLinePos, pos - (nextLinePos == std::string::npos ? source.size() - 1 : nextLinePos));
+            
+            // ステージ間の '{' '}' を取り除く
+            _TrimBraces(shaderSources[ToShaderStage(type)]);
         }
 
         return shaderSources;
@@ -207,26 +286,25 @@ namespace Silex
 
         shaderc::Compiler compiler;
 
-#if USE_INCLUDE_PREPROCESS
-
-        // プリプロセス: SPIR-V テキスト形式へコンパイル + #include ディレクティブ解決等...
-        const shaderc::PreprocessedSourceCompilationResult preProcess = compiler.PreprocessGlsl(source, ToShaderC(stage), filepath.c_str(), {});
-        if (preProcess.GetCompilationStatus() != shaderc_compilation_status_success)
-        {
-            SL_LOG_WARN("fail to PreprocessGlsl: {}", filepath.c_str());
-        }
-
-        std::string preProcessedSource = std::string(preProcess.begin(), preProcess.end());
-#endif
-
         // コンパイル: SPIR-V バイナリ形式へコンパイル
         shaderc::CompileOptions options;
         options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_2);
         options.SetWarningsAsErrors();
+        options.SetIncluder(std::make_unique<ShaderIncluder>());
+
+
+        // プリプロセス: SPIR-V テキスト形式へコンパイル
+        //const shaderc::PreprocessedSourceCompilationResult preProcess = compiler.PreprocessGlsl(source, ToShaderC(stage), filepath.c_str(), options);
+        //if (preProcess.GetCompilationStatus() != shaderc_compilation_status_success)
+        //{
+        //    SL_ASSERT(false);
+        //    return preProcess.GetErrorMessage();
+        //}
 
         const shaderc::SpvCompilationResult compileResult = compiler.CompileGlslToSpv(source, ToShaderC(stage), filepath.c_str(), options);
         if (compileResult.GetCompilationStatus() != shaderc_compilation_status_success)
         {
+            SL_ASSERT(false);
             return compileResult.GetErrorMessage();
         }
 
@@ -270,9 +348,7 @@ namespace Silex
 
     void ShaderCompiler::_ReflectStage(ShaderStage stage, const std::vector<uint32>& spirv)
     {
-        SL_LOG_TRACE("----------------------------------------");
-        SL_LOG_TRACE("{}", ToStageString(stage));
-        SL_LOG_TRACE("----------------------------------------");
+        SL_LOG_TRACE("■ {}", ToStageString(stage));
 
         // リソースデータ取得
         spirv_cross::Compiler compiler(spirv);
@@ -366,48 +442,6 @@ namespace Silex
             }
         }
 
-        // プッシュ定数
-        for (const auto& resource : resources.push_constant_buffers)
-        {
-            const auto& name       = resource.name;
-            const auto& bufferType = compiler.get_type(resource.base_type_id);
-            uint32 bufferSize      = compiler.get_declared_struct_size(bufferType);
-            uint32 memberCount     = bufferType.member_types.size();
-            uint32 bufferOffset    = 0;
-
-            if (ReflectionData.pushConstantRanges.size())
-                bufferOffset = ReflectionData.pushConstantRanges.back().offset + ReflectionData.pushConstantRanges.back().size;
-
-            auto& pushConstantRange  = ReflectionData.pushConstantRanges.emplace_back();
-            pushConstantRange.stage  = stage;
-            pushConstantRange.size   = bufferSize - bufferOffset;
-            pushConstantRange.offset = bufferOffset;
-
-            if (name.empty())
-                continue;
-
-            ShaderPushConstant& buffer = ReflectionData.pushConstants[name];
-            buffer.name = name;
-            buffer.size = bufferSize - bufferOffset;
-
-            SL_LOG_TRACE("  push_constant: {}", name);
-
-            for (uint32 i = 0; i < memberCount; i++)
-            {
-                const auto& memberName = compiler.get_member_name(bufferType.self, i);
-                auto& type             = compiler.get_type(bufferType.member_types[i]);
-                uint32 size            = compiler.get_declared_struct_member_size(bufferType, i);
-                uint32 offset          = compiler.type_struct_member_offset(bufferType, i) - bufferOffset;
-
-                std::string uniformName = std::format("{}.{}", name, memberName);
-
-                PushConstantMember& pushConstantMember = buffer.members[uniformName];
-                pushConstantMember.name   = uniformName;
-                pushConstantMember.type   = ToShaderDataType(type);
-                pushConstantMember.offset = offset;
-                pushConstantMember.size   = size;
-            }
-        }
 
         // イメージサンプラー
         for (const auto& resource : resources.sampled_images)
@@ -545,6 +579,66 @@ namespace Silex
             resource.count         = arraySize;
 
             SL_LOG_TRACE("  (set: {}, bind: {}) storage_image {}", descriptorSet, binding, name);
+        }
+
+        // プッシュ定数
+        for (const auto& resource : resources.push_constant_buffers)
+        {
+            const auto& name       = resource.name;
+            const auto& bufferType = compiler.get_type(resource.base_type_id);
+            uint32 bufferSize      = compiler.get_declared_struct_size(bufferType);
+            uint32 memberCount     = bufferType.member_types.size();
+            uint32 bufferOffset    = 0;
+
+            //==================================================================================
+            // NOTE: プッシュ定数のレイアウトについて
+            //==================================================================================
+            // 複数ステージで共有される際、プッシュ定数ブロック内のメンバ変数を分割宣言でき、
+            // 分割した場合に、先頭からのオフセット指定をする必要がある。
+            // 
+            // 現状はステージ間で同じデータレイアウト(同じメンバ変数)を宣言されている前提で
+            // 全てのステージのプッシュ定数ブロックは同じサイズでオフセットは 0 あることを要求する
+            // 
+            // ステージごとにオフセットを切り替えてバインドし直すのはコストがかかる？ ので
+            // ステージ間でデータレイアウトを共有する方が効率的か...
+            //==================================================================================
+            //if (ReflectionData.pushConstantRanges.size())
+            //     bufferOffset = ReflectionData.pushConstantRanges.back().offset + ReflectionData.pushConstantRanges.back().size;
+
+            auto& pushConstantRange  = ReflectionData.pushConstantRanges.emplace_back();
+            pushConstantRange.stage  = stage;
+            pushConstantRange.size   = bufferSize;  // bufferSize - bufferOffset;
+            pushConstantRange.offset = bufferOffset;
+
+            if (name.empty())
+                continue;
+
+            // 以下、メンバー情報のデバッグ情報のため、実際には使用しない（※ステージ間で異なるレイアウトのリフレクションの取得を試みたが、出来なかった）
+            {
+                ShaderPushConstant& buffer = ReflectionData.pushConstants[name];
+                buffer.name = name;
+                buffer.size = bufferSize - bufferOffset;
+
+                SL_LOG_TRACE("  (push_constant) {}", name);
+
+                for (uint32 i = 0; i < memberCount; i++)
+                {
+                    const auto& memberName = compiler.get_member_name(bufferType.self, i);
+                    auto& type             = compiler.get_type(bufferType.member_types[i]);
+                    uint32 size            = compiler.get_declared_struct_member_size(bufferType, i);
+                    uint32 offset          = compiler.type_struct_member_offset(bufferType, i) - bufferOffset;
+
+                    std::string uniformName = std::format("{}.{}", name, memberName);
+
+                    PushConstantMember& pushConstantMember = buffer.members[uniformName];
+                    pushConstantMember.name   = uniformName;
+                    pushConstantMember.type   = ToShaderDataType(type);
+                    pushConstantMember.offset = offset;
+                    pushConstantMember.size   = size;
+
+                    SL_LOG_TRACE("      offset({}), size({}): {}", offset, size, uniformName);
+                }
+            }
         }
     }
 }
