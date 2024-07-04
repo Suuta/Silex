@@ -1,144 +1,18 @@
 
 #include "PCH.h"
+
+#include "Rendering/ShaderCompiler.h"
 #include "Rendering/Vulkan/VulkanAPI.h"
 #include "Rendering/Vulkan/VulkanContext.h"
-#include "Rendering/ShaderCompiler.h"
+#include "ImGui/Vulkan/VulkanGUI.h"
 
 
 namespace Silex
 {
-    //=============================================
-    // Vulkan 構造体
-    //=============================================
-
-    // コマンドキュー
-    struct VulkanCommandQueue : public CommandQueue
-    {
-        VkQueue queue  = nullptr;
-        uint32  family = INVALID_RENDER_ID;
-        uint32  index  = INVALID_RENDER_ID;
-    };
-
-    // コマンドプール
-    struct VulkanCommandPool : public CommandQueue
-    {
-        VkCommandPool     commandPool = nullptr;
-        CommandBufferType type        = COMMAND_BUFFER_TYPE_PRIMARY;
-    };
-
-    // コマンドバッファ
-    struct VulkanCommandBuffer : public CommandBuffer
-    {
-        VkCommandBuffer commandBuffer = nullptr;
-    };
-
-    // セマフォ
-    struct VulkanSemaphore : public Semaphore
-    {
-        VkSemaphore semaphore = nullptr;
-    };
-
-    // フェンス
-    struct VulkanFence : public Fence
-    {
-        VkFence fence = nullptr;
-    };
-
-    // レンダーパス
-    struct VulkanRenderPass : public RenderPass
-    {
-        VkRenderPass renderpass = nullptr;
-    };
-
-    // フレームバッファ
-    struct VulkanFramebuffer : public FramebufferHandle
-    {
-        VkFramebuffer framebuffer = nullptr;
-    };
-
-    // スワップチェイン
-    struct VulkanSwapChain : public SwapChain
-    {
-        VulkanSurface*    surface    = nullptr;
-        VulkanRenderPass* renderpass = nullptr;
-
-        VkSwapchainKHR  swapchain  = nullptr;
-        VkFormat        format     = VK_FORMAT_UNDEFINED;
-        VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-
-        std::vector<FramebufferHandle*> framebuffers;
-        std::vector<VkImage>            images;
-        std::vector<VkImageView>        views;
-
-        uint32 imageIndex = 0;
-    };
-
-    // バッファ
-    struct VulkanBuffer : public Buffer
-    {
-        VkBuffer      buffer           = nullptr;
-        VkBufferView  view             = nullptr;
-        uint64        size             = 0;
-        VmaAllocation allocationHandle = nullptr;
-        uint64        allocationSize   = 0;
-    };
-
-    // テクスチャ
-    struct VulkanTexture : public TextureHandle
-    {
-        VkImage     image     = nullptr;
-        VkImageView imageView = nullptr;
-        VkExtent3D  extent    = {};
-
-        VmaAllocation     allocationHandle = nullptr;
-        VmaAllocationInfo allocationInfo   = {};
-    };
-
-    // サンプラー
-    struct VulkanSampler : public Sampler
-    {
-        VkSampler sampler = nullptr;
-    };
-
-    // 頂点フォーマット
-    struct VulkanVertexFormat : public VertexFormat
-    {
-        std::vector<VkVertexInputBindingDescription>   bindings;
-        std::vector<VkVertexInputAttributeDescription> attributes;
-        VkPipelineVertexInputStateCreateInfo           createInfo = {};
-    };
-
-    // シェーダー
-    struct VulkanShader : public ShaderHandle
-    {
-        VkShaderStageFlags                           stageFlags = 0;
-        std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos;
-        std::vector<VkDescriptorSetLayout>           descriptorsetLayouts;
-        VkPipelineLayout                             pipelineLayout;
-    };
-
-    // デスクリプターセット
-    static constexpr uint32 MaxDescriptorsetPerPool = 64;
-
-    struct VulkanDescriptorSet : public DescriptorSet
-    {
-        VkDescriptorSet  descriptorSet  = nullptr;
-        VkDescriptorPool descriptorPool = nullptr;
-
-        VulkanAPI::DescriptorSetPoolKey poolKey;
-    };
-
-    // パイプライン
-    struct VulkanPipeline : public Pipeline
-    {
-        VkPipeline pipeline = nullptr;
-    };
-
-
-
     //==================================================================================
     // Vulkan ヘルパー
     //==================================================================================
+    static constexpr uint32 MaxDescriptorsetPerPool = 64;
 
     // デスクリプターセットシグネチャから同一シグネチャのプールがあれば取得、なければ新規生成
     VkDescriptorPool VulkanAPI::_FindOrCreateDescriptorPool(const DescriptorSetPoolKey& key)
@@ -313,6 +187,8 @@ namespace Silex
 
     VulkanAPI::~VulkanAPI()
     {
+        vkDeviceWaitIdle(device);
+
         if (allocator) vmaDestroyAllocator(allocator);
         if (device)    vkDestroyDevice(device, nullptr);
     }
@@ -383,6 +259,9 @@ namespace Silex
 
         VkResult result = vkCreateDevice(context->GetPhysicalDevice(), &deviceCreateInfo, nullptr, &device);
         SL_CHECK_VKRESULT(result, false);
+
+        // コンテキストでも使用できるように格納する
+        context->device = device;
 
         // 拡張機能関数ロード
         CreateSwapchainKHR    = GET_VULKAN_DEVICE_PROC(device, vkCreateSwapchainKHR);
@@ -461,6 +340,32 @@ namespace Silex
         return familyIndex;
     }
 
+    bool VulkanAPI::ExcuteQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* wait, Semaphore* signal)
+    {
+        VulkanCommandQueue*  vkqueue         = (VulkanCommandQueue*)queue;
+        VulkanCommandBuffer* vkcommandBuffer = (VulkanCommandBuffer*)commandbuffer;
+        VulkanFence*         vkfence         = (VulkanFence*)fence;
+        VulkanSemaphore*     vkwait          = (VulkanSemaphore*)wait;
+        VulkanSemaphore*     vksignal        = (VulkanSemaphore*)signal;
+
+        VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+        VkSubmitInfo submitInfo = {};
+        submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.pWaitDstStageMask    = &waitStage;
+        submitInfo.commandBufferCount   = 1;
+        submitInfo.pCommandBuffers      = &vkcommandBuffer->commandBuffer;
+        submitInfo.waitSemaphoreCount   = 1;
+        submitInfo.pWaitSemaphores      = &vkwait->semaphore;
+        submitInfo.signalSemaphoreCount = 1;
+        submitInfo.pSignalSemaphores    = &vksignal->semaphore;
+
+        VkResult result = vkQueueSubmit(vkqueue->queue, 1, &submitInfo, vkfence->fence);
+        SL_CHECK_VKRESULT(result, false);
+
+        return true;
+    }
+
     //==================================================================================
     // コマンドプール
     //==================================================================================
@@ -469,8 +374,8 @@ namespace Silex
         uint32 familyIndex = family;
 
         VkCommandPoolCreateInfo commandPoolInfo = {};
-        commandPoolInfo.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        commandPoolInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        commandPoolInfo.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO; 
+        commandPoolInfo.flags            = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT; // (必須) コマンドバッファがリセットできるようにする
         commandPoolInfo.queueFamilyIndex = familyIndex;
 
         VkCommandPool vkCommandPool = nullptr;
@@ -532,13 +437,21 @@ namespace Silex
 
     bool VulkanAPI::BeginCommandBuffer(CommandBuffer* commandBuffer)
     {
+        // VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT フラグで生成されたプールから割り当てられたバッファは
+        // vkResetCommandBufferを呼び出すか、vkBeginCommandBuffer の呼び出しで暗黙的に リセットされる。
+        // また、このフラグで生成されていないプールから割り当てられたバッファは vkResetCommandBuffer 呼び出しをしてはいけない
+        // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkCommandPoolCreateFlagBits.html
+
         VulkanCommandBuffer* vkcmdBuffer = (VulkanCommandBuffer*)commandBuffer;
+
+        VkResult result = vkResetCommandBuffer(vkcmdBuffer->commandBuffer, 0);
+        SL_CHECK_VKRESULT(result, false);
 
         VkCommandBufferBeginInfo beginInfo = {};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-        VkResult result = vkBeginCommandBuffer(vkcmdBuffer->commandBuffer, &beginInfo);
+        result = vkBeginCommandBuffer(vkcmdBuffer->commandBuffer, &beginInfo);
         SL_CHECK_VKRESULT(result, false);
 
         return true;
@@ -891,6 +804,13 @@ namespace Silex
             return true;
         }
 
+        //=============================================================
+        // GPU待機
+        //=============================================================
+        VkResult result = vkDeviceWaitIdle(device);
+        SL_CHECK_VKRESULT(result, false);
+
+
         VkPhysicalDevice physicalDevice = context->GetPhysicalDevice();
         VulkanSwapChain* vkSwapchain    = (VulkanSwapChain*)swapchain;
         VulkanSurface*   vkSurface      = vkSwapchain->surface;
@@ -919,7 +839,7 @@ namespace Silex
 
         // サーフェース仕様取得
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
-        VkResult result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vkSurface->surface, &surfaceCapabilities);
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vkSurface->surface, &surfaceCapabilities);
         SL_CHECK_VKRESULT(result, false);
 
         // サイズ
@@ -1080,20 +1000,18 @@ namespace Silex
         return true;
     }
 
-    FramebufferHandle* VulkanAPI::GetSwapChainNextFramebuffer(SwapChain* swapchain, Semaphore* semaphore)
+    FramebufferHandle* VulkanAPI::GetSwapChainNextFramebuffer(SwapChain* swapchain, Semaphore* present, Semaphore* render)
     {
         VulkanSwapChain* vkswapchain = (VulkanSwapChain*)swapchain;
-        VulkanSemaphore* vksemaphore = (VulkanSemaphore*)semaphore;
+        VulkanSemaphore* vkpresent   = (VulkanSemaphore*)present;
+        VulkanSemaphore* vkrender    = (VulkanSemaphore*)render;
 
-        //=============================================================================
-        // TODO: サーフェースのリサイズ対応
-        // リサイズ対応が必要なら、ここでリサイズフラグを立てて、スワップチェインにリサイズ要求をする
-        // ここでチェックするか、ウィンドウイベントから直接リサイズ呼び出しするか検討する
-        //=============================================================================
-
-        VkResult result = AcquireNextImageKHR(device, vkswapchain->swapchain, UINT64_MAX, vksemaphore->semaphore, nullptr, &vkswapchain->imageIndex);
+        VkResult result = AcquireNextImageKHR(device, vkswapchain->swapchain, UINT64_MAX, vkpresent->semaphore, nullptr, &vkswapchain->imageIndex);
         SL_CHECK_VKRESULT(result, nullptr);
-        
+
+        vkswapchain->signal = vkpresent->semaphore;
+        vkswapchain->wait   = vkrender->semaphore;
+
         return vkswapchain->framebuffers[vkswapchain->imageIndex];
     }
 
@@ -1141,6 +1059,25 @@ namespace Silex
 
             Memory::Deallocate(vkSwapchain);
         }
+    }
+
+    bool VulkanAPI::Present(CommandQueue* queue, SwapChain* swapchain)
+    {
+        VulkanSwapChain*    vkswapchain = (VulkanSwapChain*)swapchain;
+        VulkanCommandQueue* vksqueue    = (VulkanCommandQueue*)queue;
+
+        VkPresentInfoKHR presentInfo = {};
+        presentInfo.sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.waitSemaphoreCount  = 1;
+        presentInfo.pWaitSemaphores     = &vkswapchain->wait;
+        presentInfo.swapchainCount      = 1;
+        presentInfo.pSwapchains         = &vkswapchain->swapchain;
+        presentInfo.pImageIndices       = &vkswapchain->imageIndex;
+
+        VkResult result = vkQueuePresentKHR(vksqueue->queue, &presentInfo);
+        SL_CHECK_VKRESULT(result, false);
+
+        return true;
     }
 
 
@@ -1804,8 +1741,6 @@ namespace Silex
 
     void VulkanAPI::BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType, uint32 numclearValues, RenderPassClearValue* clearvalues, uint32 x, uint32 y, uint32 width, uint32 height)
     {
-        VkSubpassContents vksubpassContents = commandBufferType == COMMAND_BUFFER_TYPE_PRIMARY ? VK_SUBPASS_CONTENTS_INLINE : VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS;
-
         VkRenderPassBeginInfo begineInfo = {};
         begineInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         begineInfo.renderPass               = (VkRenderPass)((VulkanRenderPass*)(renderpass))->renderpass;
@@ -1818,7 +1753,7 @@ namespace Silex
         begineInfo.pClearValues             = (VkClearValue*)clearvalues;
 
         VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
-        vkCmdBeginRenderPass(cmd->commandBuffer, &begineInfo, vksubpassContents);
+        vkCmdBeginRenderPass(cmd->commandBuffer, &begineInfo, commandBufferType == COMMAND_BUFFER_TYPE_PRIMARY? VK_SUBPASS_CONTENTS_INLINE : VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
     }
 
     void VulkanAPI::EndRenderPass(CommandBuffer* commandbuffer)

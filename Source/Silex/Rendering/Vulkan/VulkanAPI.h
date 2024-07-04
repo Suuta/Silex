@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Rendering/RenderingAPI.h"
+#include "Rendering/Vulkan/VulkanStructures.h"
 
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_mem_alloc.h>
@@ -51,6 +52,7 @@ namespace Silex
         CommandQueue* CreateCommandQueue(QueueFamily family, uint32 indexInFamily = 0) override;
         void DestroyCommandQueue(CommandQueue* queue) override;
         QueueFamily QueryQueueFamily(uint32 queueFlag, Surface* surface = nullptr) const override;
+        bool ExcuteQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* wait, Semaphore* signal) override;
 
         //--------------------------------------------------
         // コマンドプール
@@ -84,10 +86,11 @@ namespace Silex
         //--------------------------------------------------
         SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) override;
         bool ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) override;
-        FramebufferHandle* GetSwapChainNextFramebuffer(SwapChain* swapchain, Semaphore* semaphore) override;
+        FramebufferHandle* GetSwapChainNextFramebuffer(SwapChain* swapchain, Semaphore* present, Semaphore* render) override;
         RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) override;
         RenderingFormat GetSwapChainFormat(SwapChain* swapchain) override;
         void DestroySwapChain(SwapChain* swapchain) override;
+        bool Present(CommandQueue* queue, SwapChain* swapchain) override;
 
         //--------------------------------------------------
         // バッファ
@@ -177,18 +180,6 @@ namespace Silex
         void BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset) override;
         
         void SetLineWidth(CommandBuffer* commandbuffer, float width) override;
-
-    public:
-
-        // プール検索キー
-        struct DescriptorSetPoolKey
-        {
-            uint16 descriptorTypeCounts[DESCRIPTOR_TYPE_MAX] = {};
-            bool operator<(const DescriptorSetPoolKey& other) const
-            {
-                return memcmp(descriptorTypeCounts, other.descriptorTypeCounts, sizeof(descriptorTypeCounts)) < 0;
-            }
-        };
 
     private:
 

@@ -6,6 +6,7 @@
 
 namespace Silex
 {
+    class RenderingContext;
     using GUICreateFunction = class GUI* (*)();
 
 
@@ -14,6 +15,9 @@ namespace Silex
         SL_CLASS(GUI, Object)
 
     public:
+
+        GUI();
+        ~GUI();
 
         // 生成
         static GUI* Create()
@@ -29,9 +33,7 @@ namespace Silex
 
     public:
 
-        virtual void Init();
-        virtual void Shutdown();
-        virtual void Render();
+        virtual void Init(RenderingContext* context);
 
         virtual void BeginFrame();
         virtual void EndFrame();

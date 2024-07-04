@@ -4,7 +4,6 @@
 #include "Core/Engine.h"
 #include "Asset/Asset.h"
 #include "Editor/SplashImage.h"
-#include "Rendering/Renderer.h"
 #include "Rendering/RenderingContext.h"
 #include "Rendering/RenderingDevice.h"
 #include "Rendering/OpenGL/GLEditorUI.h"
@@ -109,8 +108,8 @@ namespace Silex
         //AssetManager::Get()->Init();
 
         // エディターUI (ImGui)
-        //gui = GUI::Create();
-        //gui->Init();
+        imgui = GUI::Create();
+        imgui->Init(renderingContext);
 
         // エディター
         //editor = Memory::Allocate<Editor>();
@@ -124,8 +123,12 @@ namespace Silex
 
     void Engine::Finalize()
     {
-        //if (editor) editor->Shutdown();
-        //if (gui)    gui->Shutdown();
+        // editor->Shutdown();
+        // Memory::Deallocate(editor);
+
+        // ImGui 破棄
+        Memory::Deallocate(imgui);
+
         //AssetManager::Get()->Shutdown();
         //Renderer::Get()->Shutdown();
 
@@ -148,14 +151,14 @@ namespace Silex
 
         if (!minimized)
         {
-            //Renderer::Get()->BeginFrame();
-            //gui->BeginFrame();
+            //imgui->BeginFrame();
 
             //editor->Update(deltaTime);
             //editor->Render();
 
-            //gui->EndFrame();
-            //Renderer::Get()->EndFrame();
+            renderingDevice->Begin();
+            //imgui->EndFrame();
+            renderingDevice->End();
 
             Input::Flush();
         }

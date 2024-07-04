@@ -2,6 +2,7 @@
 #include "PCH.h"
 #include "Rendering/Vulkan/VulkanContext.h"
 #include "Rendering/Vulkan/VulkanAPI.h"
+#include "ImGui/Vulkan/VulkanGUI.h"
 
 
 namespace Silex
@@ -268,6 +269,7 @@ namespace Silex
         extensionFunctions.GetPhysicalDeviceSurfacePresentModesKHR = GET_VULKAN_INSTANCE_PROC(instance, vkGetPhysicalDeviceSurfacePresentModesKHR);
         SL_CHECK(!extensionFunctions.GetPhysicalDeviceSurfacePresentModesKHR, false);
 
+
         return true;
     }
 
@@ -316,6 +318,12 @@ namespace Silex
     VkPhysicalDevice VulkanContext::GetPhysicalDevice() const
     {
         return physicalDevice;
+    }
+
+    VkDevice VulkanContext::GetDevice() const
+    {
+        SL_ASSERT(device != nullptr, "device は VulkanAPI で初期化された後から使用可能です");
+        return device;
     }
 
     VkInstance VulkanContext::GetInstance() const

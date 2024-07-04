@@ -60,7 +60,6 @@ namespace Silex
         SL_CHECK(!graphicsQueue, false);
       
         // フレームデータ生成
-        frameData.resize(2);
         for (uint32 i = 0; i < frameData.size(); i++)
         {
             // コマンドプール生成
@@ -83,6 +82,7 @@ namespace Silex
             SL_CHECK(!frameData[i].fence, false);
         }
 
+#if 0
         struct SceneData
         {
             glm::mat4 view;
@@ -115,10 +115,47 @@ namespace Silex
         api->DestroyDescriptorSet(set);
         api->DestroyShader(shader);
         api->DestroyBuffer(uniform);
+#endif
 
         return true;
     }
 
+    bool RenderingDevice::Begin()
+    {
+        SwapChain*         swapchain   = Window::Get()->GetSwapChain();
+        FrameData&         frame       = frameData[frameIndex];
+        FramebufferHandle* framebuffer = nullptr;
+
+        bool result = api->WaitFence(frame.fence);
+        SL_CHECK(!result, false);
+
+        framebuffer = api->GetSwapChainNextFramebuffer(swapchain, frame.presentSemaphore, frame.renderSemaphore);
+        SL_CHECK(!framebuffer, false);
+
+        result = api->BeginCommandBuffer(frame.commandBuffer);
+        SL_CHECK(!result, false);
+
+        {
+            // api->BeginRenderPass(frame.commandBuffer, api->GetSwapChainRenderPass(swapchain), framebuffer, COMMAND_BUFFER_TYPE_PRIMARY);
+            // api->EndRenderPass(frame.commandBuffer);
+        }
+
+        return true;
+    }
+
+    bool RenderingDevice::End()
+    {
+        SwapChain* swapchain = Window::Get()->GetSwapChain();
+        FrameData& frame     = frameData[frameIndex];
+        
+        api->EndCommandBuffer(frame.commandBuffer);
+        api->ExcuteQueue(graphicsQueue, frame.commandBuffer, frame.fence, frame.presentSemaphore, frame.renderSemaphore);
+        api->Present(graphicsQueue, swapchain);
+
+        frameIndex = (frameIndex + 1) % 2;
+
+        return true;
+    }
 
     SwapChain* RenderingDevice::CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode)
     {
@@ -131,6 +168,31 @@ namespace Silex
     void RenderingDevice::DestoySwapChain(SwapChain* swapchain)
     {
         api->DestroySwapChain(swapchain);
+    }
+
+    RenderingContext* RenderingDevice::GetContext() const
+    {
+        return renderingContext;
+    }
+
+    RenderingAPI* RenderingDevice::GetAPI() const
+    {
+        return api;
+    }
+
+    CommandQueue* RenderingDevice::GetGraphicsCommandQueue() const
+    {
+        return graphicsQueue;
+    }
+
+    const FrameData& RenderingDevice::GetFrameData() const
+    {
+        return frameData[frameIndex];
+    }
+
+    QueueFamily RenderingDevice::GetGraphicsQueueFamily() const
+    {
+        return graphicsQueueFamily;
     }
 
     bool RenderingDevice::ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode)

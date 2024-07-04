@@ -28,6 +28,7 @@ namespace Silex
         virtual CommandQueue* CreateCommandQueue(QueueFamily family, uint32 indexInFamily = 0) = 0;
         virtual void DestroyCommandQueue(CommandQueue* queue) = 0;
         virtual QueueFamily QueryQueueFamily(uint32 flag, Surface* surface = nullptr) const = 0;
+        virtual bool ExcuteQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* wait, Semaphore* signal) = 0;
 
         //--------------------------------------------------
         // コマンドプール
@@ -64,10 +65,11 @@ namespace Silex
         //--------------------------------------------------
         virtual SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) = 0;
         virtual bool ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) = 0;
-        virtual FramebufferHandle* GetSwapChainNextFramebuffer(SwapChain* swapchain, Semaphore* semaphore) = 0;
+        virtual FramebufferHandle* GetSwapChainNextFramebuffer(SwapChain* swapchain, Semaphore* present, Semaphore* render) = 0;
         virtual RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) = 0;
         virtual RenderingFormat GetSwapChainFormat(SwapChain* swapchain) = 0;
         virtual void DestroySwapChain(SwapChain* swapchain) = 0;
+        virtual bool Present(CommandQueue* queue, SwapChain* swapchain) = 0;
 
         //--------------------------------------------------
         // バッファ

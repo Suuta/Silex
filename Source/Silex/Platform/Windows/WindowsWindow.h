@@ -41,6 +41,7 @@ namespace Silex
         GLFWwindow* GetGLFWWindow()             const override;
         WindowData* GetWindowData()             const override;
         Surface*    GetSurface()                const override;
+        SwapChain*  GetSwapChain()              const override;
 
         // レンダーコンテキスト
         bool SetupWindowContext(RenderingContext* context)   override;

@@ -2,6 +2,7 @@
 #include "PCH.h"
 
 #include "Core/Engine.h"
+#include "Rendering/RenderingContext.h"
 #include "Rendering/OpenGL/GLEditorUI.h"
 
 #include <imgui/imgui.h>
@@ -12,33 +13,23 @@
 
 namespace Silex
 {
-    void GLEditorUI::Init()
+    GLEditorUI::GLEditorUI()
     {
-        SL_LOG_TRACE("GLEditorUI::Init");
+    }
 
-        Super::Init();
+    GLEditorUI::~GLEditorUI()
+    {
+        ImGui_ImplOpenGL3_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+    }
+
+    void GLEditorUI::Init(RenderingContext* context)
+    {
+        Super::Init(context);
         GLFWwindow* window = Window::Get()->GetGLFWWindow();
 
         ImGui_ImplGlfw_InitForOpenGL(window, true);
         ImGui_ImplOpenGL3_Init("#version 450");
-    }
-
-    void GLEditorUI::Shutdown()
-    {
-        SL_LOG_TRACE("GLEditorUI::Shutdown");
-
-        ImGui_ImplOpenGL3_Shutdown();
-        ImGui_ImplGlfw_Shutdown();
-
-        Super::Shutdown();
-    }
-
-    void GLEditorUI::Render()
-    {
-        Super::Render();
-
-        ImDrawData* drawData = ImGui::GetDrawData();
-        ImGui_ImplOpenGL3_RenderDrawData(drawData);
     }
 
     void GLEditorUI::BeginFrame()
@@ -51,7 +42,9 @@ namespace Silex
 
     void GLEditorUI::EndFrame()
     {
-        Render();
+        ImGui::Render();
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
         Super::EndFrame();
     }
 }

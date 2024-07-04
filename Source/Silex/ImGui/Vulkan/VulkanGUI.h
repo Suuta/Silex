@@ -13,11 +13,16 @@ namespace Silex
 
     public:
 
-        void Init()     override;
-        void Shutdown() override;
-        void Render()   override;
+        VulkanGUI();
+        ~VulkanGUI();
 
-        void BeginFrame() override;
-        void EndFrame()   override;
+        void Init(RenderingContext* context) override;
+        void BeginFrame()                    override;
+        void EndFrame()                      override;
+
+    private:
+
+        class VulkanContext* vulkanContext  = nullptr;
+        VkDescriptorPool     descriptorPool = nullptr;
     };
 }

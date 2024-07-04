@@ -54,8 +54,8 @@ namespace Silex
         bool Initialize(bool enableValidation) override;
 
         // API実装
-        RenderingAPI* CreateRendringAPI() override;
-        void DestroyRendringAPI(RenderingAPI* api) override;
+        RenderingAPI* CreateRendringAPI()                   override;
+        void          DestroyRendringAPI(RenderingAPI* api) override;
 
         // デバイス情報
         const DeviceInfo& GetDeviceInfo() const override;
@@ -66,15 +66,14 @@ namespace Silex
         bool QueueHasPresent(Surface* surface, uint32 queueIndex) const;
 
         // 各種プロパティ取得
-        const std::vector<VkQueueFamilyProperties>& GetQueueFamilyProperties() const;
-        const std::vector<const char*>& GetEnabledInstanceExtensions() const;
-        const std::vector<const char*>& GetEnabledDeviceExtensions() const;
+        const std::vector<VkQueueFamilyProperties>& GetQueueFamilyProperties()     const;
+        const std::vector<const char*>&             GetEnabledInstanceExtensions() const;
+        const std::vector<const char*>&             GetEnabledDeviceExtensions()   const;
 
-        // 物理デバイス
+        // GET
         VkPhysicalDevice GetPhysicalDevice() const;
-
-        // インスタンス
-        VkInstance GetInstance() const;
+        VkDevice         GetDevice()         const;
+        VkInstance       GetInstance()       const;
 
     public:
 
@@ -97,8 +96,9 @@ namespace Silex
         VkInstance               instance       = nullptr;
         VkDebugUtilsMessengerEXT debugMessenger = nullptr;
 
-        // 物理デバイス
+        // デバイス
         VkPhysicalDevice                     physicalDevice        = nullptr;
+        VkDevice                             device                = nullptr;
         std::vector<VkQueueFamilyProperties> queueFamilyProperties = {};
 
         // デバッグメッセンジャー関数ポインタ
@@ -119,5 +119,9 @@ namespace Silex
 
         // 拡張機能関数
         ExtensionFunctions extensionFunctions;
+
+    private:
+
+        friend class VulkanAPI;
     };
 }

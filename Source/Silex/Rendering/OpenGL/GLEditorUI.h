@@ -13,9 +13,10 @@ namespace Silex
 
     public:
 
-        void Init()     override;
-        void Shutdown() override;
-        void Render()   override;
+        GLEditorUI();
+        ~GLEditorUI();
+
+        void Init(RenderingContext* context) override;
 
         void BeginFrame() override;
         void EndFrame()   override;

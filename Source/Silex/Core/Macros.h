@@ -19,7 +19,8 @@
 #define SL_BIT(x) 1 << x
 
 // コンパイラ警告の抑制や、三項演算子で実行しないステートのダミー処理?
-#define SL_NO_USE(x) (void)(x)
+#define SL_DONT_USE        (void)(0)
+#define SL_DONT_USE_VAR(x) (void)(x)
 
 // 引数オーバーロード解決に使用
 #define SL_ARG3(_1, _2, _3, ...) _3

@@ -129,6 +129,7 @@ namespace Silex
         virtual GLFWwindow* GetGLFWWindow()       const = 0;
         virtual WindowData* GetWindowData()       const = 0;
         virtual Surface*    GetSurface()          const = 0;
+        virtual SwapChain*  GetSwapChain()        const = 0;
         virtual void*       GetPlatformHandle()   const = 0;
 
         // レンダリングコンテキスト

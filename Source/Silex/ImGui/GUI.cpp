@@ -2,6 +2,7 @@
 #include "PCH.h"
 
 #include "ImGui/GUI.h"
+#include "Rendering/RenderingContext.h"
 
 #include <glfw/glfw3.h>
 #include <imgui/imgui.h>
@@ -10,14 +11,23 @@
 
 namespace Silex
 {
-    void GUI::Init()
+    GUI::GUI()
+    {
+    }
+
+    GUI::~GUI()
+    {
+        ImGui::DestroyContext();
+    }
+
+    void GUI::Init(RenderingContext* context)
     {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
         io.FontDefault = io.Fonts->AddFontFromFileTTF("Assets/Fonts/VL-Gothic-Regular.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
 
@@ -77,44 +87,18 @@ namespace Silex
         }
     }
 
-    void GUI::Shutdown()
-    {
-        ImGui::DestroyContext();
-        Memory::Deallocate(this);
-    }
-
     void GUI::BeginFrame()
     {
         ImGui::NewFrame();
         ImGuizmo::BeginFrame();
     }
 
-    void GUI::Render()
-    {
-        ImGui::Render();
-    }
-
     void GUI::EndFrame()
     {
-        //==============================================================
-        // ビューポートを有効にする場合（メインウィンドウ以外でのImGui描画）
-        // OpenGLコンテキストの更新を行う必要がある（ウィンドウコンテキストが更新された場合）
-        // このコンテキストはスレッド固有で、1度に1つコンテキストに対するOpenGL命令しか
-        // 実行できない。スレッドが変わる場合はコンテキストも切り替える必要がある
-        //==============================================================
         if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
-#if SL_PLATFORM_OPENGL
-            GLFWwindow* prevContext = glfwGetCurrentContext();
-
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
-
-            glfwMakeContextCurrent(prevContext);
-#else
-            ImGui::UpdatePlatformWindows();
-            ImGui::RenderPlatformWindowsDefault();
-#endif
         }
     }
 }

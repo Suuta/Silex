@@ -184,6 +184,11 @@ namespace Silex
         return renderingSurface;
     }
 
+    SwapChain* WindowsWindow::GetSwapChain() const
+    {
+        return swapchain;
+    }
+
 
 
     void WindowsWindow::OnWindowClose(WindowCloseEvent& e)

@@ -57,7 +57,7 @@ namespace Silex
         std::string engineName = "Silex";
 
         Editor* editor = nullptr;
-        GUI*    gui    = nullptr;
+        GUI*    imgui  = nullptr;
 
         bool isRunning = true;
         bool minimized = false;
