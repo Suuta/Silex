@@ -47,7 +47,7 @@ namespace Silex
         return pool;
     }
 
-    static void UploadFontTexture(VkDevice device, uint32 queueFamily)
+    static void UploadFontTexture(VkDevice device, VkQueue queue, uint32 queueFamily)
     {
         VkResult result;
 
@@ -74,12 +74,25 @@ namespace Silex
         beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-        result = vkBeginCommandBuffer(commandBuffer, &beginInfo);
+        {
+            result = vkBeginCommandBuffer(commandBuffer, &beginInfo);
+            SL_CHECK_VKRESULT(result, SL_DONT_USE);
+
+            ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
+
+            result = vkEndCommandBuffer(commandBuffer);
+            SL_CHECK_VKRESULT(result, SL_DONT_USE);
+        }
+
+        VkSubmitInfo submit = {};
+        submit.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submit.commandBufferCount = 1;
+        submit.pCommandBuffers    = &commandBuffer;
+
+        result = vkQueueSubmit(queue, 1, &submit, nullptr);
         SL_CHECK_VKRESULT(result, SL_DONT_USE);
 
-        ImGui_ImplVulkan_CreateFontsTexture(commandBuffer);
-
-        result = vkEndCommandBuffer(commandBuffer);
+        result = vkQueueWaitIdle(queue);
         SL_CHECK_VKRESULT(result, SL_DONT_USE);
 
         vkDestroyCommandPool(device, commandPool, nullptr);
@@ -94,6 +107,8 @@ namespace Silex
 
     VulkanGUI::~VulkanGUI()
     {
+        vkDeviceWaitIdle(vulkanContext->GetDevice());
+
         ImGui_ImplVulkan_Shutdown();
         ImGui_ImplGlfw_Shutdown();
 
@@ -135,7 +150,7 @@ namespace Silex
         ImGui_ImplVulkan_Init(&initInfo, swapchain->renderpass->renderpass);
 
         // フォントアップロード
-        UploadFontTexture(vulkanContext->GetDevice(), queue->family);
+        UploadFontTexture(vulkanContext->GetDevice(), queue->queue, queue->family);
     }
 
     void VulkanGUI::BeginFrame()
@@ -148,8 +163,6 @@ namespace Silex
 
     void VulkanGUI::EndFrame()
     {
-        ImGui::Render();
-
         const FrameData& frame = RenderingDevice::Get()->GetFrameData();
         VkCommandBuffer commandBuffer = ((VulkanCommandBuffer*)(frame.commandBuffer))->commandBuffer;
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);

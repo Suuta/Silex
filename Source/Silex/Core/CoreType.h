@@ -78,7 +78,7 @@ namespace Silex
 
 
     //========================================
-    // クラス情報インターフェース
+    // クラス情報ベースクラス
     //========================================
     class Class
     {
@@ -101,25 +101,20 @@ namespace Silex
         }
 
         // T と T2 を比較する
-        template<class T, class T2>
-        static bool IsSameClassOf(T* a, T2* b)
+        template<class T, class U>
+        static bool IsSameClassOf(T* a, U* b)
         {
-            static_assert(Traits::IsBaseOf<Class, T>() && Traits::IsBaseOf<Class, T2>(), "T / T2 は Class を継承する必要があります");
+            static_assert(Traits::IsBaseOf<Class, T>(), "T は Class を継承する必要があります");
+            static_assert(Traits::IsBaseOf<Class, U>(), "U は Class を継承する必要があります");
             return a->GetRuntimeHashID() == b->GetRuntimeHashID();
         }
-    };
 
-
-    //============================================
-    // 抽象化汎用ハンドル
-    //============================================
-    struct Handle
-    {
-        uint64 pointer = 0;
-
-        Handle()          : pointer(uint64(this)) {}
-        Handle(void* ptr) : pointer(uint64(ptr))  {}
-
-        virtual ~Handle() {};
+        // 実際のランタイム型へのみキャストを行う
+        template<class T>
+        T* RuntimeCast()
+        {
+            static_assert(Traits::IsBaseOf<Class, T>(), "T は Class を継承する必要があります");
+            return this->IsClassOf<T>()? (T*)this : nullptr;
+        }
     };
 }

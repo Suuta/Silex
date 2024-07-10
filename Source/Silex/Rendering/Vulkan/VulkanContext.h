@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Rendering/RenderingContext.h"
+#include "Rendering/Vulkan/VulkanStructures.h"
 #include <vulkan/vulkan.h>
 
 
@@ -24,14 +25,6 @@ namespace Silex
     // Vulkan ユーティリティ 関数
     //=============================================
     const char* VkResultToString(VkResult result);
-
-    //=============================================
-    // Vulkan 構造体
-    //=============================================
-    struct VulkanSurface : public Surface
-    {
-        VkSurfaceKHR surface = nullptr;
-    };
 
     //=============================================
     // Vulkan コンテキスト
@@ -119,6 +112,8 @@ namespace Silex
 
         // 拡張機能関数
         ExtensionFunctions extensionFunctions;
+
+        bool enableValidationLayer = false;
 
     private:
 

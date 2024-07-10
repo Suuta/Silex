@@ -48,23 +48,25 @@ namespace Silex
 
     private:
 
-        // レンダリングコンテキスト
+        // レンダリング
         RenderingDevice*  renderingDevice  = nullptr;
         RenderingContext* renderingContext = nullptr;
 
-    private:
+        // 
+        Editor* editor     = nullptr;
+        GUI*    imgui      = nullptr;
+        Window* mainWindow = nullptr;
 
-        std::string engineName = "Silex";
-
-        Editor* editor = nullptr;
-        GUI*    imgui  = nullptr;
-
+        // フラグ
         bool isRunning = true;
         bool minimized = false;
 
+        // 時間
         uint64 lastFrameTime = 0;
         uint32 frameRate     = 0;
         float  deltaTime     = 0.0f;
+
+        std::string applicationName = "Silex";
 
         std::unordered_map<const char*, float> performanceData;
     };

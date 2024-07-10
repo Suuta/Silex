@@ -22,7 +22,7 @@ namespace Silex
             case VK_ERROR_OUT_OF_HOST_MEMORY:       return "VK_ERROR_OUT_OF_HOST_MEMORY";
             case VK_ERROR_OUT_OF_DEVICE_MEMORY:     return "VK_ERROR_OUT_OF_DEVICE_MEMORY";
             case VK_ERROR_INITIALIZATION_FAILED:    return "VK_ERROR_INITIALIZATION_FAILED";
-            case VK_ERROR_DEVICE_LOST:              return "VK_ERROR_DEVICE_LOST ";
+            case VK_ERROR_DEVICE_LOST:              return "VK_ERROR_DEVICE_LOST";
             case VK_ERROR_MEMORY_MAP_FAILED:        return "VK_ERROR_MEMORY_MAP_FAILED";
             case VK_ERROR_LAYER_NOT_PRESENT:        return "VK_ERROR_LAYER_NOT_PRESENT";
             case VK_ERROR_EXTENSION_NOT_PRESENT:    return "VK_ERROR_EXTENSION_NOT_PRESENT";
@@ -70,12 +70,17 @@ namespace Silex
 
     VulkanContext::~VulkanContext()
     {
-        DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+        if (enableValidationLayer)
+        {
+            DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+        }
+
         vkDestroyInstance(instance, nullptr);
     }
 
     bool VulkanContext::Initialize(bool enableValidation)
     {
+        enableValidationLayer = enableValidation;
         uint32 instanceVersion = VK_API_VERSION_1_0;
 
         // ドライバーの Vulkan バージョンを取得(ver 1.1 から有効であり、関数のロードが失敗した場合 ver 1.0)
@@ -101,7 +106,7 @@ namespace Silex
         requestInstanceExtensions.insert(GetPlatformSurfaceExtensionName());
 
         // バリデーションが有効な場合
-        if (enableValidation)
+        if (enableValidationLayer)
         {
             requestInstanceExtensions.insert(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
@@ -124,7 +129,7 @@ namespace Silex
         }
         
         // バリデーションが有効な場合
-        if (enableValidation)
+        if (enableValidationLayer)
         {
             requestLayers.insert(VK_LAYER_KHRONOS_VALIDATION_NAME);
         }
@@ -182,15 +187,18 @@ namespace Silex
         result = vkCreateInstance(&instanceInfo, nullptr, &instance);
         SL_CHECK_VKRESULT(result, false);
 
-        // デバッグメッセンジャーの関数ポインタを取得
-        CreateDebugUtilsMessengerEXT  = GET_VULKAN_INSTANCE_PROC(instance, vkCreateDebugUtilsMessengerEXT);
-        DestroyDebugUtilsMessengerEXT = GET_VULKAN_INSTANCE_PROC(instance, vkDestroyDebugUtilsMessengerEXT);
-        SL_CHECK(!CreateDebugUtilsMessengerEXT, false);
-        SL_CHECK(!DestroyDebugUtilsMessengerEXT, false);
+        if (enableValidationLayer)
+        {
+            // デバッグメッセンジャーの関数ポインタを取得
+            CreateDebugUtilsMessengerEXT  = GET_VULKAN_INSTANCE_PROC(instance, vkCreateDebugUtilsMessengerEXT);
+            DestroyDebugUtilsMessengerEXT = GET_VULKAN_INSTANCE_PROC(instance, vkDestroyDebugUtilsMessengerEXT);
+            SL_CHECK(!CreateDebugUtilsMessengerEXT, false);
+            SL_CHECK(!DestroyDebugUtilsMessengerEXT, false);
 
-        // デバッグメッセンジャー生成
-        result = CreateDebugUtilsMessengerEXT(instance, &debugMessengerInfo, nullptr, &debugMessenger);
-        SL_CHECK_VKRESULT(result, false);
+            // デバッグメッセンジャー生成
+            result = CreateDebugUtilsMessengerEXT(instance, &debugMessengerInfo, nullptr, &debugMessenger);
+            SL_CHECK_VKRESULT(result, false);
+        }
 
         // 物理デバイスの列挙
         uint32 physicalDeviceCount = 0;

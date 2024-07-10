@@ -13,7 +13,7 @@ namespace Silex
     //======================================
     // シェーダーコンパイラ
     //======================================
-    ShaderCompiler shaserCompiler;
+    static ShaderCompiler shaserCompiler;
 
 
 
@@ -82,42 +82,40 @@ namespace Silex
             SL_CHECK(!frameData[i].fence, false);
         }
 
-#if 0
-        struct SceneData
-        {
-            glm::mat4 view;
-            glm::mat4 proj;
-            glm::mat4 viewproj;
-            glm::vec4 ambientColor;
-            glm::vec4 sunlightDirection;
-            glm::vec4 sunlightColor;
-        };
+        return true;
+    }
 
-        SceneData sd = {};
 
+    void RenderingDevice::TEST()
+    {
         ShaderCompiledData compiledData;
         ShaderCompiler::Get()->Compile("Assets/Shaders/test.glsl", compiledData);
+        shader = api->CreateShader(compiledData);
 
-        ShaderHandle* shader = api->CreateShader(compiledData);
-        Buffer* uniform = api->CreateBuffer(sizeof(SceneData), BufferUsageBits(BUFFER_USAGE_UNIFORM_BIT | BUFFER_USAGE_TRANSFER_DST_BIT), MEMORY_ALLOCATION_TYPE_CPU);
+        PipelineDynamicStateFlags  dynamic = {};
+        PipelineInputAssemblyState ia      = {};
+        PipelineRasterizationState rs      = {};
+        PipelineMultisampleState   ms      = {};
+        PipelineDepthStencilState  ds      = {};
+        PipelineColorBlendState    bs      = {};
+        bs.AddDisabled();
 
-        DescriptorInfo info = {};
-        info.binding = 0;
-        info.type    = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        info.handles.push_back(uniform);
+        RenderPass* renderpass = api->GetSwapChainRenderPass(Window::Get()->GetSwapChain());
+        uint32      subpass    = 0;
 
-        DescriptorSet* set = api->CreateDescriptorSet(1, &info, shader, 0);
+        pipeline = api->CreateGraphicsPipeline(shader, nullptr, ia, rs, ms, ds, bs, dynamic, renderpass, subpass);
+    }
 
-        byte* mapped = api->MapBuffer(uniform);
-        memcpy(mapped, &sd, sizeof(SceneData));
-        api->UnmapBuffer(uniform);
+    void RenderingDevice::DrawTriangle()
+    {
+        FrameData& frame = frameData[frameIndex];
+        const auto& size = Window::Get()->GetSize();
 
-        api->DestroyDescriptorSet(set);
-        api->DestroyShader(shader);
-        api->DestroyBuffer(uniform);
-#endif
+        api->SetViewport(frame.commandBuffer, 0, 0, size.x, size.y);
+        api->SetScissor(frame.commandBuffer, 0, 0, size.x, size.y);
 
-        return true;
+        api->BindPipeline(frame.commandBuffer, pipeline);
+        api->Draw(frame.commandBuffer, 3, 1, 0, 0);
     }
 
     bool RenderingDevice::Begin()
@@ -125,20 +123,18 @@ namespace Silex
         SwapChain*         swapchain   = Window::Get()->GetSwapChain();
         FrameData&         frame       = frameData[frameIndex];
         FramebufferHandle* framebuffer = nullptr;
+        RenderPass*        renderpass  = api->GetSwapChainRenderPass(swapchain);
 
         bool result = api->WaitFence(frame.fence);
         SL_CHECK(!result, false);
 
-        framebuffer = api->GetSwapChainNextFramebuffer(swapchain, frame.presentSemaphore, frame.renderSemaphore);
+        framebuffer = api->GetCurrentBackBuffer(swapchain, frame.presentSemaphore);
         SL_CHECK(!framebuffer, false);
 
         result = api->BeginCommandBuffer(frame.commandBuffer);
         SL_CHECK(!result, false);
 
-        {
-            // api->BeginRenderPass(frame.commandBuffer, api->GetSwapChainRenderPass(swapchain), framebuffer, COMMAND_BUFFER_TYPE_PRIMARY);
-            // api->EndRenderPass(frame.commandBuffer);
-        }
+        api->BeginRenderPass(frame.commandBuffer, renderpass, framebuffer, COMMAND_BUFFER_TYPE_PRIMARY, 1, &defaultClearColor);
 
         return true;
     }
@@ -147,11 +143,11 @@ namespace Silex
     {
         SwapChain* swapchain = Window::Get()->GetSwapChain();
         FrameData& frame     = frameData[frameIndex];
-        
+  
+        api->EndRenderPass(frame.commandBuffer);
         api->EndCommandBuffer(frame.commandBuffer);
-        api->ExcuteQueue(graphicsQueue, frame.commandBuffer, frame.fence, frame.presentSemaphore, frame.renderSemaphore);
-        api->Present(graphicsQueue, swapchain);
 
+        api->Present(graphicsQueue, swapchain, frame.commandBuffer, frame.fence, frame.renderSemaphore, frame.presentSemaphore);
         frameIndex = (frameIndex + 1) % 2;
 
         return true;

@@ -340,27 +340,41 @@ namespace Silex
         return familyIndex;
     }
 
-    bool VulkanAPI::ExcuteQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* wait, Semaphore* signal)
+    bool VulkanAPI::Present(CommandQueue* queue, SwapChain* swapchain, CommandBuffer* commandbuffer, Fence* fence, Semaphore* render, Semaphore* present)
     {
-        VulkanCommandQueue*  vkqueue         = (VulkanCommandQueue*)queue;
-        VulkanCommandBuffer* vkcommandBuffer = (VulkanCommandBuffer*)commandbuffer;
-        VulkanFence*         vkfence         = (VulkanFence*)fence;
-        VulkanSemaphore*     vkwait          = (VulkanSemaphore*)wait;
-        VulkanSemaphore*     vksignal        = (VulkanSemaphore*)signal;
+        VulkanSwapChain*     vkswapchain      = (VulkanSwapChain*)swapchain;
+        VulkanCommandQueue*  vkqueue          = (VulkanCommandQueue*)queue;
+        VulkanCommandBuffer* vkcommandBuffer  = (VulkanCommandBuffer*)commandbuffer;
+        VulkanFence*         vkfence          = (VulkanFence*)fence;
+        VulkanSemaphore*     renderSemaphore  = (VulkanSemaphore*)render;
+        VulkanSemaphore*     presentSemaphore = (VulkanSemaphore*)present;
 
         VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
         VkSubmitInfo submitInfo = {};
         submitInfo.sType                = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.pNext                = nullptr;
         submitInfo.pWaitDstStageMask    = &waitStage;
         submitInfo.commandBufferCount   = 1;
         submitInfo.pCommandBuffers      = &vkcommandBuffer->commandBuffer;
         submitInfo.waitSemaphoreCount   = 1;
-        submitInfo.pWaitSemaphores      = &vkwait->semaphore;
+        submitInfo.pWaitSemaphores      = &presentSemaphore->semaphore;
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores    = &vksignal->semaphore;
+        submitInfo.pSignalSemaphores    = &renderSemaphore->semaphore;
 
         VkResult result = vkQueueSubmit(vkqueue->queue, 1, &submitInfo, vkfence->fence);
+        SL_CHECK_VKRESULT(result, false);
+
+
+        VkPresentInfoKHR presentInfo = {};
+        presentInfo.sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.waitSemaphoreCount  = 1;
+        presentInfo.pWaitSemaphores     = &renderSemaphore->semaphore;
+        presentInfo.swapchainCount      = 1;
+        presentInfo.pSwapchains         = &vkswapchain->swapchain;
+        presentInfo.pImageIndices       = &vkswapchain->imageIndex;
+
+        result = vkQueuePresentKHR(vkqueue->queue, &presentInfo);
         SL_CHECK_VKRESULT(result, false);
 
         return true;
@@ -505,6 +519,8 @@ namespace Silex
         VkFence vkfence = nullptr;
         VkFenceCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        createInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        createInfo.pNext = nullptr;
 
         VkResult result = vkCreateFence(device, &createInfo, nullptr, &vkfence);
         SL_CHECK_VKRESULT(result, nullptr);
@@ -605,8 +621,8 @@ namespace Silex
 
         VkAttachmentReference2KHR colorReference = {};
         colorReference.sType      = VK_STRUCTURE_TYPE_ATTACHMENT_REFERENCE_2_KHR;
-        colorReference.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
         colorReference.attachment = 0;
+        colorReference.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
         VkSubpassDescription2KHR subpass = {};
         subpass.sType                = VK_STRUCTURE_TYPE_SUBPASS_DESCRIPTION_2_KHR;
@@ -614,12 +630,23 @@ namespace Silex
         subpass.colorAttachmentCount = 1;
         subpass.pColorAttachments    = &colorReference;
 
+        VkSubpassDependency2KHR dependency = {};
+        dependency.sType         = VK_STRUCTURE_TYPE_SUBPASS_DEPENDENCY_2_KHR;
+        dependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass    = 0;
+        dependency.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcAccessMask = 0;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
         VkRenderPassCreateInfo2KHR passInfo = {};
-        passInfo.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2;
+        passInfo.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO_2_KHR;
         passInfo.attachmentCount = 1;
         passInfo.pAttachments    = &attachment;
         passInfo.subpassCount    = 1;
         passInfo.pSubpasses      = &subpass;
+        passInfo.dependencyCount = 1;
+        passInfo.pDependencies   = &dependency;
 
         VkRenderPass vkRenderPass = nullptr;
         result = CreateRenderPass2KHR(device, &passInfo, nullptr, &vkRenderPass);
@@ -790,6 +817,7 @@ namespace Silex
 
             VulkanFramebuffer* vkFramebuffer = Memory::Allocate<VulkanFramebuffer>();
             vkFramebuffer->framebuffer = framebuffer;
+            vkFramebuffer->rect        = { 0, 0, extent.width, extent.height };
 
             vkSwapchain->framebuffers.push_back(vkFramebuffer);
         }
@@ -993,6 +1021,7 @@ namespace Silex
 
             VulkanFramebuffer* vkFramebuffer = Memory::Allocate<VulkanFramebuffer>();
             vkFramebuffer->framebuffer = framebuffer;
+            vkFramebuffer->rect        = { 0, 0, extent.width, extent.height };
 
             vkSwapchain->framebuffers.push_back(vkFramebuffer);
         }
@@ -1000,17 +1029,13 @@ namespace Silex
         return true;
     }
 
-    FramebufferHandle* VulkanAPI::GetSwapChainNextFramebuffer(SwapChain* swapchain, Semaphore* present, Semaphore* render)
+    FramebufferHandle* VulkanAPI::GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present)
     {
         VulkanSwapChain* vkswapchain = (VulkanSwapChain*)swapchain;
         VulkanSemaphore* vkpresent   = (VulkanSemaphore*)present;
-        VulkanSemaphore* vkrender    = (VulkanSemaphore*)render;
 
         VkResult result = AcquireNextImageKHR(device, vkswapchain->swapchain, UINT64_MAX, vkpresent->semaphore, nullptr, &vkswapchain->imageIndex);
         SL_CHECK_VKRESULT(result, nullptr);
-
-        vkswapchain->signal = vkpresent->semaphore;
-        vkswapchain->wait   = vkrender->semaphore;
 
         return vkswapchain->framebuffers[vkswapchain->imageIndex];
     }
@@ -1031,6 +1056,13 @@ namespace Silex
     {
         if (swapchain)
         {
+            //=============================================================
+            // GPU待機
+            //=============================================================
+            VkResult result = vkDeviceWaitIdle(device);
+            SL_CHECK_VKRESULT(result, SL_DONT_USE);
+
+
             VulkanSwapChain* vkSwapchain = (VulkanSwapChain*)swapchain;
 
             // フレームバッファ破棄
@@ -1059,25 +1091,6 @@ namespace Silex
 
             Memory::Deallocate(vkSwapchain);
         }
-    }
-
-    bool VulkanAPI::Present(CommandQueue* queue, SwapChain* swapchain)
-    {
-        VulkanSwapChain*    vkswapchain = (VulkanSwapChain*)swapchain;
-        VulkanCommandQueue* vksqueue    = (VulkanCommandQueue*)queue;
-
-        VkPresentInfoKHR presentInfo = {};
-        presentInfo.sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        presentInfo.waitSemaphoreCount  = 1;
-        presentInfo.pWaitSemaphores     = &vkswapchain->wait;
-        presentInfo.swapchainCount      = 1;
-        presentInfo.pSwapchains         = &vkswapchain->swapchain;
-        presentInfo.pImageIndices       = &vkswapchain->imageIndex;
-
-        VkResult result = vkQueuePresentKHR(vksqueue->queue, &presentInfo);
-        SL_CHECK_VKRESULT(result, false);
-
-        return true;
     }
 
 
@@ -1333,6 +1346,10 @@ namespace Silex
 
         VulkanFramebuffer* framebuffer = Memory::Allocate<VulkanFramebuffer>();
         framebuffer->framebuffer = vkfb;
+        framebuffer->rect.x      = 0;
+        framebuffer->rect.y      = 0;
+        framebuffer->rect.width  = width;
+        framebuffer->rect.height = height;
 
         return framebuffer;
     }
@@ -1529,7 +1546,7 @@ namespace Silex
     //==================================================================================
     // コマンド
     //==================================================================================
-    void VulkanAPI::PipelineBarrier(CommandBuffer* commanddBuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrier* memoryBarrier, uint32 numBufferBarrier, BufferBarrier* bufferBarrier, uint32 numTextureBarrier, TextureBarrier* textureBarrier)
+    void VulkanAPI::PipelineBarrier(CommandBuffer* commanddBuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrierInfo* memoryBarrier, uint32 numBufferBarrier, BufferBarrierInfo* bufferBarrier, uint32 numTextureBarrier, TextureBarrierInfo* textureBarrier)
     {
         VkMemoryBarrier* memoryBarriers = SL_STACK(VkMemoryBarrier, numMemoryBarrier);
         for (uint32 i = 0; i < numMemoryBarrier; i++)
@@ -1739,16 +1756,18 @@ namespace Silex
         vkCmdPushConstants(cmd->commandBuffer, vkshader->pipelineLayout, vkshader->stageFlags, firstIndex * sizeof(uint32), numData * sizeof(uint32), data);
     }
 
-    void VulkanAPI::BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType, uint32 numclearValues, RenderPassClearValue* clearvalues, uint32 x, uint32 y, uint32 width, uint32 height)
+    void VulkanAPI::BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType, uint32 numclearValues, RenderPassClearValue* clearvalues)
     {
+        VulkanFramebuffer* vkframebuffer = (VulkanFramebuffer*)framebuffer;
+
         VkRenderPassBeginInfo begineInfo = {};
         begineInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         begineInfo.renderPass               = (VkRenderPass)((VulkanRenderPass*)(renderpass))->renderpass;
-        begineInfo.framebuffer              = (VkFramebuffer)((VulkanFramebuffer*)(framebuffer))->framebuffer;
-        begineInfo.renderArea.offset.x      = x;
-        begineInfo.renderArea.offset.y      = y;
-        begineInfo.renderArea.extent.width  = width;
-        begineInfo.renderArea.extent.height = height;
+        begineInfo.framebuffer              = vkframebuffer->framebuffer;
+        begineInfo.renderArea.offset.x      = vkframebuffer->rect.x;
+        begineInfo.renderArea.offset.y      = vkframebuffer->rect.y;
+        begineInfo.renderArea.extent.width  = vkframebuffer->rect.width;
+        begineInfo.renderArea.extent.height = vkframebuffer->rect.height;
         begineInfo.clearValueCount          = numclearValues;
         begineInfo.pClearValues             = (VkClearValue*)clearvalues;
 
@@ -1777,8 +1796,8 @@ namespace Silex
         viewport.y        = y;
         viewport.width    = width;
         viewport.height   = height;
-        viewport.maxDepth = 1.0f;
         viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
 
         VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
         vkCmdSetViewport(cmd->commandBuffer, 0, 1, &viewport);
@@ -1874,15 +1893,40 @@ namespace Silex
         vkCmdSetLineWidth(cmd->commandBuffer, width);
     }
 
+    //==================================================================================
+    // 即時コマンド
+    //==================================================================================
+    bool VulkanAPI::ImmidiateExcute(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func)
+    {
+        VkCommandBuffer vkcmd   = ((VulkanCommandBuffer*)commandBuffer)->commandBuffer;
+        VkQueue         vkqueue = ((VulkanCommandQueue*)queue)->queue;
+        VkFence         vkfence = ((VulkanFence*)fence)->fence;
 
-    // ■シェーダー・レイアウト系
-    // バインディングを生成（シェーダーステージ・バインディング・タイプ・サイズ（通常１、イメージ配列なら複数））
-    // レイアウトを生成（各バインディングを合わせて、1つのデスクリプターセットのレイアウトにする）
+        VkResult vkresult = vkResetFences(device, 1, &vkfence);
+        SL_CHECK(!vkresult, false);
 
-    // ■デスクリプターセット
-    // レイアウト（個数・データ）を指定し、アロケーションする　※フレーム分用意する（2個？）
-    // 書き込み＆更新 そのレイアウトと同じ必要な実データ（イメージ・バッファ）を指定して更新
+        {
+            bool result = BeginCommandBuffer(commandBuffer);
+            SL_CHECK(!result, false);
 
+            result = func(commandBuffer);
+            SL_CHECK(!result, false);
+
+            result = EndCommandBuffer(commandBuffer);
+            SL_CHECK(!result, false);
+        }
+
+        VkSubmitInfo submitInfo = {};
+        submitInfo.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers    = &vkcmd;
+
+        vkresult = vkQueueSubmit(vkqueue, 1, &submitInfo, vkfence);
+        SL_CHECK_VKRESULT(vkresult, false);
+
+        vkresult = vkWaitForFences(device, 1, &vkfence, true, UINT64_MAX);
+        SL_CHECK_VKRESULT(vkresult, false);
+    }
 
     //==================================================================================
     // シェーダー
@@ -2296,28 +2340,21 @@ namespace Silex
     //==================================================================================
     // パイプライン
     //==================================================================================
-    Pipeline* VulkanAPI::CreateGraphicsPipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PrimitiveTopology primitive, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, int32* colorAttachments, uint32 numColorAttachments, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass)
+    Pipeline* VulkanAPI::CreateGraphicsPipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass)
     {
         // ===== 頂点レイアウト =====
-        const VkPipelineVertexInputStateCreateInfo* vertexInputStateCreateInfo = nullptr;
+        VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
         if (vertexFormat)
         {
             VulkanVertexFormat* vkformat = (VulkanVertexFormat*)vertexFormat;
-            vertexInputStateCreateInfo = &vkformat->createInfo;
-        }
-        else
-        {
-            VkPipelineVertexInputStateCreateInfo* nullstate = SL_STACK(VkPipelineVertexInputStateCreateInfo, 1);
-            *nullstate = {};
-            nullstate->sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-            vertexInputStateCreateInfo = nullstate;
+            vertexInputStateCreateInfo = vkformat->createInfo;
         }
 
         // ===== インプットアセンブリ =====
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = {};
         inputAssemblyCreateInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        inputAssemblyCreateInfo.topology               = (VkPrimitiveTopology)primitive;
-        inputAssemblyCreateInfo.primitiveRestartEnable = (primitive == PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS_WITH_RESTART_INDEX);
+        inputAssemblyCreateInfo.topology               = (VkPrimitiveTopology)inputAssemblyState.topology;
+        inputAssemblyCreateInfo.primitiveRestartEnable = (inputAssemblyState.topology == PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS_WITH_RESTART_INDEX);
 
         // ===== テッセレーション =====
         VkPipelineTessellationStateCreateInfo tessellationCreateInfo = {};
@@ -2380,32 +2417,30 @@ namespace Silex
         depthStencilStateCreateInfo.maxDepthBounds        = depthstencilState.depthRangeMax;
 
         // ===== ブレンドステート =====
-        VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = {};
-        colorBlendStateCreateInfo.sType         = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-        colorBlendStateCreateInfo.logicOpEnable = blendState.enableLogicOp;
-        colorBlendStateCreateInfo.logicOp       = (VkLogicOp)blendState.logicOp;
+        uint32 numColorAttachments = blendState.attachments.size();
 
         VkPipelineColorBlendAttachmentState* attachmentStates = SL_STACK(VkPipelineColorBlendAttachmentState, numColorAttachments);
         for (uint32 i = 0; i < numColorAttachments; i++)
         {
             attachmentStates[i] = {};
-            if (colorAttachments[i] != INVALID_RENDER_ID)
-            {
-                attachmentStates[i].blendEnable         = blendState.attachments[i].enableBlend;
-                attachmentStates[i].srcColorBlendFactor = (VkBlendFactor)blendState.attachments[i].srcColorBlendFactor;
-                attachmentStates[i].dstColorBlendFactor = (VkBlendFactor)blendState.attachments[i].dstColorBlendFactor;
-                attachmentStates[i].colorBlendOp        = (VkBlendOp)blendState.attachments[i].colorBlendOp;
-                attachmentStates[i].srcAlphaBlendFactor = (VkBlendFactor)blendState.attachments[i].srcAlphaBlendFactor;
-                attachmentStates[i].dstAlphaBlendFactor = (VkBlendFactor)blendState.attachments[i].dstAlphaBlendFactor;
-                attachmentStates[i].alphaBlendOp        = (VkBlendOp)blendState.attachments[i].alphaBlendOp;
+            attachmentStates[i].blendEnable         = blendState.attachments[i].enableBlend;
+            attachmentStates[i].srcColorBlendFactor = (VkBlendFactor)blendState.attachments[i].srcColorBlendFactor;
+            attachmentStates[i].dstColorBlendFactor = (VkBlendFactor)blendState.attachments[i].dstColorBlendFactor;
+            attachmentStates[i].colorBlendOp        = (VkBlendOp)blendState.attachments[i].colorBlendOp;
+            attachmentStates[i].srcAlphaBlendFactor = (VkBlendFactor)blendState.attachments[i].srcAlphaBlendFactor;
+            attachmentStates[i].dstAlphaBlendFactor = (VkBlendFactor)blendState.attachments[i].dstAlphaBlendFactor;
+            attachmentStates[i].alphaBlendOp        = (VkBlendOp)blendState.attachments[i].alphaBlendOp;
 
-                if (blendState.attachments[i].write_r) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
-                if (blendState.attachments[i].write_g) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
-                if (blendState.attachments[i].write_b) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
-                if (blendState.attachments[i].write_a) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
-            }
+            if (blendState.attachments[i].write_r) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
+            if (blendState.attachments[i].write_g) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
+            if (blendState.attachments[i].write_b) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
+            if (blendState.attachments[i].write_a) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
         }
 
+        VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = {};
+        colorBlendStateCreateInfo.sType             = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        colorBlendStateCreateInfo.logicOpEnable     = blendState.enableLogicOp;
+        colorBlendStateCreateInfo.logicOp           = (VkLogicOp)blendState.logicOp;
         colorBlendStateCreateInfo.attachmentCount   = numColorAttachments;
         colorBlendStateCreateInfo.pAttachments      = attachmentStates;
         colorBlendStateCreateInfo.blendConstants[0] = blendState.blendConstant.r;
@@ -2413,10 +2448,8 @@ namespace Silex
         colorBlendStateCreateInfo.blendConstants[2] = blendState.blendConstant.b;
         colorBlendStateCreateInfo.blendConstants[3] = blendState.blendConstant.a;
 
-        // ===== ダイナミックステート =====
-        VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
-        dynamicStateCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 
+        // ===== ダイナミックステート =====
         VkDynamicState* dynamicStates = SL_STACK(VkDynamicState, DYNAMIC_STATE_MAX + 2);
         uint32 dynamicStateCount = 0;
 
@@ -2459,9 +2492,13 @@ namespace Silex
             dynamicStateCount++;
         }
 
+        VkPipelineDynamicStateCreateInfo dynamicStateCreateInfo = {};
+        dynamicStateCreateInfo.sType             = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
         dynamicStateCreateInfo.dynamicStateCount = dynamicStateCount;
         dynamicStateCreateInfo.pDynamicStates    = dynamicStates;
 
+
+        // ===== シェーダーステージ =====
         const VulkanShader* vkshader = (VulkanShader*)shader;
         VkPipelineShaderStageCreateInfo* pipelineStages = SL_STACK(VkPipelineShaderStageCreateInfo, vkshader->stageCreateInfos.size());
         for (uint32 i = 0; i < vkshader->stageCreateInfos.size(); i++)
@@ -2476,7 +2513,7 @@ namespace Silex
         pipelineCreateInfo.pNext               = nullptr;
         pipelineCreateInfo.stageCount          = vkshader->stageCreateInfos.size();
         pipelineCreateInfo.pStages             = pipelineStages;
-        pipelineCreateInfo.pVertexInputState   = vertexInputStateCreateInfo;
+        pipelineCreateInfo.pVertexInputState   = &vertexInputStateCreateInfo;
         pipelineCreateInfo.pInputAssemblyState = &inputAssemblyCreateInfo;
         pipelineCreateInfo.pTessellationState  = &tessellationCreateInfo;
         pipelineCreateInfo.pViewportState      = &viewportStateCreateInfo;

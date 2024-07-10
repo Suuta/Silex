@@ -35,6 +35,24 @@ namespace Silex
     SL_HANDLE(ShaderHandle);
 
     //================================================
+    // MISC
+    //================================================
+    struct Rect
+    {
+        uint32 x      = 0;
+        uint32 y      = 0;
+        uint32 width  = 0;
+        uint32 height = 0;
+    };
+
+    struct Extent
+    {
+        uint32 width  = 0;
+        uint32 height = 0;
+        uint32 depth  = 0;
+    };
+
+    //================================================
     // デバイス
     //================================================
     enum DeviceVendor
@@ -573,13 +591,13 @@ namespace Silex
         BARRIER_ACCESS_MEMORY_WRITE_BIT                   = SL_BIT(16),
     };
 
-    struct MemoryBarrier
+    struct MemoryBarrierInfo
     {
         BarrierAccessBits srcAccess;
         BarrierAccessBits dstAccess;
     };
 
-    struct BufferBarrier
+    struct BufferBarrierInfo
     {
         Buffer*           buffer;
         BarrierAccessBits srcAccess;
@@ -588,7 +606,7 @@ namespace Silex
         uint64            size;
     };
 
-    struct TextureBarrier
+    struct TextureBarrierInfo
     {
         TextureHandle*          texture;
         BarrierAccessBits       srcAccess;
@@ -676,7 +694,7 @@ namespace Silex
         uint32          location  = 0;
         uint32          offset    = 0;
         RenderingFormat format    = RENDERING_FORMAT_MAX;
-        uint32_t        stride    = 0;
+        uint32          stride    = 0;
         VertexFrequency frequency = VERTEX_FREQUENCY_VERTEX;
     };
 
@@ -843,13 +861,18 @@ namespace Silex
         BLEND_OP_MAX
     };
 
+    struct PipelineInputAssemblyState
+    {
+        PrimitiveTopology topology = PRIMITIVE_TOPOLOGY_TRIANGLES;
+    };
+
     struct PipelineRasterizationState
     {
         bool             enable_depth_clamp      = false;
         bool             discard_primitives      = false;
         bool             wireframe               = false;
         PolygonCullMode  cullMode                = POLYGON_CULL_DISABLED;
-        PolygonFrontFace frontFace               = POLYGON_FRONT_FACE_CLOCKWISE;
+        PolygonFrontFace frontFace               = POLYGON_FRONT_FACE_COUNTER_CLOCKWISE;
         bool             depthBiasEnabled        = false;
         float            depthBiasConstantFactor = 0.0f;
         float            depthBiasClamp          = 0.0f;
@@ -902,10 +925,10 @@ namespace Silex
         {
             bool           enableBlend         = false;
             BlendFactor    srcColorBlendFactor = BLEND_FACTOR_ZERO;
-            BlendFactor    dstColorBlendFactor = BLEND_FACTOR_ZERO;
-            BlendOperation colorBlendOp        = BLEND_OP_ADD;
             BlendFactor    srcAlphaBlendFactor = BLEND_FACTOR_ZERO;
+            BlendFactor    dstColorBlendFactor = BLEND_FACTOR_ZERO;
             BlendFactor    dstAlphaBlendFactor = BLEND_FACTOR_ZERO;
+            BlendOperation colorBlendOp        = BLEND_OP_ADD;
             BlendOperation alphaBlendOp        = BLEND_OP_ADD;
             bool           write_r             = true;
             bool           write_g             = true;
@@ -913,33 +936,21 @@ namespace Silex
             bool           write_a             = true;
         };
 
-        static PipelineColorBlendState CreateDisabled(int attachments = 1)
+        void AddDisabled()
         {
-            PipelineColorBlendState bs;
-            for (int i = 0; i < attachments; i++)
-            {
-                bs.attachments.push_back(Attachment());
-            }
-
-            return bs;
+            attachments.push_back(Attachment());
         }
 
-        static PipelineColorBlendState CreateBlend(int attachments = 1)
+        void AddBlend()
         {
-            PipelineColorBlendState bs;
-            for (int i = 0; i < attachments; i++)
-            {
-                Attachment ba;
-                ba.enableBlend = true;
-                ba.srcColorBlendFactor = BLEND_FACTOR_SRC_ALPHA;
-                ba.dstColorBlendFactor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-                ba.srcAlphaBlendFactor = BLEND_FACTOR_SRC_ALPHA;
-                ba.dstAlphaBlendFactor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            Attachment ba;
+            ba.enableBlend         = true;
+            ba.srcColorBlendFactor = BLEND_FACTOR_SRC_ALPHA;
+            ba.srcAlphaBlendFactor = BLEND_FACTOR_SRC_ALPHA;
+            ba.dstColorBlendFactor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+            ba.dstAlphaBlendFactor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 
-                bs.attachments.push_back(ba);
-            }
-
-            return bs;
+            attachments.push_back(ba);
         }
 
         std::vector<Attachment> attachments;
@@ -948,6 +959,9 @@ namespace Silex
 
     enum PipelineDynamicStateFlags
     {
+        // ビューポート・シザーは常に動的ステートにしたいのでここには含めない
+
+        DYNAMIC_STATE_NONE                 = 0,
         DYNAMIC_STATE_LINE_WIDTH           = SL_BIT(0),
         DYNAMIC_STATE_DEPTH_BIAS           = SL_BIT(1),
         DYNAMIC_STATE_BLEND_CONSTANTS      = SL_BIT(2),
@@ -964,8 +978,8 @@ namespace Silex
     //================================================
     union RenderPassClearValue
     {
-        glm::vec4 color = {};
-        struct { float  depth; uint32 stencil; };
+        glm::vec4 color = { 0.1f, 0.2f, 0.3f, 1.0f };
+        struct { float depth; uint32 stencil; };
     };
 
     struct AttachmentClear

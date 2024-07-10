@@ -11,8 +11,7 @@
 
 namespace Silex
 {
-    static Engine* engine     = nullptr;
-    static Window* mainWindow = nullptr;
+    static Engine* engine = nullptr;
 
 
     bool LaunchEngine()
@@ -76,7 +75,7 @@ namespace Silex
         bool result = false;
 
         // ウィンドウ
-        mainWindow = Window::Create(engineName.c_str(), 1280, 720);
+        mainWindow = Window::Create(applicationName.c_str(), 1280, 720);
         result = mainWindow->Initialize();
         SL_CHECK(!result, false);
 
@@ -97,9 +96,8 @@ namespace Silex
         // コールバック登録
         mainWindow->BindWindowCloseEvent(this,  &Engine::OnWindowClose);
         mainWindow->BindWindowResizeEvent(this, &Engine::OnWindowResize);
-        //mainWindow->BindMouseMoveEvent(this,    &Engine::OnMouseMove);
-        //mainWindow->BindMouseScrollEvent(this,  &Engine::OnMouseScroll);
-
+        mainWindow->BindMouseMoveEvent(this,    &Engine::OnMouseMove);
+        mainWindow->BindMouseScrollEvent(this,  &Engine::OnMouseScroll);
 
         // レンダラー
         //Renderer::Get()->Init();
@@ -112,19 +110,22 @@ namespace Silex
         imgui->Init(renderingContext);
 
         // エディター
-        //editor = Memory::Allocate<Editor>();
-        //editor->Init();
+        editor = Memory::Allocate<Editor>();
+        editor->Init();
 
         // ウィンドウ表示
         mainWindow->Show();
+
+
+        renderingDevice->TEST();
 
         return true;
     }
 
     void Engine::Finalize()
     {
-        // editor->Shutdown();
-        // Memory::Deallocate(editor);
+        editor->Shutdown();
+        Memory::Deallocate(editor);
 
         // ImGui 破棄
         Memory::Deallocate(imgui);
@@ -151,13 +152,21 @@ namespace Silex
 
         if (!minimized)
         {
-            //imgui->BeginFrame();
+            imgui->BeginFrame();
 
             //editor->Update(deltaTime);
             //editor->Render();
 
+            ImGui::Begin("Test");
+            ImGui::Text("FPS: %d", frameRate);
+            ImGui::End();
+            imgui->Render();
+
             renderingDevice->Begin();
-            //imgui->EndFrame();
+
+            renderingDevice->DrawTriangle();
+            imgui->EndFrame();
+
             renderingDevice->End();
 
             Input::Flush();

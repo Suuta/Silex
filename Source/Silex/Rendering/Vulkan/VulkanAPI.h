@@ -8,25 +8,6 @@
 #include <vulkan/vk_mem_alloc.h>
 
 
-// TODO: VulkanAPI
-// ・パイプライン
-// ・シェーダー
-// 
-// ・RenderDeviceでラッパー実装
-//   - アセットは Ref<TextureAsset> 形式で保持?
-//   - 
-//   - レンダーオブジェクトをメンバーに内包する形で表現
-//   - class TextureAsset : public Asset
-//   - { 
-//   -     Texture* texture;
-//   - }
-//   - 
-//   - アセットマネージャの対象は ○○Asset から行うようにし
-//   - Texture 自体は、レンダラー側で管理できるようにする
-// 
-// ・メインループ実装
-
-
 namespace Silex
 {
     class  VulkanContext;
@@ -52,7 +33,7 @@ namespace Silex
         CommandQueue* CreateCommandQueue(QueueFamily family, uint32 indexInFamily = 0) override;
         void DestroyCommandQueue(CommandQueue* queue) override;
         QueueFamily QueryQueueFamily(uint32 queueFlag, Surface* surface = nullptr) const override;
-        bool ExcuteQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* wait, Semaphore* signal) override;
+        bool Present(CommandQueue* queue, SwapChain* swapchain, CommandBuffer* commandbuffer, Fence* fence, Semaphore* render, Semaphore* present) override;
 
         //--------------------------------------------------
         // コマンドプール
@@ -86,11 +67,10 @@ namespace Silex
         //--------------------------------------------------
         SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) override;
         bool ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) override;
-        FramebufferHandle* GetSwapChainNextFramebuffer(SwapChain* swapchain, Semaphore* present, Semaphore* render) override;
+        FramebufferHandle* GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present) override;
         RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) override;
         RenderingFormat GetSwapChainFormat(SwapChain* swapchain) override;
         void DestroySwapChain(SwapChain* swapchain) override;
-        bool Present(CommandQueue* queue, SwapChain* swapchain) override;
 
         //--------------------------------------------------
         // バッファ
@@ -145,14 +125,14 @@ namespace Silex
         //--------------------------------------------------
         // パイプライン
         //--------------------------------------------------
-        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PrimitiveTopology primitive, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, int32* colorAttachments, uint32 numColorAttachments, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass) override;
+        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass) override;
         virtual Pipeline* CreateComputePipeline(ShaderHandle* shader) override;
         void DestroyPipeline(Pipeline* pipeline) override;
 
         //--------------------------------------------------
         // コマンド
         //--------------------------------------------------
-        void PipelineBarrier(CommandBuffer* commandbuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrier* memoryBarrier, uint32 numBufferBarrier, BufferBarrier* bufferBarrier, uint32 numTextureBarrier, TextureBarrier* textureBarrier) override;
+        void PipelineBarrier(CommandBuffer* commandbuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrierInfo* memoryBarrier, uint32 numBufferBarrier, BufferBarrierInfo* bufferBarrier, uint32 numTextureBarrier, TextureBarrierInfo* textureBarrier) override;
         
         void ClearBuffer(CommandBuffer* commandbuffer, Buffer* buffer, uint64 offset, uint64 size) override;
         void CopyBuffer(CommandBuffer* commandbuffer, Buffer* srcBuffer, Buffer* dstBuffer, uint32 numRegion, BufferCopyRegion* regions) override;
@@ -164,7 +144,7 @@ namespace Silex
         
         void PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData) override;
         
-        void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType, uint32 numclearValues, RenderPassClearValue* clearvalues, uint32 x, uint32 y, uint32 width, uint32 height) override;
+        void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType, uint32 numclearValues, RenderPassClearValue* clearvalues) override;
         void EndRenderPass(CommandBuffer* commandbuffer) override;
         void NextRenderSubpass(CommandBuffer* commandbuffer, CommandBufferType commandBufferType) override;
         
@@ -180,6 +160,12 @@ namespace Silex
         void BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset) override;
         
         void SetLineWidth(CommandBuffer* commandbuffer, float width) override;
+
+        //--------------------------------------------------
+        // 即時コマンド
+        //--------------------------------------------------
+        bool ImmidiateExcute(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func) override;
+
 
     private:
 

@@ -41,6 +41,7 @@ namespace Silex
         bool Begin();
         bool End();
 
+
         SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode);
         bool       ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode);
         void       DestoySwapChain(SwapChain* swapchain);
@@ -55,6 +56,14 @@ namespace Silex
 
         const FrameData& GetFrameData() const;
 
+    public:
+
+        void DrawTriangle();
+        void TEST();
+
+        Pipeline*     pipeline;
+        ShaderHandle* shader;
+
     private:
 
         std::array<FrameData, 2> frameData  = {};
@@ -65,6 +74,8 @@ namespace Silex
 
         QueueFamily   graphicsQueueFamily = INVALID_RENDER_ID;
         CommandQueue* graphicsQueue       = nullptr;
+
+        RenderPassClearValue defaultClearColor = {};
 
     private:
 

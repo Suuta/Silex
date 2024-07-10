@@ -29,10 +29,10 @@ namespace Silex
         m_ScenePropertyPanel.SetScene(m_Scene);
         m_ScenePropertyPanel.onEntitySelectDelegate.Bind(this, &Editor::OnClickHierarchyEntity);
 
-        m_AssetBrowserPanel.Initialize();
+        //m_AssetBrowserPanel.Initialize();
 
         // シーンレンダラー初期化
-        m_SceneRenderer.Init();
+        //m_SceneRenderer.Init();
 
         LOAD_PROCESS("Editor Init", 100.0f);
         OS::Get()->Sleep(500);
@@ -44,10 +44,8 @@ namespace Silex
 
         m_AssetBrowserPanel.Finalize();
 
-        m_SceneRenderer.Shutdown();
-        m_ScenePropertyPanel.onEntitySelectDelegate.Unbind();
-
-        Memory::Deallocate(this);
+        //m_SceneRenderer.Shutdown();
+        //m_ScenePropertyPanel.onEntitySelectDelegate.Unbind();
     }
 
     void Editor::Update(float deltaTime)

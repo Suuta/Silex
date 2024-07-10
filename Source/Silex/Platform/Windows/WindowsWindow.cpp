@@ -158,7 +158,7 @@ namespace Silex
         return windowData.title.c_str();
     }
 
-    void WindowsWindow::SetTitle(const char* title)
+    void WindowsWindow::SetTitle(const std::string& title)
     {
         windowData.title = title;
         glfwSetWindowTitle(window, windowData.title.c_str());

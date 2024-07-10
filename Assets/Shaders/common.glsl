@@ -1,8 +1,10 @@
 
-#extension GL_EXT_buffer_reference : enable
+#extension GL_EXT_buffer_reference     : enable // VK_KHR_buffer_device_address
+#extension GL_EXT_nonuniform_qualifier : enable // VK_EXT_descriptor_indexing
+
 
 // SET(0) シーンデータ
-layout(set = 0, binding = 0) uniform  SceneData
+layout(set = 0, binding = 0) uniform SceneData
 {
     mat4 view;
     mat4 proj;

@@ -33,15 +33,15 @@ namespace Silex
         void Hide()     override;
 
         // Get / Set
-        void        SetTitle(const char* title)       override;
-        const char* GetTitle()                  const override;
-        glm::ivec2  GetSize()                   const override;
-        glm::ivec2  GetWindowPos()              const override;
-        void*       GetPlatformHandle()         const override;
-        GLFWwindow* GetGLFWWindow()             const override;
-        WindowData* GetWindowData()             const override;
-        Surface*    GetSurface()                const override;
-        SwapChain*  GetSwapChain()              const override;
+        void        SetTitle(const std::string& title) override;
+        const char* GetTitle()                         const override;
+        glm::ivec2  GetSize()                          const override;
+        glm::ivec2  GetWindowPos()                     const override;
+        void*       GetPlatformHandle()                const override;
+        GLFWwindow* GetGLFWWindow()                    const override;
+        WindowData* GetWindowData()                    const override;
+        Surface*    GetSurface()                       const override;
+        SwapChain*  GetSwapChain()                     const override;
 
         // レンダーコンテキスト
         bool SetupWindowContext(RenderingContext* context)   override;

@@ -47,6 +47,8 @@ namespace Silex
     {
     public:
 
+        // shadeerc が #include "header.h" のようなインクルードディレクティブを検出した時に呼び出される
+        // そのファイルを読み込む方法と、読み込んで返すデータを定義する
         shaderc_include_result* GetInclude(const char* requestedSource, shaderc_include_type type, const char* requestingSource, size_t includeDepth) override 
         {
             std::filesystem::path readSource = std::filesystem::path(requestingSource).parent_path() / requestedSource;
@@ -67,6 +69,7 @@ namespace Silex
             return result;
         }
 
+        // GetInclude で確保したメモリを解放するコード
         void ReleaseInclude(shaderc_include_result* include_result) override
         {
             if (include_result)
@@ -215,7 +218,9 @@ namespace Silex
         return true;
     }
 
+#if 0
 
+    // #include + ".glsl" を含むコードを探し出す
     static std::vector<std::string> _FindIncludeDirective(const std::string& shaderCode)
     {
         std::vector<std::string> includes;
@@ -231,6 +236,7 @@ namespace Silex
 
         return includes;
     }
+#endif
 
     static void _TrimBraces(std::string& str)
     {

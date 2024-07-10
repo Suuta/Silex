@@ -38,6 +38,8 @@ namespace Silex
         virtual void BeginFrame();
         virtual void EndFrame();
 
+        void Render();
+
     private:
 
         static inline GUICreateFunction createFunction = nullptr;

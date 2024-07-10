@@ -74,4 +74,19 @@ namespace Silex
         template<class T>
         friend class Shared;
     };
+
+    //============================================
+    // 抽象化汎用ハンドル
+    //============================================
+    class Handle : public Class
+    {
+        SL_CLASS(Handle, Class)
+
+        uint64 pointer = 0;
+
+        Handle() : pointer(uint64(this)) {}
+        Handle(void* ptr) : pointer(uint64(ptr)) {}
+
+        virtual ~Handle() {};
+    };
 }

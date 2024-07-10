@@ -122,8 +122,8 @@ namespace Silex
         virtual void Hide()     = 0;
 
         // タイトル
-        virtual const char* GetTitle() const            = 0;
-        virtual void        SetTitle(const char* title) = 0;
+        virtual const char* GetTitle() const                   = 0;
+        virtual void        SetTitle(const std::string& title) = 0;
 
         // ウィンドウデータ
         virtual GLFWwindow* GetGLFWWindow()       const = 0;

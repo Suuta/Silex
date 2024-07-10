@@ -8,12 +8,16 @@
 
 namespace Silex
 {
-    struct VulkanSurface;
-
-
     //=============================================
     // Vulkan 構造体
     //=============================================
+
+    // サーフェース
+    struct VulkanSurface : public Surface
+    {
+        VkSurfaceKHR surface = nullptr;
+    };
+
     // コマンドキュー
     struct VulkanCommandQueue : public CommandQueue
     {
@@ -57,6 +61,7 @@ namespace Silex
     struct VulkanFramebuffer : public FramebufferHandle
     {
         VkFramebuffer framebuffer = nullptr;
+        Rect          rect        = {};
     };
 
     // スワップチェイン
@@ -65,12 +70,12 @@ namespace Silex
         VulkanSurface*    surface    = nullptr;
         VulkanRenderPass* renderpass = nullptr;
 
-        VkSwapchainKHR  swapchain = nullptr;
+        VkSwapchainKHR  swapchain  = nullptr;
         VkFormat        format     = VK_FORMAT_UNDEFINED;
         VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
-        VkSemaphore signal = nullptr;
-        VkSemaphore wait   = nullptr;
+        VkSemaphore present = nullptr;
+        VkSemaphore render  = nullptr;
 
         std::vector<FramebufferHandle*> framebuffers;
         std::vector<VkImage>            images;
