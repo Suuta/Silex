@@ -42,6 +42,7 @@ namespace Silex
     public:
 
         const std::filesystem::path& GetAssetDirectory() const { return m_AssetDirectory; }
+        Camera* GetEditorCamera();
 
     private:
 
@@ -66,7 +67,7 @@ namespace Silex
         bool  bUsingEditorCamera = false;
 
         // カメラ
-        Camera m_EditorCamera = { glm::vec3(0.0f, 1.0f, -10.0f) };
+        Camera m_EditorCamera = { glm::vec3(0.0f, 0.0f, 10.0f) };
 
     private:
 

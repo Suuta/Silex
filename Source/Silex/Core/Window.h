@@ -18,7 +18,7 @@ namespace Silex
         WINDOW_MODE_EXCLUSIVE_FULLSCREEN,
     };
 
-    enum VSyncMode 
+    enum VSyncMode
     {
         VSYNC_MODE_DISABLED, // VK_PRESENT_MODE_IMMEDIATE_KHR
         VSYNC_MODE_MAILBOX,  // VK_PRESENT_MODE_MAILBOX_KHR
@@ -29,7 +29,6 @@ namespace Silex
     class  Window;
     class  RenderingContext;
     class  RenderingDevice;
-    struct WindowCreateInfo;
 
     using WindowCreateFunction = Window* (*)(const char* title, uint32 width, uint32 height);
 

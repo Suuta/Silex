@@ -27,13 +27,13 @@ namespace Silex
         //--------------------------------------------------
         virtual CommandQueue* CreateCommandQueue(QueueFamily family, uint32 indexInFamily = 0) = 0;
         virtual void DestroyCommandQueue(CommandQueue* queue) = 0;
-        virtual QueueFamily QueryQueueFamily(uint32 flag, Surface* surface = nullptr) const = 0;
+        virtual QueueFamily QueryQueueFamily(QueueFamilyFlags flag, Surface* surface = nullptr) const = 0;
         virtual bool Present(CommandQueue* queue, SwapChain* swapchain, CommandBuffer* commandbuffer, Fence* fence, Semaphore* render, Semaphore* present) = 0;
 
         //--------------------------------------------------
         // コマンドプール
         //--------------------------------------------------
-        virtual CommandPool* CreateCommandPool(QueueFamily family, CommandBufferType type) = 0;
+        virtual CommandPool* CreateCommandPool(QueueFamily family, CommandBufferType type = COMMAND_BUFFER_TYPE_PRIMARY) = 0;
         virtual void DestroyCommandPool(CommandPool* pool) = 0;
 
         //--------------------------------------------------
@@ -73,7 +73,7 @@ namespace Silex
         //--------------------------------------------------
         // バッファ
         //--------------------------------------------------
-        virtual Buffer* CreateBuffer(uint64 size, BufferUsageBits usage, MemoryAllocationType memoryType) = 0;
+        virtual Buffer* CreateBuffer(uint64 size, BufferUsageFlags usage, MemoryAllocationType memoryType) = 0;
         virtual void DestroyBuffer(Buffer* buffer) = 0;
         virtual byte* MapBuffer(Buffer* buffer) = 0;
         virtual void UnmapBuffer(Buffer* buffer) = 0;
@@ -87,20 +87,20 @@ namespace Silex
         //--------------------------------------------------
         // サンプラ
         //--------------------------------------------------
-        virtual Sampler* CreateSampler(const SamplerState& state) = 0;
+        virtual Sampler* CreateSampler(const SamplerInfo& info) = 0;
         virtual void DestroySampler(Sampler* sampler) = 0;
 
         //--------------------------------------------------
         // フレームバッファ
         //--------------------------------------------------
-        virtual FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, TextureHandle* textures, uint32 numTexture, uint32 width, uint32 height) = 0;
+        virtual FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle* textures, uint32 width, uint32 height) = 0;
         virtual void DestroyFramebuffer(FramebufferHandle* framebuffer) = 0;
 
         //--------------------------------------------------
-        // 頂点フォーマット
+        // 入力レイアウト
         //--------------------------------------------------
-        virtual VertexFormat* CreateVertexFormat(uint32 numattributes, VertexAttribute* attributes) = 0;
-        virtual void DestroyVertexFormat(VertexAttribute* attributes) = 0;
+        virtual InputLayout* CreateInputLayout(uint32 numBindings, InputBinding* bindings) = 0;
+        virtual void DestroyInputLayout(InputLayout* layout) = 0;
 
         //--------------------------------------------------
         // レンダーパス
@@ -123,7 +123,7 @@ namespace Silex
         //--------------------------------------------------
         // パイプライン
         //--------------------------------------------------
-        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass) = 0;
+        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, InputLayout* inputLayout, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) = 0;
         virtual Pipeline* CreateComputePipeline(ShaderHandle* shader) = 0;
         virtual void DestroyPipeline(Pipeline* pipeline) = 0;
 
@@ -146,12 +146,11 @@ namespace Silex
         virtual void SetScissor(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) = 0;
         virtual void ClearAttachments(CommandBuffer* commandbuffer, uint32 numAttachmentClear, AttachmentClear** attachmentClears, uint32 x, uint32 y, uint32 width, uint32 height) = 0;
         virtual void BindPipeline(CommandBuffer* commandbuffer, Pipeline* pipeline) = 0;
-        virtual void BindDescriptorSet(CommandBuffer* commandbuffer, DescriptorSet* descriptorset, ShaderHandle* shader, uint32 setIndex) = 0;
+        virtual void BindDescriptorSet(CommandBuffer* commandbuffer, DescriptorSet* descriptorset, uint32 setIndex) = 0;
         virtual void Draw(CommandBuffer* commandbuffer, uint32 vertexCount, uint32 instanceCount, uint32 baseVertex, uint32 firstInstance) = 0;
         virtual void DrawIndexed(CommandBuffer* commandbuffer, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance) = 0;
-        virtual void BindVertexBuffers(CommandBuffer* commandbuffer, uint32 bindingCount, const Buffer** buffers, const uint64* offsets) = 0;
+        virtual void BindVertexBuffers(CommandBuffer* commandbuffer, uint32 bindingCount, Buffer** buffers, uint64* offsets) = 0;
         virtual void BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset) = 0;
-        virtual void SetLineWidth(CommandBuffer* commandbuffer, float width) = 0;
 
         //--------------------------------------------------
         // 即時コマンド

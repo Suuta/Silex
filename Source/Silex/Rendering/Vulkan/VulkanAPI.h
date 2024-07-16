@@ -32,13 +32,13 @@ namespace Silex
         //--------------------------------------------------
         CommandQueue* CreateCommandQueue(QueueFamily family, uint32 indexInFamily = 0) override;
         void DestroyCommandQueue(CommandQueue* queue) override;
-        QueueFamily QueryQueueFamily(uint32 queueFlag, Surface* surface = nullptr) const override;
+        QueueFamily QueryQueueFamily(QueueFamilyFlags queueFlag, Surface* surface = nullptr) const override;
         bool Present(CommandQueue* queue, SwapChain* swapchain, CommandBuffer* commandbuffer, Fence* fence, Semaphore* render, Semaphore* present) override;
 
         //--------------------------------------------------
         // コマンドプール
         //--------------------------------------------------
-        CommandPool* CreateCommandPool(QueueFamily family, CommandBufferType type) override;
+        CommandPool* CreateCommandPool(QueueFamily family, CommandBufferType type = COMMAND_BUFFER_TYPE_PRIMARY) override;
         void DestroyCommandPool(CommandPool* pool) override;
 
         //--------------------------------------------------
@@ -75,7 +75,7 @@ namespace Silex
         //--------------------------------------------------
         // バッファ
         //--------------------------------------------------
-        Buffer* CreateBuffer(uint64 size, BufferUsageBits usage, MemoryAllocationType memoryType) override;
+        Buffer* CreateBuffer(uint64 size, BufferUsageFlags usage, MemoryAllocationType memoryType) override;
         void DestroyBuffer(Buffer* buffer) override;
         byte* MapBuffer(Buffer* buffer) override;
         void UnmapBuffer(Buffer* buffer) override;
@@ -89,20 +89,20 @@ namespace Silex
         //--------------------------------------------------
         // サンプラ
         //--------------------------------------------------
-        Sampler* CreateSampler(const SamplerState& state) override;
+        Sampler* CreateSampler(const SamplerInfo& info) override;
         void DestroySampler(Sampler* sampler) override;
 
         //--------------------------------------------------
         // フレームバッファ
         //--------------------------------------------------
-        FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, TextureHandle* textures, uint32 numTexture, uint32 width, uint32 height) override;
+        FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle* textures, uint32 width, uint32 height) override;
         void DestroyFramebuffer(FramebufferHandle* framebuffer) override;
 
         //--------------------------------------------------
-        // 頂点フォーマット
+        // 入力レイアウト
         //--------------------------------------------------
-        VertexFormat* CreateVertexFormat(uint32 numattributes, VertexAttribute* attributes) override;
-        void DestroyVertexFormat(VertexAttribute* attributes) override;
+        InputLayout* CreateInputLayout(uint32 numBindings, InputBinding* bindings) override;
+        void DestroyInputLayout(InputLayout* layout) override;
 
         //--------------------------------------------------
         // レンダーパス
@@ -125,7 +125,7 @@ namespace Silex
         //--------------------------------------------------
         // パイプライン
         //--------------------------------------------------
-        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, VertexFormat* vertexFormat, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, PipelineDynamicStateFlags dynamicState, RenderPass* renderpass, uint32 renderSubpass) override;
+        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, InputLayout* inputLayout, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) override;
         virtual Pipeline* CreateComputePipeline(ShaderHandle* shader) override;
         void DestroyPipeline(Pipeline* pipeline) override;
 
@@ -153,13 +153,12 @@ namespace Silex
         void ClearAttachments(CommandBuffer* commandbuffer, uint32 numAttachmentClear, AttachmentClear** attachmentClears, uint32 x, uint32 y, uint32 width, uint32 height) override;
         
         void BindPipeline(CommandBuffer* commandbuffer, Pipeline* pipeline) override;
-        void BindDescriptorSet(CommandBuffer* commandbuffer, DescriptorSet* descriptorset, ShaderHandle* shader, uint32 setIndex) override;
+        void BindDescriptorSet(CommandBuffer* commandbuffer, DescriptorSet* descriptorset, uint32 setIndex) override;
         void Draw(CommandBuffer* commandbuffer, uint32 vertexCount, uint32 instanceCount, uint32 baseVertex, uint32 firstInstance) override;
         void DrawIndexed(CommandBuffer* commandbuffer, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance) override;
-        void BindVertexBuffers(CommandBuffer* commandbuffer, uint32 bindingCount, const Buffer** buffers, const uint64* offsets) override;
+        void BindVertexBuffers(CommandBuffer* commandbuffer, uint32 bindingCount, Buffer** buffers, uint64* offsets) override;
         void BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset) override;
-        
-        void SetLineWidth(CommandBuffer* commandbuffer, float width) override;
+
 
         //--------------------------------------------------
         // 即時コマンド
@@ -189,7 +188,6 @@ namespace Silex
         PFN_vkGetSwapchainImagesKHR GetSwapchainImagesKHR = nullptr;
         PFN_vkAcquireNextImageKHR   AcquireNextImageKHR   = nullptr;
         PFN_vkQueuePresentKHR       QueuePresentKHR       = nullptr;
-        PFN_vkCreateRenderPass2KHR  CreateRenderPass2KHR  = nullptr;
 
         // レンダリングコンテキスト
         VulkanContext* context = nullptr;

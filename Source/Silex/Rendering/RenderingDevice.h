@@ -36,7 +36,7 @@ namespace Silex
 
     public:
 
-        bool Initialize(RenderingContext* context);
+        bool Initialize(RenderingContext* renderingContext);
 
         bool Begin();
         bool End();
@@ -58,19 +58,43 @@ namespace Silex
 
     public:
 
-        void DrawTriangle();
+        void DRAW(class Camera* camera);
         void TEST();
 
-        Pipeline*     pipeline;
-        ShaderHandle* shader;
+        void*              mappedSceneData      = nullptr;
+        Buffer*            ubo                  = nullptr;
+
+        // Scene
+        FramebufferHandle* sceneFramebuffer = nullptr;
+        TextureHandle*     sceneTexture     = nullptr;
+        Sampler*           sceneSampler     = nullptr;
+
+        // Swapchain
+        FramebufferHandle* swapchainFramebuffer = nullptr;
+
+
+
+        // Scene パス
+        RenderPass*        scenePass     = nullptr;
+        Pipeline*          pipeline      = nullptr;
+        ShaderHandle*      shader        = nullptr;
+        DescriptorSet*     descriptorSet = nullptr;
+        Buffer*            buffer        = nullptr;
+
+        // Swapchain Blit パス
+        RenderPass*        swapchainPass = nullptr;
+        Pipeline*          blitPipeline  = nullptr;
+        ShaderHandle*      blitShader    = nullptr;
+        DescriptorSet*     blitSet       = nullptr;
+
 
     private:
 
         std::array<FrameData, 2> frameData  = {};
         uint64                   frameIndex = 0;
 
-        RenderingContext* renderingContext = nullptr;
-        RenderingAPI*     api              = nullptr;
+        RenderingContext* context = nullptr;
+        RenderingAPI*     api     = nullptr;
 
         QueueFamily   graphicsQueueFamily = INVALID_RENDER_ID;
         CommandQueue* graphicsQueue       = nullptr;

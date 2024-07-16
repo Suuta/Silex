@@ -330,7 +330,7 @@ namespace Silex
     //===========================================================================
     void AssetManager::LoadAssetToMemory(const std::filesystem::path& filePath)
     {
-        LOAD_PROCESS("Load Texture", 20);
+        INIT_PROCESS("Load Texture", 20);
 
         // テクスチャ2D: マテリアルから参照されるので、最初に読み込むこと!
         for (auto& [ud, metadata] : m_Metadata)
@@ -347,7 +347,7 @@ namespace Silex
             }
         }
 
-        LOAD_PROCESS("Load EnvironmentMap", 40);
+        INIT_PROCESS("Load EnvironmentMap", 40);
 
         // 環境マップ
         for (auto& [ud, metadata] : m_Metadata)
@@ -364,7 +364,7 @@ namespace Silex
             }
         }
 
-        LOAD_PROCESS("Load Material", 60);
+        INIT_PROCESS("Load Material", 60);
 
         // マテリアル
         for (auto& [ud, metadata] : m_Metadata)
@@ -381,7 +381,7 @@ namespace Silex
             }
         }
 
-        LOAD_PROCESS("Load Mesh", 80);
+        INIT_PROCESS("Load Mesh", 80);
 
         // メッシュ
         for (auto& [ud, metadata] : m_Metadata)

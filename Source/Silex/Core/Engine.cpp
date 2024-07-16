@@ -154,7 +154,7 @@ namespace Silex
         {
             imgui->BeginFrame();
 
-            //editor->Update(deltaTime);
+            editor->Update(deltaTime);
             //editor->Render();
 
             ImGui::Begin("Test");
@@ -163,10 +163,8 @@ namespace Silex
             imgui->Render();
 
             renderingDevice->Begin();
-
-            renderingDevice->DrawTriangle();
+            renderingDevice->DRAW(editor->GetEditorCamera());
             imgui->EndFrame();
-
             renderingDevice->End();
 
             Input::Flush();

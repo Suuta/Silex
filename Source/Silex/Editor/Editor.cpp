@@ -23,18 +23,18 @@ namespace Silex
         SL_LOG_TRACE("Editor::Init");
 
         // シーン生成
-        m_Scene = CreateShared<Scene>();
+        //m_Scene = CreateShared<Scene>();
 
         // アウトラウナーにシーンを登録
-        m_ScenePropertyPanel.SetScene(m_Scene);
-        m_ScenePropertyPanel.onEntitySelectDelegate.Bind(this, &Editor::OnClickHierarchyEntity);
+        //m_ScenePropertyPanel.SetScene(m_Scene);
+        //m_ScenePropertyPanel.onEntitySelectDelegate.Bind(this, &Editor::OnClickHierarchyEntity);
 
         //m_AssetBrowserPanel.Initialize();
 
         // シーンレンダラー初期化
         //m_SceneRenderer.Init();
 
-        LOAD_PROCESS("Editor Init", 100.0f);
+        INIT_PROCESS("Editor Init", 100.0f);
         OS::Get()->Sleep(500);
     }
 
@@ -42,7 +42,7 @@ namespace Silex
     {
         SL_LOG_TRACE("Editor::Shutdown");
 
-        m_AssetBrowserPanel.Finalize();
+        //m_AssetBrowserPanel.Finalize();
 
         //m_SceneRenderer.Shutdown();
         //m_ScenePropertyPanel.onEntitySelectDelegate.Unbind();
@@ -50,10 +50,29 @@ namespace Silex
 
     void Editor::Update(float deltaTime)
     {
-        HandleInput(deltaTime);
+        //HandleInput(deltaTime);
+
         m_EditorCamera.Update(deltaTime);
 
-        m_Scene->Update(deltaTime, m_EditorCamera, &m_SceneRenderer);
+        if (Input::IsMouseButtonDown(Mouse::Right))
+        {
+            Input::SetCursorMode(CursorMode::Disable);
+            bUsingEditorCamera = true;
+
+            if (Input::IsKeyDown(Keys::W)) m_EditorCamera.Move(CameraMovementDir::Forward,  deltaTime);
+            if (Input::IsKeyDown(Keys::S)) m_EditorCamera.Move(CameraMovementDir::Backward, deltaTime);
+            if (Input::IsKeyDown(Keys::A)) m_EditorCamera.Move(CameraMovementDir::Left,     deltaTime);
+            if (Input::IsKeyDown(Keys::D)) m_EditorCamera.Move(CameraMovementDir::Right,    deltaTime);
+            if (Input::IsKeyDown(Keys::E)) m_EditorCamera.Move(CameraMovementDir::Up,       deltaTime);
+            if (Input::IsKeyDown(Keys::Q)) m_EditorCamera.Move(CameraMovementDir::Down,     deltaTime);
+        }
+        else if(Input::IsMouseButtonReleased(Mouse::Right))
+        {
+            Input::SetCursorMode(CursorMode::Normal);
+            bUsingEditorCamera = false;
+        }
+
+        // m_Scene->Update(deltaTime, m_EditorCamera, &m_SceneRenderer);
     }
 
     void Editor::Render()
@@ -353,6 +372,11 @@ namespace Silex
         }
     }
 
+    Camera* Editor::GetEditorCamera()
+    {
+        return &m_EditorCamera;
+    }
+
     void Editor::SelectViewportEntity()
     {
         if (!bHoveredViewport)
@@ -477,7 +501,7 @@ namespace Silex
 
     void Editor::OnMouseScroll(MouseScrollEvent& e)
     {
-        if (bHoveredViewport)
+        //if (bHoveredViewport)
         {
             m_EditorCamera.ProcessMouseScroll(e.offsetY);
         }

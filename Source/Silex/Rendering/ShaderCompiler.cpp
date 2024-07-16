@@ -89,17 +89,17 @@ namespace Silex
         if (type == "GEOMETRY") return SHADER_STAGE_GEOMETRY_BIT;
         if (type == "COMPUTE")  return SHADER_STAGE_COMPUTE_BIT;
 
-        return SHADER_STAGE_MAX;
+        return SHADER_STAGE_ALL;
     }
 
     static const char* ToStageString(const ShaderStage stage)
     {
-        if (stage == SHADER_STAGE_VERTEX   || stage == SHADER_STAGE_VERTEX_BIT)   return "VERTEX";
-        if (stage == SHADER_STAGE_FRAGMENT || stage == SHADER_STAGE_FRAGMENT_BIT) return "FRAGMENT";
-        if (stage == SHADER_STAGE_GEOMETRY || stage == SHADER_STAGE_GEOMETRY_BIT) return "GEOMETRY";
-        if (stage == SHADER_STAGE_COMPUTE  || stage == SHADER_STAGE_COMPUTE_BIT)  return "COMPUTE";
+        if (stage & SHADER_STAGE_VERTEX_BIT)   return "VERTEX";
+        if (stage & SHADER_STAGE_FRAGMENT_BIT) return "FRAGMENT";
+        if (stage & SHADER_STAGE_GEOMETRY_BIT) return "GEOMETRY";
+        if (stage & SHADER_STAGE_COMPUTE_BIT)  return "COMPUTE";
 
-        return "SHADER_STAGE_MAX";
+        return "SHADER_STAGE_ALL";
     }
 
     static ShaderDataType ToShaderDataType(const spirv_cross::SPIRType& type)
@@ -249,8 +249,6 @@ namespace Silex
 
         if (endPos != std::string::npos)
             str.erase(endPos, 1);
-
-        SL_ASSERT(true);
     }
 
     std::unordered_map<ShaderStage, std::string> ShaderCompiler::_SplitStages(const std::string& source)
@@ -288,6 +286,28 @@ namespace Silex
 
     std::string ShaderCompiler::_CompileStage(ShaderStage stage, const std::string& source, std::vector<uint32>& out_putSpirv, const std::string& filepath)
     {
+        //=====================================================================================================================
+        // shaderc における GLSLコンパイラでは、エントリーポイントは "main" であると想定され、エントリーポイント指定は HLSL 専用の機能になっている
+        //=====================================================================================================================
+#if 0
+        auto entrypointName = [](ShaderStage stage) -> std::string
+        {
+            switch (stage)
+            {
+                case Silex::SHADER_STAGE_VERTEX_BIT:                 return "vsmain";
+                case Silex::SHADER_STAGE_TESSELATION_CONTROL_BIT:    return "tcsmain"; // hull
+                case Silex::SHADER_STAGE_TESSELATION_EVALUATION_BIT: return "tesmain"; // domain
+                case Silex::SHADER_STAGE_GEOMETRY_BIT:               return "gsmain";
+                case Silex::SHADER_STAGE_FRAGMENT_BIT:               return "fsmain";
+                case Silex::SHADER_STAGE_COMPUTE_BIT:                return "csmain";
+            }
+
+            return "";
+        };
+
+        std::string entrypoint = entrypointName(stage);
+#endif
+
 #if SHADERC
 
         shaderc::Compiler compiler;
@@ -298,19 +318,10 @@ namespace Silex
         options.SetWarningsAsErrors();
         options.SetIncluder(std::make_unique<ShaderIncluder>());
 
-
-        // プリプロセス: SPIR-V テキスト形式へコンパイル
-        //const shaderc::PreprocessedSourceCompilationResult preProcess = compiler.PreprocessGlsl(source, ToShaderC(stage), filepath.c_str(), options);
-        //if (preProcess.GetCompilationStatus() != shaderc_compilation_status_success)
-        //{
-        //    SL_ASSERT(false);
-        //    return preProcess.GetErrorMessage();
-        //}
-
+        
         const shaderc::SpvCompilationResult compileResult = compiler.CompileGlslToSpv(source, ToShaderC(stage), filepath.c_str(), options);
         if (compileResult.GetCompilationStatus() != shaderc_compilation_status_success)
         {
-            SL_ASSERT(false);
             return compileResult.GetErrorMessage();
         }
 

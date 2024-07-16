@@ -112,7 +112,7 @@ namespace Silex
     };
 
     // 頂点フォーマット
-    struct VulkanVertexFormat : public VertexFormat
+    struct VulkanInputLayout : public InputLayout
     {
         std::vector<VkVertexInputBindingDescription>   bindings;
         std::vector<VkVertexInputAttributeDescription> attributes;
@@ -141,8 +141,9 @@ namespace Silex
     // デスクリプターセット
     struct VulkanDescriptorSet : public DescriptorSet
     {
-        VkDescriptorSet  descriptorSet = nullptr;
+        VkDescriptorSet  descriptorSet  = nullptr;
         VkDescriptorPool descriptorPool = nullptr;
+        VkPipelineLayout pipelineLayout = nullptr;
 
         DescriptorSetPoolKey poolKey;
     };

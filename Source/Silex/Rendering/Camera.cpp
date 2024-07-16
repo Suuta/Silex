@@ -8,8 +8,8 @@ namespace Silex
     Camera::Camera(glm::vec3 position)
     {
         Position         = position;
-        Front            = { 0.0f, 0.0f, -1.0f };
-        WorldUp          = { 0.0f, 1.0f,  0.0f };
+        Front            = { 0.0f, 0.0f, 1.0f };
+        WorldUp          = { 0.0f, 1.0f, 0.0f };
 
         MovementSpeed    = 10.0f;
         MouseSensitivity = 0.1f;

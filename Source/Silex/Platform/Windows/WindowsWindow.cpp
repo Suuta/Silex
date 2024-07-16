@@ -5,6 +5,7 @@
 #include "Core/OS.h"
 #include "Asset/TextureReader.h"
 #include "Platform/Windows/WindowsWindow.h"
+#include "Rendering/RenderingCore.h"
 #include "Rendering/RenderingDevice.h"
 #include "Rendering/Vulkan/Windows/WindowsVulkanContext.h"
 
@@ -59,7 +60,7 @@ namespace Silex
         handle.instanceHandle = GetModuleHandleW(nullptr);
 
         // リサイズはレンダラー生成後はレンダラーに依存するので、初期化前にリサイズしておく
-        glfwMaximizeWindow(window);
+        //glfwMaximizeWindow(window);
 
         // ウィンドウに紐づけるデータを設定 (※ glfwGetWindowUserPointerで取り出し)
         glfwSetWindowUserPointer(window, this);

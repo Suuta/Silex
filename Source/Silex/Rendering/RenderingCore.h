@@ -8,7 +8,7 @@ namespace Silex
     //================================================
     // 定数
     //================================================
-    enum : uint32 { INVALID_RENDER_ID = UINT32_MAX };
+    enum : uint32 { INVALID_RENDER_ID = 0x7FFFFFFF };
 
     //================================================
     // ハンドル
@@ -27,9 +27,7 @@ namespace Silex
     SL_HANDLE(Pipeline);
     SL_HANDLE(Sampler);
     SL_HANDLE(DescriptorSet);
-    SL_HANDLE(VertexFormat );
-
-    // 命名重複のためHandleを追加 (OpenGL廃止後に修正)
+    SL_HANDLE(InputLayout);
     SL_HANDLE(FramebufferHandle);
     SL_HANDLE(TextureHandle);
     SL_HANDLE(ShaderHandle);
@@ -351,6 +349,7 @@ namespace Silex
         QUEUE_FAMILY_COMPUTE_BIT  = SL_BIT(1),
         QUEUE_FAMILY_TRANSFER_BIT = SL_BIT(2),
     };
+    using QueueFamilyFlags = int32;
 
     //================================================
     // コマンドバッファ
@@ -378,6 +377,7 @@ namespace Silex
         BUFFER_USAGE_VERTEX_BIT               = SL_BIT(7),
         BUFFER_USAGE_INDIRECT_BIT             = SL_BIT(8),
     };
+    using BufferUsageFlags = int32;
 
     //=================================================
     // テクスチャ
@@ -433,15 +433,11 @@ namespace Silex
 
     enum TextureAspectBits
     {
-        TEXTURE_ASPECT_COLOR,
-        TEXTURE_ASPECT_DEPTH,
-        TEXTURE_ASPECT_STENCIL,
-        TEXTURE_ASPECT_MAX,
-
-        TEXTURE_ASPECT_COLOR_BIT   = SL_BIT(TEXTURE_ASPECT_COLOR),
-        TEXTURE_ASPECT_DEPTH_BIT   = SL_BIT(TEXTURE_ASPECT_DEPTH),
-        TEXTURE_ASPECT_STENCIL_BIT = SL_BIT(TEXTURE_ASPECT_STENCIL),
+        TEXTURE_ASPECT_COLOR_BIT   = SL_BIT(0),
+        TEXTURE_ASPECT_DEPTH_BIT   = SL_BIT(1),
+        TEXTURE_ASPECT_STENCIL_BIT = SL_BIT(2),
     };
+    using TextureAspectFlags = int32;
 
     enum TextureUsageBits
     {
@@ -455,18 +451,20 @@ namespace Silex
         TEXTURE_USAGE_INPUT_ATTACHMENT_BIT         = SL_BIT(7),
         TEXTURE_USAGE_CPU_READ_BIT                 = SL_BIT(8),
     };
+    using TextureUsageFlags = int32;
+
 
     struct TextureFormat
     {
-        RenderingFormat format    = RENDERING_FORMAT_UNDEFINE;
-        uint32          width     = 0;
-        uint32          height    = 0;
-        uint32          depth     = 1;
-        uint32          array     = 1;
-        uint32          mipmap    = 1;
-        TextureType     type      = TEXTURE_TYPE_2D;
-        TextureSamples  samples   = TEXTURE_SAMPLES_1;
-        uint32          usageBits = 0; 
+        RenderingFormat   format    = RENDERING_FORMAT_UNDEFINE;
+        uint32            width     = 0;
+        uint32            height    = 0;
+        uint32            depth     = 1;
+        uint32            array     = 1;
+        uint32            mipmap    = 1;
+        TextureType       type      = TEXTURE_TYPE_2D;
+        TextureSamples    samples   = TEXTURE_SAMPLES_1;
+        TextureUsageFlags usageBits = 0;
     };
 
     struct TextureSubresource
@@ -527,7 +525,7 @@ namespace Silex
         SAMPLER_BORDER_COLOR_MAX
     };
 
-    struct SamplerState
+    struct SamplerInfo
     {
         SamplerFilter      magFilter     = SAMPLER_FILTER_LINEAR;
         SamplerFilter      minFilter     = SAMPLER_FILTER_LINEAR;
@@ -537,11 +535,11 @@ namespace Silex
         SamplerRepeatMode  repeatW       = SAMPLER_REPEAT_MODE_CLAMP_TO_EDGE;
         float              lodBias       = 0.0f;
         bool               useAnisotropy = false;
-        float              anisotropyMax = 1.0f;
+        float              anisotropyMax = 0.0f;
         bool               enableCompare = false;
         CompareOperator    compareOp     = COMPARE_OP_ALWAYS;
         float              minLod        = 0.0f;
-        float              maxLod        = 1e20;
+        float              maxLod        = 0.0f;
         SamplerBorderColor borderColor   = SAMPLER_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
         bool               unnormalized  = false;
     };
@@ -569,6 +567,7 @@ namespace Silex
         PIPELINE_STAGE_ALL_GRAPHICS_BIT                   = SL_BIT(15),
         PIPELINE_STAGE_ALL_COMMANDS_BIT                   = SL_BIT(16),
     };
+    using PipelineStageFlags = int32;
 
     enum BarrierAccessBits
     {
@@ -590,6 +589,7 @@ namespace Silex
         BARRIER_ACCESS_MEMORY_READ_BIT                    = SL_BIT(15),
         BARRIER_ACCESS_MEMORY_WRITE_BIT                   = SL_BIT(16),
     };
+    using BarrierAccessFlags = int32;
 
     struct MemoryBarrierInfo
     {
@@ -650,9 +650,8 @@ namespace Silex
 
     struct AttachmentReference
     {
-        uint32            attachment = INVALID_RENDER_ID;
-        TextureLayout     layout     = TEXTURE_LAYOUT_UNDEFINED;
-        TextureAspectBits aspect     = TEXTURE_ASPECT_COLOR_BIT;
+        uint32        attachment = INVALID_RENDER_ID;
+        TextureLayout layout     = TEXTURE_LAYOUT_UNDEFINED;
     };
 
     struct Subpass
@@ -675,7 +674,7 @@ namespace Silex
     };
 
     //================================================
-    // 頂点レイアウト
+    // 頂点データ
     //================================================
     enum IndexBufferFormat
     {
@@ -689,14 +688,28 @@ namespace Silex
         VERTEX_FREQUENCY_INSTANCE,
     };
 
-    struct VertexAttribute
+    struct InputAttribute
     {
-        uint32          location  = 0;
-        uint32          offset    = 0;
-        RenderingFormat format    = RENDERING_FORMAT_MAX;
+        uint32          location = 0;
+        uint32          offset   = 0;
+        RenderingFormat format   = RENDERING_FORMAT_MAX;
+    };
+
+    struct InputBinding
+    {
+        uint32          binding   = 0;
         uint32          stride    = 0;
         VertexFrequency frequency = VERTEX_FREQUENCY_VERTEX;
+
+        std::vector<InputAttribute> attributes;
+
+        void AddAttribute(uint32 location, uint32 size, RenderingFormat format)
+        {
+            attributes.push_back({location, stride, format});
+            stride += size;
+        }
     };
+
 
     //================================================
     // デスクリプタ
@@ -724,9 +737,9 @@ namespace Silex
         uint32               binding = INVALID_RENDER_ID;
         std::vector<Handle*> handles = {};
 
-        Handle* image   = nullptr;
-        Handle* sampler = nullptr;
-        Handle* buffer  = nullptr;
+        // Handle* image   = nullptr;
+        // Handle* sampler = nullptr;
+        // Handle* buffer  = nullptr;
     };
 
     //================================================
@@ -734,22 +747,14 @@ namespace Silex
     //================================================
     enum ShaderStage
     {
-        SHADER_STAGE_VERTEX,
-        SHADER_STAGE_TESSELATION_CONTROL,
-        SHADER_STAGE_TESSELATION_EVALUATION,
-        SHADER_STAGE_GEOMETRY,
-        SHADER_STAGE_FRAGMENT,
-        SHADER_STAGE_COMPUTE,
-        SHADER_STAGE_ALL,
+        SHADER_STAGE_VERTEX_BIT                 = SL_BIT(0),
+        SHADER_STAGE_TESSELATION_CONTROL_BIT    = SL_BIT(1),
+        SHADER_STAGE_TESSELATION_EVALUATION_BIT = SL_BIT(2),
+        SHADER_STAGE_GEOMETRY_BIT               = SL_BIT(3),
+        SHADER_STAGE_FRAGMENT_BIT               = SL_BIT(4),
+        SHADER_STAGE_COMPUTE_BIT                = SL_BIT(5),
 
-        SHADER_STAGE_MAX,
-
-        SHADER_STAGE_VERTEX_BIT                 = (1 << SHADER_STAGE_VERTEX),
-        SHADER_STAGE_TESSELATION_CONTROL_BIT    = (1 << SHADER_STAGE_TESSELATION_CONTROL),
-        SHADER_STAGE_TESSELATION_EVALUATION_BIT = (1 << SHADER_STAGE_TESSELATION_EVALUATION),
-        SHADER_STAGE_GEOMETRY_BIT               = (1 << SHADER_STAGE_GEOMETRY),
-        SHADER_STAGE_FRAGMENT_BIT               = (1 << SHADER_STAGE_FRAGMENT),
-        SHADER_STAGE_COMPUTE_BIT                = (1 << SHADER_STAGE_COMPUTE),
+        SHADER_STAGE_ALL                        = 0x7FFFFFFF,
     };
 
     //================================================
@@ -918,6 +923,16 @@ namespace Silex
 
     struct PipelineColorBlendState
     {
+        PipelineColorBlendState()
+        {
+        }
+
+        PipelineColorBlendState(bool enable)
+        {
+            enable ? AddBlend() : AddDisabled();
+        }
+
+
         bool           enableLogicOp = false;
         LogicOperation logicOp       = LOGIC_OP_CLEAR;
 
@@ -953,11 +968,11 @@ namespace Silex
             attachments.push_back(ba);
         }
 
-        std::vector<Attachment> attachments;
-        glm::vec4               blendConstant;
+        std::vector<Attachment> attachments   = {};
+        glm::vec4               blendConstant = {};
     };
 
-    enum PipelineDynamicStateFlags
+    enum PipelineDynamicStateBits
     {
         // ビューポート・シザーは常に動的ステートにしたいのでここには含めない
 
@@ -972,6 +987,7 @@ namespace Silex
 
         DYNAMIC_STATE_MAX = 7,
     };
+    using PipelineDynamicStateFlags = int32;
 
     //================================================
     // コマンド
@@ -1015,5 +1031,3 @@ namespace Silex
     
     
 }
-
-

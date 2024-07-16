@@ -30,5 +30,5 @@ namespace Silex
     };
 
 
-#define LOAD_PROCESS(text, percentage) SplashImage::SetText(L##text, percentage);
+#define INIT_PROCESS(text, percentage) SplashImage::SetText(L##text, percentage);
 }

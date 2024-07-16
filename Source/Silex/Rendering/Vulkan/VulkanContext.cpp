@@ -243,7 +243,7 @@ namespace Silex
 
         // 要求デバイス拡張
         requestDeviceExtensions.insert(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-        requestDeviceExtensions.insert(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+        //requestDeviceExtensions.insert(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
         //requestDeviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
         //requestDeviceExtensions.insert(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
         //requestDeviceExtensions.insert(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);

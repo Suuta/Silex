@@ -846,20 +846,19 @@ namespace Silex
         Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, RHI::AttachmentBuffer::Color);
     }
 
-
-
-
     uint32 SceneRenderer::GetFinalRenderPassID()
     {
-        return context->enablePostProcess ? 
-            context->finalPassFB->GetAttachmentID(0) :
-            context->gBufferFB->GetAttachmentID(0);
-          //m_Context->DeferredFB->GetAttachmentID(0);
+        return context->enablePostProcess? context->finalPassFB->GetAttachmentID(0) : context->gBufferFB->GetAttachmentID(0);
     }
 
     int32 SceneRenderer::ReadEntityIDFromPixcel(uint32 x, uint32 y)
     {
-        float height = context->viewportSize.y - y; // OpenGL: 上下反転
+#if SL_PLATFORM_OPENGL
+        // OpenGL: UV座標 反転
+        float height = context->viewportSize.y - y;
+#else
+        float height = y;
+#endif
 
         context->gBufferFB->Bind();
         glm::ivec4 p = context->gBufferFB->ReadPixelInt(4, x, height);

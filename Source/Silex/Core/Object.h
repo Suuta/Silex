@@ -69,7 +69,7 @@ namespace Silex
         mutable std::atomic<uint32> refCount = 0;
 
     private:
-
+        
         // 参照カウント操作は参照カウントポインタからのみ操作可能にする
         template<class T>
         friend class Shared;
