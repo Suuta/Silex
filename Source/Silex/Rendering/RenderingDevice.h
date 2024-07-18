@@ -40,6 +40,7 @@ namespace Silex
 
         bool Begin();
         bool End();
+        bool Present();
 
 
         SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode);
@@ -58,8 +59,12 @@ namespace Silex
 
     public:
 
+        void UI();
+        void RESIZE(uint32 width, uint32 height);
         void DRAW(class Camera* camera);
         void TEST();
+
+    public:
 
         void*              mappedSceneData      = nullptr;
         Buffer*            ubo                  = nullptr;

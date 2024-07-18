@@ -3,17 +3,16 @@
 
 #include "Rendering/RenderingContext.h"
 #include "Rendering/Vulkan/VulkanStructures.h"
-#include <vulkan/vulkan.h>
 
 
 namespace Silex
 {
-#define VK_LAYER_KHRONOS_VALIDATION_NAME "VK_LAYER_KHRONOS_validation"
+    #define VK_LAYER_KHRONOS_VALIDATION_NAME "VK_LAYER_KHRONOS_validation"
 
-#define GET_VULKAN_INSTANCE_PROC(instance, func) (PFN_##func)vkGetInstanceProcAddr(instance, #func);
-#define GET_VULKAN_DEVICE_PROC(device, func)     (PFN_##func)vkGetDeviceProcAddr(device, #func);
+    #define GET_VULKAN_INSTANCE_PROC(instance, func) (PFN_##func)vkGetInstanceProcAddr(instance, #func);
+    #define GET_VULKAN_DEVICE_PROC(device, func)     (PFN_##func)vkGetDeviceProcAddr(device, #func);
 
-#define SL_CHECK_VKRESULT(result, retVal)                                                         \
+    #define SL_CHECK_VKRESULT(result, retVal)                                                     \
     if (VkResult SL_COMBINE(vkres, __LINE__) = result; SL_COMBINE(vkres, __LINE__) != VK_SUCCESS) \
     {                                                                                             \
         SL_LOG_LOCATION_ERROR(VkResultToString(SL_COMBINE(vkres, __LINE__)));                     \

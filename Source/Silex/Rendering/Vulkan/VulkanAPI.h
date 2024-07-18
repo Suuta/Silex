@@ -33,7 +33,7 @@ namespace Silex
         CommandQueue* CreateCommandQueue(QueueFamily family, uint32 indexInFamily = 0) override;
         void DestroyCommandQueue(CommandQueue* queue) override;
         QueueFamily QueryQueueFamily(QueueFamilyFlags queueFlag, Surface* surface = nullptr) const override;
-        bool Present(CommandQueue* queue, SwapChain* swapchain, CommandBuffer* commandbuffer, Fence* fence, Semaphore* render, Semaphore* present) override;
+        bool SubmitQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* present, Semaphore* render) override;
 
         //--------------------------------------------------
         // コマンドプール
@@ -66,11 +66,13 @@ namespace Silex
         // スワップチェイン
         //--------------------------------------------------
         SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) override;
+        void DestroySwapChain(SwapChain* swapchain) override;
         bool ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) override;
         FramebufferHandle* GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present) override;
+        bool Present(CommandQueue* queue, SwapChain* swapchain, Semaphore* render) override;
+
         RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) override;
         RenderingFormat GetSwapChainFormat(SwapChain* swapchain) override;
-        void DestroySwapChain(SwapChain* swapchain) override;
 
         //--------------------------------------------------
         // バッファ
@@ -125,8 +127,8 @@ namespace Silex
         //--------------------------------------------------
         // パイプライン
         //--------------------------------------------------
-        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, InputLayout* inputLayout, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) override;
-        virtual Pipeline* CreateComputePipeline(ShaderHandle* shader) override;
+        Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, InputLayout* inputLayout, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) override;
+        Pipeline* CreateComputePipeline(ShaderHandle* shader) override;
         void DestroyPipeline(Pipeline* pipeline) override;
 
         //--------------------------------------------------
@@ -159,11 +161,11 @@ namespace Silex
         void BindVertexBuffers(CommandBuffer* commandbuffer, uint32 bindingCount, Buffer** buffers, uint64* offsets) override;
         void BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset) override;
 
-
         //--------------------------------------------------
-        // 即時コマンド
+        // MISC
         //--------------------------------------------------
         bool ImmidiateExcute(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func) override;
+        bool WaitDevice() override;
 
 
     private:

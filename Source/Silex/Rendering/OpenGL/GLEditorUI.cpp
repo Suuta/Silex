@@ -37,14 +37,13 @@ namespace Silex
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
 
-        Super::BeginFrame();
+        ImGui::NewFrame();
+        ImGuizmo::BeginFrame();
     }
 
     void GLEditorUI::EndFrame()
     {
         ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-        Super::EndFrame();
     }
 }

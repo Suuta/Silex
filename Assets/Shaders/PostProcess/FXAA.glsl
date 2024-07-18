@@ -101,5 +101,6 @@ void main()
     float boolX = step(lumaB, minLuma);
     float boolY = step(maxLuma, lumaB);
     float mask = step(0.5, boolX + boolY);
+
     PixelColor = mix(vec4(rgbA, 1.0), vec4(rgbB, 1.0), mask);
 }

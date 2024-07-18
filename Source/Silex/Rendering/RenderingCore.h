@@ -33,8 +33,16 @@ namespace Silex
     SL_HANDLE(ShaderHandle);
 
     //================================================
-    // MISC
+    // ビューポート
     //================================================
+    enum VSyncMode
+    {
+        VSYNC_MODE_DISABLED, // VK_PRESENT_MODE_IMMEDIATE_KHR
+        VSYNC_MODE_MAILBOX,  // VK_PRESENT_MODE_MAILBOX_KHR
+        VSYNC_MODE_ENABLED,  // VK_PRESENT_MODE_FIFO_KHR
+        VSYNC_MODE_ADAPTIVE, // VK_PRESENT_MODE_FIFO_RELAXED_KHR
+    };
+
     struct Rect
     {
         uint32 x      = 0;
@@ -665,12 +673,12 @@ namespace Silex
 
     struct SubpassDependency
     {
-        uint32            srcSubpass = INVALID_RENDER_ID;
-        uint32            dstSubpass = INVALID_RENDER_ID;
-        PipelineStageBits srcStages;
-        PipelineStageBits dstStages;
-        BarrierAccessBits srcAccess;
-        BarrierAccessBits dstAccess;
+        uint32             srcSubpass = UINT32_MAX;
+        uint32             dstSubpass = INVALID_RENDER_ID;
+        PipelineStageFlags srcStages;
+        PipelineStageFlags dstStages;
+        BarrierAccessFlags srcAccess;
+        BarrierAccessFlags dstAccess;
     };
 
     //================================================
@@ -1028,6 +1036,4 @@ namespace Silex
         glm::ivec3               textureOffset;
         glm::ivec3               textureRegionSize;
     };
-    
-    
 }

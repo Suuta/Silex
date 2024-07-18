@@ -64,7 +64,6 @@ namespace Silex
 
         // ウィンドウデータ
         GLFWwindow* window = nullptr;
-        WindowData  windowData;
 
         // Windows 固有ハンドル
         WindowsWindowHandle handle;

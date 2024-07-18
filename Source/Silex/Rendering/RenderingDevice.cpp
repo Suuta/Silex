@@ -8,6 +8,10 @@
 #include "Rendering/ShaderCompiler.h"
 #include "Rendering/Camera.h"
 
+#include "Rendering/Vulkan/VulkanStructures.h"
+
+#include <imgui/imgui.h>
+
 
 namespace Silex
 {
@@ -42,6 +46,13 @@ namespace Silex
 
     RenderingDevice::~RenderingDevice()
     {
+        {
+            api->UnmapBuffer(ubo);
+            api->DestroyBuffer(ubo);
+            api->DestroyBuffer(buffer);
+            api->DestroyTexture(sceneTexture);
+        }
+
         for (uint32 i = 0; i < frameData.size(); i++)
         {
             api->DestroyCommandPool(frameData[i].commandPool);
@@ -117,6 +128,37 @@ namespace Silex
         auto size = Window::Get()->GetSize();
 
         {
+            swapchainPass = api->GetSwapChainRenderPass(Window::Get()->GetSwapChain());
+        }
+
+        {
+            Attachment attachment = {};
+            attachment.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
+            attachment.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            attachment.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
+            attachment.storeOp       = ATTACHMENT_STORE_OP_STORE;
+            attachment.samples       = TEXTURE_SAMPLES_1;
+            attachment.format        = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
+
+            AttachmentReference ref = {};
+            ref.attachment = 0;
+            ref.layout     = TEXTURE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+            Subpass subpass = {};
+            subpass.colorReferences.push_back(ref);
+
+            SubpassDependency dependency = {};
+            dependency.srcSubpass = UINT32_MAX;
+            dependency.dstSubpass = 0;
+            dependency.srcStages  = PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependency.dstStages  = PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dependency.srcAccess  = 0;
+            dependency.dstAccess  = BARRIER_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+            scenePass = api->CreateRenderPass(1, &attachment, 1, &subpass, 1, &dependency);
+        }
+
+        {
             SamplerInfo info = {};
             sceneSampler = api->CreateSampler(info);
 
@@ -131,32 +173,7 @@ namespace Silex
             format.depth     = 1;
             format.mipmap    = 1;
 
-            sceneTexture = api->CreateTexture(format);
-        }
-
-
-
-        {
-            swapchainPass = api->GetSwapChainRenderPass(Window::Get()->GetSwapChain());
-        }
-
-        {
-            Attachment attachment = {};
-            attachment.format        = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
-            attachment.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
-            attachment.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            attachment.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
-            attachment.storeOp       = ATTACHMENT_STORE_OP_STORE;
-            attachment.samples       = TEXTURE_SAMPLES_1;
-
-            AttachmentReference ref = {};
-            ref.attachment = 0;
-            ref.layout     = TEXTURE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-            Subpass subpass = {};
-            subpass.colorReferences.push_back(ref);
-
-            scenePass        = api->CreateRenderPass(1, &attachment, 1, &subpass, 0, nullptr);
+            sceneTexture     = api->CreateTexture(format);
             sceneFramebuffer = api->CreateFramebuffer(scenePass, 1, sceneTexture, size.x, size.y);
         }
 
@@ -246,6 +263,57 @@ namespace Silex
 
     }
 
+    void RenderingDevice::UI()
+    {
+        auto size = Window::Get()->GetSize();
+
+        VkDescriptorSet ds = ((VulkanDescriptorSet*)blitSet)->descriptorSet;
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::Begin("viewport");
+
+        auto rect = ImGui::GetContentRegionAvail();
+        ImGui::Image(ds, ImVec2(rect.x, rect.y));
+
+        ImGui::End();
+        ImGui::PopStyleVar();
+    }
+
+    void RenderingDevice::RESIZE(uint32 width, uint32 height)
+    {
+        if (width == 0 || height == 0)
+            return;
+
+        api->WaitDevice();
+        api->DestroyTexture(sceneTexture);
+
+        TextureFormat format = {};
+        format.format    = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
+        format.width     = width;
+        format.height    = height;
+        format.type      = TEXTURE_TYPE_2D;
+        format.usageBits = TEXTURE_USAGE_COLOR_ATTACHMENT_BIT | TEXTURE_USAGE_SAMPLING_BIT;
+        format.samples   = TEXTURE_SAMPLES_1;
+        format.array     = 1;
+        format.depth     = 1;
+        format.mipmap    = 1;
+
+        sceneTexture = api->CreateTexture(format);
+
+        api->DestroyFramebuffer(sceneFramebuffer);
+        sceneFramebuffer = api->CreateFramebuffer(scenePass, 1, sceneTexture, width, height);
+
+        api->DestroyDescriptorSet(blitSet);
+
+        DescriptorInfo info = {};
+        info.handles.push_back(sceneSampler);
+        info.handles.push_back(sceneTexture);
+        info.binding = 0;
+        info.type = DESCRIPTOR_TYPE_IMAGE_SAMPLER;
+
+        blitSet = api->CreateDescriptorSet(1, &info, blitShader, 0);
+    }
+
     void RenderingDevice::DRAW(Camera* camera)
     {
         FrameData& frame = frameData[frameIndex];
@@ -261,7 +329,6 @@ namespace Silex
         api->SetViewport(frame.commandBuffer, 0, 0, size.x, size.y);
         api->SetScissor(frame.commandBuffer, 0, 0, size.x, size.y);
 
-        
         {
             api->BeginRenderPass(frame.commandBuffer, scenePass, sceneFramebuffer, COMMAND_BUFFER_TYPE_PRIMARY, 1, &defaultClearColor);
             
@@ -308,7 +375,17 @@ namespace Silex
         api->EndRenderPass(frame.commandBuffer);
         api->EndCommandBuffer(frame.commandBuffer);
 
-        api->Present(graphicsQueue, swapchain, frame.commandBuffer, frame.fence, frame.renderSemaphore, frame.presentSemaphore);
+        api->SubmitQueue(graphicsQueue, frame.commandBuffer, frame.fence, frame.presentSemaphore, frame.renderSemaphore);
+
+        return true;
+    }
+
+    bool RenderingDevice::Present()
+    {
+        SwapChain* swapchain = Window::Get()->GetSwapChain();
+        FrameData& frame = frameData[frameIndex];
+
+        api->Present(graphicsQueue, swapchain, frame.renderSemaphore);
         frameIndex = (frameIndex + 1) % 2;
 
         return true;

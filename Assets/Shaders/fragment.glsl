@@ -25,13 +25,13 @@ void main()
     FragmentOutput fout = Fragment(outv);
 
     // https://docs.unity3d.com/ja/2019.4/Manual/SL-ShaderSemantics.html
-    vec4 screenPos = gl_FragCoord;
+    //vec4 screenPos = gl_FragCoord;
     
-    screenPos.xy  = floor(screenPos.xy * 0.25) * 0.5;
-    float checker = fract(screenPos.x + screenPos.y);
+    //screenPos.xy  = floor(screenPos.xy * 0.25) * 0.5;
+    //float checker = fract(screenPos.x + screenPos.y);
 
-    if (checker <= 0.0)
-        discard;
+    //if (checker <= 0.0)
+        //discard;
 
     outFragColor = fout.color;
 }

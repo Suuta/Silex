@@ -2,7 +2,6 @@
 #pragma once
 
 #include "Rendering/RenderingCore.h"
-#include "Core/Window.h"
 
 
 namespace Silex
@@ -28,7 +27,7 @@ namespace Silex
         virtual CommandQueue* CreateCommandQueue(QueueFamily family, uint32 indexInFamily = 0) = 0;
         virtual void DestroyCommandQueue(CommandQueue* queue) = 0;
         virtual QueueFamily QueryQueueFamily(QueueFamilyFlags flag, Surface* surface = nullptr) const = 0;
-        virtual bool Present(CommandQueue* queue, SwapChain* swapchain, CommandBuffer* commandbuffer, Fence* fence, Semaphore* render, Semaphore* present) = 0;
+        virtual bool SubmitQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* present, Semaphore* render) = 0;
 
         //--------------------------------------------------
         // コマンドプール
@@ -64,11 +63,13 @@ namespace Silex
         // スワップチェイン
         //--------------------------------------------------
         virtual SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) = 0;
+        virtual void DestroySwapChain(SwapChain* swapchain) = 0;
         virtual bool ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) = 0;
         virtual FramebufferHandle* GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present) = 0;
+        virtual bool Present(CommandQueue* queue, SwapChain* swapchain, Semaphore* render) = 0;
+        
         virtual RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) = 0;
         virtual RenderingFormat GetSwapChainFormat(SwapChain* swapchain) = 0;
-        virtual void DestroySwapChain(SwapChain* swapchain) = 0;
 
         //--------------------------------------------------
         // バッファ
@@ -153,8 +154,9 @@ namespace Silex
         virtual void BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset) = 0;
 
         //--------------------------------------------------
-        // 即時コマンド
+        // MISC
         //--------------------------------------------------
         virtual bool ImmidiateExcute(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func) = 0;
+        virtual bool WaitDevice() = 0;
     };
 }

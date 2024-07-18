@@ -1,11 +1,15 @@
 
 #pragma once
 
-#define NEW_RENDERER                    1
-#define SL_PLATFORM_OPENGL              0
-#define SL_PLATFORM_VULKAN              1
+// デバッグ
 #define SL_ENABLE_TRACK_HEAP_ALLOCATION 0
 #define SL_ENABLE_ASSERTS               1
+
+// レンダリング
+#define SL_PLATFORM_OPENGL              0
+#define SL_PLATFORM_VULKAN              1
+#define SL_VULKNA_INVERT_Y_AXIS         1
+
 
 
 // 結合マクロ

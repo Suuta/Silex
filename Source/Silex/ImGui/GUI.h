@@ -33,12 +33,12 @@ namespace Silex
 
     public:
 
-        virtual void Init(RenderingContext* context);
+        virtual void Init(RenderingContext* context) = 0;
+        virtual void BeginFrame()                    = 0;
+        virtual void EndFrame()                      = 0;
 
-        virtual void BeginFrame();
-        virtual void EndFrame();
-
-        void Render();
+        void UpdateWidget();
+        void UpdateViewport();
 
     private:
 

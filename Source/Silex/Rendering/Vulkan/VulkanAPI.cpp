@@ -339,14 +339,11 @@ namespace Silex
         return familyIndex;
     }
 
-    bool VulkanAPI::Present(CommandQueue* queue, SwapChain* swapchain, CommandBuffer* commandbuffer, Fence* fence, Semaphore* render, Semaphore* present)
+    bool VulkanAPI::SubmitQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* present, Semaphore* render)
     {
-        VulkanSwapChain*     vkswapchain      = (VulkanSwapChain*)swapchain;
         VulkanCommandQueue*  vkqueue          = (VulkanCommandQueue*)queue;
         VulkanCommandBuffer* vkcommandBuffer  = (VulkanCommandBuffer*)commandbuffer;
         VulkanFence*         vkfence          = (VulkanFence*)fence;
-        VulkanSemaphore*     renderSemaphore  = (VulkanSemaphore*)render;
-        VulkanSemaphore*     presentSemaphore = (VulkanSemaphore*)present;
 
         VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
@@ -357,27 +354,17 @@ namespace Silex
         submitInfo.commandBufferCount   = 1;
         submitInfo.pCommandBuffers      = &vkcommandBuffer->commandBuffer;
         submitInfo.waitSemaphoreCount   = 1;
-        submitInfo.pWaitSemaphores      = &presentSemaphore->semaphore;
+        submitInfo.pWaitSemaphores      = &((VulkanSemaphore*)present)->semaphore;
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores    = &renderSemaphore->semaphore;
+        submitInfo.pSignalSemaphores    = &((VulkanSemaphore*)render)->semaphore;
 
         VkResult result = vkQueueSubmit(vkqueue->queue, 1, &submitInfo, vkfence->fence);
         SL_CHECK_VKRESULT(result, false);
 
-
-        VkPresentInfoKHR presentInfo = {};
-        presentInfo.sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-        presentInfo.waitSemaphoreCount  = 1;
-        presentInfo.pWaitSemaphores     = &renderSemaphore->semaphore;
-        presentInfo.swapchainCount      = 1;
-        presentInfo.pSwapchains         = &vkswapchain->swapchain;
-        presentInfo.pImageIndices       = &vkswapchain->imageIndex;
-
-        result = vkQueuePresentKHR(vkqueue->queue, &presentInfo);
-        SL_CHECK_VKRESULT(result, false);
-
-        return true;
+        return false;
     }
+
+
 
     //==================================================================================
     // コマンドプール
@@ -614,7 +601,7 @@ namespace Silex
         VkAttachmentDescription attachment = {};
         attachment.format         = format;
         attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
-        attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;      // 描画 前 処理
+        attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // 描画 前 処理
         attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;     // 描画 後 処理
         attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // 
         attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // 
@@ -644,8 +631,8 @@ namespace Silex
         passInfo.pAttachments    = &attachment;
         passInfo.subpassCount    = 1;
         passInfo.pSubpasses      = &subpass;
-        //passInfo.dependencyCount = 1;
-        //passInfo.pDependencies   = &dependency;
+        passInfo.dependencyCount = 1;
+        passInfo.pDependencies   = &dependency;
 
         VkRenderPass vkRenderPass = nullptr;
         result = vkCreateRenderPass(device, &passInfo, nullptr, &vkRenderPass);
@@ -1031,12 +1018,30 @@ namespace Silex
     FramebufferHandle* VulkanAPI::GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present)
     {
         VulkanSwapChain* vkswapchain = (VulkanSwapChain*)swapchain;
-        VulkanSemaphore* vkpresent   = (VulkanSemaphore*)present;
 
-        VkResult result = AcquireNextImageKHR(device, vkswapchain->swapchain, UINT64_MAX, vkpresent->semaphore, nullptr, &vkswapchain->imageIndex);
+        VkResult result = AcquireNextImageKHR(device, vkswapchain->swapchain, UINT64_MAX, ((VulkanSemaphore*)present)->semaphore, nullptr, &vkswapchain->imageIndex);
         SL_CHECK_VKRESULT(result, nullptr);
 
         return vkswapchain->framebuffers[vkswapchain->imageIndex];
+    }
+
+    bool VulkanAPI::Present(CommandQueue* queue, SwapChain* swapchain, Semaphore* render)
+    {
+        VulkanSwapChain*     vkswapchain      = (VulkanSwapChain*)swapchain;
+        VulkanCommandQueue*  vkqueue          = (VulkanCommandQueue*)queue;
+
+        VkPresentInfoKHR presentInfo = {};
+        presentInfo.sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        presentInfo.waitSemaphoreCount  = 1;
+        presentInfo.pWaitSemaphores     = &((VulkanSemaphore*)render)->semaphore;
+        presentInfo.swapchainCount      = 1;
+        presentInfo.pSwapchains         = &vkswapchain->swapchain;
+        presentInfo.pImageIndices       = &vkswapchain->imageIndex;
+
+        VkResult result = vkQueuePresentKHR(vkqueue->queue, &presentInfo);
+        SL_CHECK_VKRESULT(result, false);
+
+        return true;
     }
 
     RenderPass* VulkanAPI::GetSwapChainRenderPass(SwapChain* swapchain)
@@ -1091,9 +1096,6 @@ namespace Silex
             Memory::Deallocate(vkSwapchain);
         }
     }
-
-
-    // const int32 f = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
 
     //==================================================================================
@@ -1753,8 +1755,6 @@ namespace Silex
         vkCmdCopyImageToBuffer(cmd->commandBuffer, src->image, (VkImageLayout)srcTextureLayout, dst->buffer, numRegion, copyRegion);
     }
 
-
-
     void VulkanAPI::PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData)
     {
         VulkanShader* vkshader = (VulkanShader*)shader;
@@ -1800,15 +1800,23 @@ namespace Silex
     {
         // ビューポート Y座標 反転
         // https://www.saschawillems.de/blog/2019/03/29/flipping-the-vulkan-viewport/
-
         VkViewport viewport = {};
+
+#if SL_VULKNA_INVERT_Y_AXIS
         viewport.x        =  (float)x;
         viewport.y        =  (float)height - y;
         viewport.width    =  (float)width;
         viewport.height   = -(float)height;
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
-
+#else
+        viewport.x        = (float)x;
+        viewport.y        = (float)y;
+        viewport.width    = (float)width;
+        viewport.height   = (float)height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+#endif
         VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
         vkCmdSetViewport(cmd->commandBuffer, 0, 1, &viewport);
     }
@@ -1896,7 +1904,6 @@ namespace Silex
         vkCmdBindIndexBuffer(cmd->commandBuffer, buf->buffer, offset, format == INDEX_BUFFER_FORMAT_UINT16? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
     }
 
-
     //==================================================================================
     // 即時コマンド
     //==================================================================================
@@ -1930,6 +1937,14 @@ namespace Silex
 
         vkresult = vkWaitForFences(device, 1, &vkfence, true, UINT64_MAX);
         SL_CHECK_VKRESULT(vkresult, false);
+    }
+
+    bool VulkanAPI::WaitDevice()
+    {
+        VkResult vkresult = vkDeviceWaitIdle(device);
+        SL_CHECK_VKRESULT(vkresult, false);
+
+        return true;
     }
 
     //==================================================================================

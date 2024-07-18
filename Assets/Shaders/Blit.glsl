@@ -9,7 +9,6 @@
         // 三角形でフルスクリーン描画
         // https://stackoverflow.com/questions/2588875/whats-the-best-way-to-draw-a-fullscreen-quad-in-opengl-3-2
 
-
         const vec2 triangle[3] =
         {
             vec2(-1.0,  1.0), // 左上
@@ -40,7 +39,7 @@
 
     // ACES Filmic Tone Mapping
     // https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
-    vec3 ACES(vec3 color)
+    vec3 ACES_ToneMap(vec3 color)
     {
         const float a = 2.51;
         const float b = 0.03;
@@ -52,12 +51,76 @@
         return color;
     }
 
+
+    // webgl-meincraft / FXAA shader
+    // https://github.com/mitsuhiko/webgl-meincraft/blob/master/assets/shaders/fxaa.glsl
+    vec3 FXAA(vec2 pixelSize)
+    {
+        const float FXAA_REDUCE_MIN = 1.0 / 128.0;
+        const float FXAA_REDUCE_MUL = 1.0 / 8.0;
+        const float FXAA_SPAN_MAX   = 8.0;
+
+        // サンプリングピクセルから　1px 斜め4方向を 取得
+        vec3 rgbNW = texture(inputAttachment, uv + pixelSize * vec2(-1, -1)).xyz;
+        vec3 rgbNE = texture(inputAttachment, uv + pixelSize * vec2( 1, -1)).xyz;
+        vec3 rgbSW = texture(inputAttachment, uv + pixelSize * vec2(-1,  1)).xyz;
+        vec3 rgbSE = texture(inputAttachment, uv + pixelSize * vec2( 1,  1)).xyz;
+        vec3 rgbM  = texture(inputAttachment, uv).xyz;
+
+        // 輝度勾配を求める？
+        vec3  luma   = vec3(0.299, 0.587, 0.114);
+        float lumaNW = dot(rgbNW, luma);
+        float lumaNE = dot(rgbNE, luma);
+        float lumaSW = dot(rgbSW, luma);
+        float lumaSE = dot(rgbSE, luma);
+        float lumaM  = dot(rgbM,  luma);
+
+        float maxLuma = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));
+        float minLuma = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));
+
+        // 輝度勾配からエッジラインを取得　
+        vec2 dir;
+        dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));
+        dir.y =  ((lumaNW + lumaSW) - (lumaNE + lumaSE));
+
+        float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FXAA_REDUCE_MUL), FXAA_REDUCE_MIN);
+        float rcpDirMin = 1.0 / (min(abs(dir.x), abs(dir.y)) + dirReduce);
+
+        dir = min(vec2(FXAA_SPAN_MAX, FXAA_SPAN_MAX), max(vec2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX), dir * rcpDirMin)) * pixelSize;
+
+        // エッジラインと近傍ピクセルをブレンド
+        vec3 rgbA = 0.5 * (
+            texture(inputAttachment, uv.xy + dir * (1.0/3.0 - 0.5)).xyz +
+            texture(inputAttachment, uv.xy + dir * (2.0/3.0 - 0.5)).xyz);
+
+        vec3 rgbB = rgbA * 0.5 + 0.25 * (
+            texture(inputAttachment, uv.xy + dir * -0.5).xyz +
+            texture(inputAttachment, uv.xy + dir *  0.5).xyz);
+
+        float lumaB = dot(rgbB, luma);
+
+
+        if((lumaB < minLuma) || (lumaB > maxLuma))
+        {
+            return rgbA;
+        }
+        else
+        {
+            return rgbB;
+        }
+    }
+
+
     void main()
     {
-        vec4 color = vec4(1.0);
+        vec4 color = texture(inputAttachment, uv);
 
-        color     = texture(inputAttachment, uv); // シーンカラー読み込み
-        color.rgb = ACES(color.rgb).rgb;          // 0.0 ~ 1.0 補間
+        // FXAA
+        vec2 pixelSize = 1.0 / textureSize(inputAttachment, 0);
+        color.rgb = FXAA(pixelSize);
+
+        // 0.0 ~ 1.0 補間
+        color.rgb = ACES_ToneMap(color.rgb).rgb;
 
         piexl = color;
     }

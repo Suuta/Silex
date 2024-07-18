@@ -28,7 +28,7 @@ namespace Silex
         ImGuiIO& io = ImGui::GetIO();
         io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-        //io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+        io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
         io.FontDefault = io.Fonts->AddFontFromFileTTF("Assets/Fonts/VL-Gothic-Regular.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
 
@@ -88,23 +88,17 @@ namespace Silex
         }
     }
 
-    void GUI::BeginFrame()
+    void GUI::UpdateWidget()
     {
-        ImGui::NewFrame();
-        ImGuizmo::BeginFrame();
+        ImGui::Render();
     }
 
-    void GUI::EndFrame()
+    void GUI::UpdateViewport()
     {
         if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
         }
-    }
-
-    void GUI::Render()
-    {
-        ImGui::Render();
     }
 }

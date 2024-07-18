@@ -160,12 +160,19 @@ namespace Silex
             ImGui::Begin("Test");
             ImGui::Text("FPS: %d", frameRate);
             ImGui::End();
-            imgui->Render();
+
+            renderingDevice->UI();
+            imgui->UpdateWidget();
 
             renderingDevice->Begin();
+
             renderingDevice->DRAW(editor->GetEditorCamera());
             imgui->EndFrame();
             renderingDevice->End();
+
+            imgui->UpdateViewport();
+            renderingDevice->Present();
+
 
             Input::Flush();
         }
