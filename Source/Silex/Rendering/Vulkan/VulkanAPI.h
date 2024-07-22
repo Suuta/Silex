@@ -124,6 +124,8 @@ namespace Silex
         DescriptorSet* CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex) override;
         void DestroyDescriptorSet(DescriptorSet* descriptorset) override;
 
+        void UpdateDescriptorSet(DescriptorSet* descriptorSet, uint32 numdescriptor, DescriptorInfo* descriptors) override;
+
         //--------------------------------------------------
         // パイプライン
         //--------------------------------------------------

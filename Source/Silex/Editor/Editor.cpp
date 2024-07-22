@@ -103,7 +103,7 @@ namespace Silex
             ImGui::PopStyleVar();
 
             ImGuiWindowFlags docapaceFlag = 0;
-            //docapaceFlag |= ImGuiDockNodeFlags_NoWindowMenuButton;
+            docapaceFlag |= ImGuiDockNodeFlags_NoWindowMenuButton;
             docapaceFlag |= ImGuiDockNodeFlags_None;
 
             ImGuiID dockspace_id = ImGui::GetID("Dockspace");
@@ -375,6 +375,11 @@ namespace Silex
     Camera* Editor::GetEditorCamera()
     {
         return &m_EditorCamera;
+    }
+
+    bool Editor::IsUsingEditorCamera() const
+    {
+        return bUsingEditorCamera;
     }
 
     void Editor::SelectViewportEntity()

@@ -157,17 +157,16 @@ namespace Silex
             editor->Update(deltaTime);
             //editor->Render();
 
-            ImGui::Begin("Test");
-            ImGui::Text("FPS: %d", frameRate);
-            ImGui::End();
-
-            renderingDevice->UI();
-            imgui->UpdateWidget();
+            {
+                renderingDevice->DOCK_SPACE(editor->GetEditorCamera());
+                imgui->UpdateWidget();
+            }
 
             renderingDevice->Begin();
 
             renderingDevice->DRAW(editor->GetEditorCamera());
             imgui->EndFrame();
+
             renderingDevice->End();
 
             imgui->UpdateViewport();

@@ -739,15 +739,18 @@ namespace Silex
         DESCRIPTOR_TYPE_MAX
     };
 
+    struct DescriptorHandle
+    {
+        Handle* buffer  = nullptr;
+        Handle* image   = nullptr;
+        Handle* sampler = nullptr;
+    };
+
     struct DescriptorInfo
     {
-        DescriptorType       type    = DESCRIPTOR_TYPE_MAX;
-        uint32               binding = INVALID_RENDER_ID;
-        std::vector<Handle*> handles = {};
-
-        // Handle* image   = nullptr;
-        // Handle* sampler = nullptr;
-        // Handle* buffer  = nullptr;
+        DescriptorType                type    = DESCRIPTOR_TYPE_MAX;
+        uint32                        binding = INVALID_RENDER_ID;
+        std::vector<DescriptorHandle> handles = {};
     };
 
     //================================================
@@ -1002,7 +1005,7 @@ namespace Silex
     //================================================
     union RenderPassClearValue
     {
-        glm::vec4 color = { 0.1f, 0.2f, 0.3f, 1.0f };
+        glm::vec4 color = { 0.5f, 0.0f, 0.5f, 1.0f };
         struct { float depth; uint32 stencil; };
     };
 

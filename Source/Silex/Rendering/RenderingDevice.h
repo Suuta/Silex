@@ -1,6 +1,7 @@
 
 #pragma once
 
+#include "Core/TaskQueue.h"
 #include "Rendering/RenderingCore.h"
 
 
@@ -20,6 +21,8 @@ namespace Silex
         Semaphore*     presentSemaphore = nullptr;
         Semaphore*     renderSemaphore  = nullptr;
         Fence*         fence            = nullptr;
+
+        TaskQueue resourceQueue;
     };
 
 
@@ -55,14 +58,22 @@ namespace Silex
         QueueFamily   GetGraphicsQueueFamily()  const;
         CommandQueue* GetGraphicsCommandQueue() const;
 
+        FrameData&       GetFrameData();
         const FrameData& GetFrameData() const;
+
+
+        template<typename Func>
+        void AddResourceFreeQueue(const char* taskName, Func&& fn)
+        {
+            frameData[frameIndex].resourceQueue.Enqueue(taskName, Traits::Forward<Func>(fn));
+        }
 
     public:
 
-        void UI();
-        void RESIZE(uint32 width, uint32 height);
-        void DRAW(class Camera* camera);
         void TEST();
+        void DOCK_SPACE(class Camera* camera);
+        void DRAW(class Camera* camera);
+        void RESIZE(uint32 width, uint32 height);
 
     public:
 
@@ -70,9 +81,10 @@ namespace Silex
         Buffer*            ubo                  = nullptr;
 
         // Scene
-        FramebufferHandle* sceneFramebuffer = nullptr;
-        TextureHandle*     sceneTexture     = nullptr;
-        Sampler*           sceneSampler     = nullptr;
+        glm::ivec2         sceneFramebufferSize = {};
+        FramebufferHandle* sceneFramebuffer     = nullptr;
+        TextureHandle*     sceneTexture         = nullptr;
+        Sampler*           sceneSampler         = nullptr;
 
         // Swapchain
         FramebufferHandle* swapchainFramebuffer = nullptr;

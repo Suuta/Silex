@@ -2,14 +2,15 @@
 #include "PCH.h"
 
 #include "Core/Window.h"
+#include "Core/Engine.h"
 #include "Rendering/RenderingDevice.h"
 #include "Rendering/RenderingContext.h"
 #include "Rendering/RenderingAPI.h"
 #include "Rendering/ShaderCompiler.h"
 #include "Rendering/Camera.h"
-
 #include "Rendering/Vulkan/VulkanStructures.h"
 
+#include <imgui/imgui_internal.h>
 #include <imgui/imgui.h>
 
 
@@ -46,12 +47,15 @@ namespace Silex
 
     RenderingDevice::~RenderingDevice()
     {
+        for (uint32 i = 0; i < frameData.size(); i++)
         {
-            api->UnmapBuffer(ubo);
-            api->DestroyBuffer(ubo);
-            api->DestroyBuffer(buffer);
-            api->DestroyTexture(sceneTexture);
+            frameData[i].resourceQueue.Release();
         }
+
+        api->UnmapBuffer(ubo);
+        api->DestroyBuffer(ubo);
+        api->DestroyBuffer(buffer);
+        api->DestroyTexture(sceneTexture);
 
         for (uint32 i = 0; i < frameData.size(); i++)
         {
@@ -104,6 +108,9 @@ namespace Silex
             // フェンス生成
             frameData[i].fence = api->CreateFence();
             SL_CHECK(!frameData[i].fence, false);
+
+            // リソース解放キュー
+            frameData[i].resourceQueue.Initialize();
         }
 
         return true;
@@ -243,8 +250,11 @@ namespace Silex
         }
         
         {
+            DescriptorHandle handles = {};
+            handles.buffer = ubo;
+
             DescriptorInfo info = {};
-            info.handles.push_back(ubo);
+            info.handles.push_back(handles);
             info.binding = 0;
             info.type    = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         
@@ -252,31 +262,146 @@ namespace Silex
         }
 
         {
+            DescriptorHandle handles = {};
+            handles.sampler = sceneSampler;
+            handles.image   = sceneTexture;
+
             DescriptorInfo info = {};
-            info.handles.push_back(sceneSampler);
-            info.handles.push_back(sceneTexture);
+            info.handles.push_back(handles);
             info.binding = 0;
             info.type    = DESCRIPTOR_TYPE_IMAGE_SAMPLER;
 
             blitSet = api->CreateDescriptorSet(1, &info, blitShader, 0);
         }
-
     }
 
-    void RenderingDevice::UI()
+    void RenderingDevice::DOCK_SPACE(Camera* camera)
     {
-        auto size = Window::Get()->GetSize();
+        bool isUsingCamera = Engine::Get()->GetEditor()->IsUsingEditorCamera();
 
-        VkDescriptorSet ds = ((VulkanDescriptorSet*)blitSet)->descriptorSet;
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+        ImGui::SetNextWindowSize(viewport->Size);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+
+        ImGuiWindowFlags windowFlags = 0;
+        windowFlags |= ImGuiWindowFlags_NoDocking;
+        windowFlags |= ImGuiWindowFlags_NoTitleBar;
+        windowFlags |= ImGuiWindowFlags_NoMove;
+        windowFlags |= ImGuiWindowFlags_NoResize;
+        windowFlags |= ImGuiWindowFlags_NoCollapse;
+        windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
+        windowFlags |= ImGuiWindowFlags_NoNavFocus;
+        windowFlags |= ImGuiWindowFlags_MenuBar;
+        windowFlags |= isUsingCamera? ImGuiWindowFlags_NoInputs : 0;
+
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+            ImGui::Begin("DockSpace", nullptr, windowFlags);
+            ImGui::PopStyleVar();
+
+            ImGuiDockNodeFlags docapaceFlag = ImGuiDockNodeFlags_NoWindowMenuButton;
+            docapaceFlag |= isUsingCamera? ImGuiDockNodeFlags_NoResize : 0;
+
+            ImGuiID dockspaceID = ImGui::GetID("Dockspace");
+            ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), docapaceFlag);
+
+            //============================
+            // メニューバー
+            //============================
+            if (ImGui::BeginMenuBar())
+            {
+                if (ImGui::BeginMenu("編集"))
+                {
+                    if (ImGui::MenuItem("シーンを開く", "Ctr+O "));
+                    if (ImGui::MenuItem("シーンを保存", "Ctr+S "));
+                    if (ImGui::MenuItem("終了", "Alt+F4")) Engine::Get()->Close();
+
+                    ImGui::EndMenu();
+                }
+
+                if (ImGui::BeginMenu("ウィンドウ"))
+                {
+                    // ImGui::MenuItem("シーンビューポート", nullptr, &bShowScene);
+                    // ImGui::MenuItem("アウトプットロガー", nullptr, &bShowLogger);
+                    // ImGui::MenuItem("統計", nullptr, &bShowStats);
+                    // ImGui::MenuItem("アウトライナー", nullptr, &bShowOutliner);
+                    // ImGui::MenuItem("プロパティ", nullptr, &bShowProperty);
+                    // ImGui::MenuItem("マテリアル", nullptr, &bShowMaterial);
+                    // ImGui::MenuItem("アセットブラウザ", nullptr, &bShowAssetBrowser);
+                    ImGui::EndMenu();
+                }
+
+                ImGui::EndMenuBar();
+            }
+
+            ImGui::End();
+        }
+
+        // シーンプロパティ
+        //m_ScenePropertyPanel.Render(&bShowOutliner, &bShowProperty);
+
+        // アセットプロパティ
+        //m_AssetBrowserPanel.Render(&bShowAssetBrowser, &bShowMaterial);
+
 
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-        ImGui::Begin("viewport");
+        ImGui::Begin("シーン", nullptr, isUsingCamera? ImGuiWindowFlags_NoInputs : 0);
 
-        auto rect = ImGui::GetContentRegionAvail();
-        ImGui::Image(ds, ImVec2(rect.x, rect.y));
+        // ビューポートへのホバー
+        bool bHoveredViewport = ImGui::IsWindowHovered();
+
+        // ウィンドウ内のコンテンツサイズ（タブやパディングは含めないので、ImGui::GetWindowSize関数は使わない）
+        ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+        ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
+        ImVec2 content = { contentMax.x - contentMin.x, contentMax.y - contentMin.y };
+
+        // ウィンドウ左端からのオフセット
+        ImVec2 viewportOffset = ImGui::GetWindowPos();
+
+        // ImGuizmo用 相対ウィンドウ座標
+        //m_RelativeViewportRect[0] = { contentMin.x + viewportOffset.x, contentMin.y + viewportOffset.y };
+        //m_RelativeViewportRect[1] = { contentMax.x + viewportOffset.x, contentMax.y + viewportOffset.y };
+
+        // シーン描画
+        {
+            // エディターが有効な状態では、シーンビューポートサイズがフレームバッファサイズになる
+            if ((content.x > 0.0f && content.y > 0.0f) && (content.x != sceneFramebufferSize.x || content.y != sceneFramebufferSize.y))
+            {
+                sceneFramebufferSize.x = content.x;
+                sceneFramebufferSize.y = content.y;
+
+                SL_LOG_TRACE("Resize SceneFramebuffer: {}, {}", sceneFramebufferSize.x, sceneFramebufferSize.y);
+            
+                camera->SetViewportSize(sceneFramebufferSize.x, sceneFramebufferSize.y);
+                AddResourceFreeQueue("Resize SceneFramebuffer", [this]()
+                {
+                    RESIZE(sceneFramebufferSize.x, sceneFramebufferSize.y);
+                });
+            }
+
+            // シーン描画
+            ImGui::Image(((VulkanDescriptorSet*)blitSet)->descriptorSet, content);
+        }
 
         ImGui::End();
         ImGui::PopStyleVar();
+
+        ImGui::Begin("Viewport Info", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
+        ImGui::Text("ReginonMin:     %d, %d", (int)contentMin.x, (int)contentMin.y);
+        ImGui::Text("ReginonMax:     %d, %d", (int)contentMax.x, (int)contentMax.y);
+        ImGui::Text("viewportOffset: %d, %d", (int)viewportOffset.x, (int)viewportOffset.y);
+        ImGui::Text("Hover:          %s",     bHoveredViewport? "true" : "false");
+
+        ImGui::End();
+
+        ImGui::Begin("Test", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
+        ImGui::Text("FPS: %d", Engine::Get()->GetFrameRate());
+        ImGui::End();
+
+        ImGui::PopStyleVar(2);
     }
 
     void RenderingDevice::RESIZE(uint32 width, uint32 height)
@@ -303,21 +428,24 @@ namespace Silex
         api->DestroyFramebuffer(sceneFramebuffer);
         sceneFramebuffer = api->CreateFramebuffer(scenePass, 1, sceneTexture, width, height);
 
-        api->DestroyDescriptorSet(blitSet);
+
+        DescriptorHandle handles = {};
+        handles.image   = sceneTexture;
+        handles.sampler = sceneSampler;
 
         DescriptorInfo info = {};
-        info.handles.push_back(sceneSampler);
-        info.handles.push_back(sceneTexture);
+        info.handles.push_back(handles);
         info.binding = 0;
         info.type = DESCRIPTOR_TYPE_IMAGE_SAMPLER;
 
-        blitSet = api->CreateDescriptorSet(1, &info, blitShader, 0);
+        api->UpdateDescriptorSet(blitSet, 1, &info);
     }
 
     void RenderingDevice::DRAW(Camera* camera)
     {
         FrameData& frame = frameData[frameIndex];
-        const auto& size = Window::Get()->GetSize();
+        const auto& windowSize   = Window::Get()->GetSize();
+        const auto& viewportSize = camera->GetViewportSize();
 
         {
             SceneData sceneData;
@@ -326,8 +454,8 @@ namespace Silex
             std::memcpy(mappedSceneData, &sceneData, sizeof(SceneData));
         }
 
-        api->SetViewport(frame.commandBuffer, 0, 0, size.x, size.y);
-        api->SetScissor(frame.commandBuffer, 0, 0, size.x, size.y);
+        api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
+        api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
 
         {
             api->BeginRenderPass(frame.commandBuffer, scenePass, sceneFramebuffer, COMMAND_BUFFER_TYPE_PRIMARY, 1, &defaultClearColor);
@@ -340,6 +468,9 @@ namespace Silex
 
             api->EndRenderPass(frame.commandBuffer);
         }
+
+        api->SetViewport(frame.commandBuffer, 0, 0, windowSize.x, windowSize.y);
+        api->SetScissor(frame.commandBuffer, 0, 0, windowSize.x, windowSize.y);
 
         {
             api->BeginRenderPass(frame.commandBuffer, swapchainPass, swapchainFramebuffer, COMMAND_BUFFER_TYPE_PRIMARY, 1, &defaultClearColor);
@@ -357,6 +488,8 @@ namespace Silex
 
         bool result = api->WaitFence(frame.fence);
         SL_CHECK(!result, false);
+
+        frame.resourceQueue.Execute();
 
         swapchainFramebuffer = api->GetCurrentBackBuffer(swapchain, frame.presentSemaphore);
         SL_CHECK(!swapchainFramebuffer, false);
@@ -419,6 +552,11 @@ namespace Silex
         return graphicsQueue;
     }
 
+    FrameData& RenderingDevice::GetFrameData()
+    {
+        return frameData[frameIndex];
+    }
+
     const FrameData& RenderingDevice::GetFrameData() const
     {
         return frameData[frameIndex];
@@ -437,4 +575,3 @@ namespace Silex
         return false;
     }
 }
-

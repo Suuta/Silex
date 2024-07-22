@@ -60,9 +60,9 @@ namespace Silex
             bool res = ReadFile(content, includePath);
 
             shaderc_include_result* result = new shaderc_include_result;
-            result->source_name        = strdup(includePath.c_str());
+            result->source_name        = _strdup(includePath.c_str());
             result->source_name_length = includePath.length();
-            result->content            = strdup(content.c_str());
+            result->content            = _strdup(content.c_str());
             result->content_length     = content.length();
             result->user_data          = nullptr;
 

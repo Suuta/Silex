@@ -32,6 +32,10 @@ namespace Silex
 
         io.FontDefault = io.Fonts->AddFontFromFileTTF("Assets/Fonts/VL-Gothic-Regular.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
 
+
+        io.ConfigViewportsNoTaskBarIcon = true;
+
+
         {
             ImGuiStyle& style = ImGui::GetStyle();
             ImGui::StyleColorsDark();

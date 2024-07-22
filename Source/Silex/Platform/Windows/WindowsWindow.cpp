@@ -196,10 +196,7 @@ namespace Silex
 
     void WindowsWindow::OnWindowResize(WindowResizeEvent& e)
     {
-        SL_LOG_TRACE("Resize Swapchain: {}, {}", e.width, e.height);
-
         RenderingDevice::Get()->ResizeSwapChain(swapchain, data->width, data->height, data->vsync);
-        RenderingDevice::Get()->RESIZE(data->width, data->height);
     }
 
     void WindowsWindow::OnKeyPressed(KeyPressedEvent& e)

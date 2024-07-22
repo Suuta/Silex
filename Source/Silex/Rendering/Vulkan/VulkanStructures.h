@@ -145,6 +145,8 @@ namespace Silex
         VkDescriptorPool descriptorPool = nullptr;
         VkPipelineLayout pipelineLayout = nullptr;
 
+        std::vector<VkWriteDescriptorSet> writes;
+
         DescriptorSetPoolKey poolKey;
     };
 

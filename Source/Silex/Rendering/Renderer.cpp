@@ -57,7 +57,7 @@ namespace Silex
     void Renderer::Init()
     {
         // レンダータスクキュー初期化
-        m_TaskQueue.Init();
+        m_TaskQueue.Initialize();
 
         // レンダーAPI 初期化
         s_RendererPlatform = RendererPlatform::Create();

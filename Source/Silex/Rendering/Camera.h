@@ -25,10 +25,11 @@ namespace Silex
         void Update(float deltaTime);
         void SetViewportSize(uint32 width, uint32 height);
 
-        glm::mat4 GetViewMatrix()       const { return View;       }
-        glm::mat4 GetProjectionMatrix() const { return Projection; }
-        glm::vec3 GetPosition()         const { return Position;   }
-        glm::vec3 GetFront()            const { return Front;      }
+        glm::mat4 GetViewMatrix()       const { return View;        }
+        glm::mat4 GetProjectionMatrix() const { return Projection;  }
+        glm::vec3 GetPosition()         const { return Position;    }
+        glm::vec3 GetFront()            const { return Front;       }
+        glm::vec2 GetViewportSize()     const { return ViwpoerSize; }
 
         void SetPosition(glm::vec3 position) { Position = position; }
 

@@ -813,15 +813,19 @@ namespace Silex
 
     bool VulkanAPI::ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode)
     {
+        VkResult result;
+
         if (width == 0 || height == 0)
         {
             return true;
         }
 
+        SL_LOG_TRACE("Resize Swapchain: {}, {}", width, height);
+
         //=============================================================
         // GPU待機
         //=============================================================
-        VkResult result = vkDeviceWaitIdle(device);
+        result = vkDeviceWaitIdle(device);
         SL_CHECK_VKRESULT(result, false);
 
 
@@ -1937,6 +1941,8 @@ namespace Silex
 
         vkresult = vkWaitForFences(device, 1, &vkfence, true, UINT64_MAX);
         SL_CHECK_VKRESULT(vkresult, false);
+
+        return true;
     }
 
     bool VulkanAPI::WaitDevice()
@@ -2154,10 +2160,11 @@ namespace Silex
         DescriptorSetPoolKey key = {};
 
         // デスクリプタに実データ（イメージ・バッファ）書き込み
-        VkWriteDescriptorSet* writes = SL_STACK(VkWriteDescriptorSet, numdescriptors);
+        std::vector<VkWriteDescriptorSet> writes(numdescriptors);
+
         for (uint32 i = 0; i < numdescriptors; i++)
         {
-            uint32 numDescriptors = 1;
+            uint32 numHandles = 1;
             const DescriptorInfo& descriptor = descriptors[i];
 
             writes[i] = {};
@@ -2171,7 +2178,7 @@ namespace Silex
                 {
                     VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
 
-                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0];
+                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0].buffer;
                     *bufferInfo = {};
                     bufferInfo->buffer = buffer->buffer;
                     bufferInfo->range  = buffer->size;
@@ -2187,7 +2194,7 @@ namespace Silex
                 {
                     VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
 
-                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0];
+                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0].buffer;
                     *bufferInfo = {};
                     bufferInfo->buffer = buffer->buffer;
                     bufferInfo->range  = buffer->size;
@@ -2201,13 +2208,15 @@ namespace Silex
                 // サンプラー
                 case DESCRIPTOR_TYPE_SAMPLER:
                 {
-                    numDescriptors = descriptor.handles.size();
-                    VkDescriptorImageInfo* imgInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
+                    numHandles = descriptor.handles.size();
+                    VkDescriptorImageInfo* imgInfos = SL_STACK(VkDescriptorImageInfo, numHandles);
 
-                    for (uint32 j = 0; j < numDescriptors; j++)
+                    for (uint32 j = 0; j < numHandles; j++)
                     {
+                        VulkanSampler* sampler = (VulkanSampler*)descriptor.handles[j].sampler;
+
                         imgInfos[j] = {};
-                        imgInfos[j].sampler     = ((VulkanSampler*)(descriptor.handles[j]))->sampler;
+                        imgInfos[j].sampler     = sampler->sampler;
                         imgInfos[j].imageView   = nullptr;
                         imgInfos[j].imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
                     }
@@ -2221,13 +2230,15 @@ namespace Silex
                 // テクスチャ
                 case DESCRIPTOR_TYPE_IMAGE:
                 {
-                    numDescriptors = descriptor.handles.size();
-                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
+                    numHandles = descriptor.handles.size();
+                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numHandles);
 
-                    for (uint32 j = 0; j < numDescriptors; j++)
+                    for (uint32 j = 0; j < numHandles; j++)
                     {
+                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
+
                         imageInfos[j] = {};
-                        imageInfos[j].imageView   = ((VulkanTexture*)(descriptor.handles[j]))->imageView;
+                        imageInfos[j].imageView   = texture->imageView;
                         imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     }
 
@@ -2241,14 +2252,17 @@ namespace Silex
                 case DESCRIPTOR_TYPE_IMAGE_SAMPLER:
                 {
                     // サンプラーとイメージがセットで1つのデスクリプタとして扱うため
-                    numDescriptors = descriptor.handles.size() / 2;
-                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
+                    numHandles = descriptor.handles.size();
+                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numHandles);
 
-                    for (uint32 j = 0; j < numDescriptors; j++) 
+                    for (uint32 j = 0; j < numHandles; j++)
                     {
+                        VulkanSampler* sampler = (VulkanSampler*)descriptor.handles[j].sampler;
+                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
+
                         imageInfos[j] = {};
-                        imageInfos[j].sampler     = ((VulkanSampler*)(descriptor.handles[j * 2 + 0]))->sampler;
-                        imageInfos[j].imageView   = ((VulkanTexture*)(descriptor.handles[j * 2 + 1]))->imageView;
+                        imageInfos[j].sampler     = sampler->sampler;
+                        imageInfos[j].imageView   = texture->imageView;
                         imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     }
 
@@ -2261,13 +2275,15 @@ namespace Silex
                 // ストレージイメージ
                 case DESCRIPTOR_TYPE_STORAGE_IMAGE:
                 {
-                    numDescriptors = descriptor.handles.size();
-                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numDescriptors);
+                    numHandles = descriptor.handles.size();
+                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numHandles);
 
-                    for (uint32 j = 0; j < numDescriptors; j++)
+                    for (uint32 j = 0; j < numHandles; j++)
                     {
+                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
+
                         imageInfos[j] = {};
-                        imageInfos[j].imageView   = ((VulkanTexture*)(descriptor.handles[j]))->imageView;
+                        imageInfos[j].imageView   = texture->imageView;
                         imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
                     }
 
@@ -2302,8 +2318,8 @@ namespace Silex
             }
 
             // キーに使用デスクリプタ型の個数を加算
-            writes[i].descriptorCount = numDescriptors;
-            key.descriptorTypeCounts[descriptor.type] += numDescriptors;
+            writes[i].descriptorCount = numHandles;
+            key.descriptorTypeCounts[descriptor.type] += numHandles;
         }
 
         // デスクリプタープール取得 (keyをもとに、生成済みのプールがあれば取得、なければ新規生成)
@@ -2332,7 +2348,7 @@ namespace Silex
             for (uint32 i = 0; i < numdescriptors; i++)
                 writes[i].dstSet = vkdescriptorset;
 
-            vkUpdateDescriptorSets(device, numdescriptors, writes, 0, nullptr);
+            vkUpdateDescriptorSets(device, numdescriptors, writes.data(), 0, nullptr);
         }
 
         VulkanDescriptorSet* descriptorset = Memory::Allocate<VulkanDescriptorSet>();
@@ -2340,6 +2356,7 @@ namespace Silex
         descriptorset->descriptorSet  = vkdescriptorset;
         descriptorset->pipelineLayout = vkShader->pipelineLayout;
         descriptorset->poolKey        = key;
+        descriptorset->writes         = writes;
 
         return descriptorset;
     }
@@ -2356,6 +2373,162 @@ namespace Silex
 
             Memory::Deallocate(vkdescriptorset);
         }
+    }
+
+    void VulkanAPI::UpdateDescriptorSet(DescriptorSet* descriptorSet, uint32 numdescriptor, DescriptorInfo* descriptors)
+    {
+        VulkanDescriptorSet* set = (VulkanDescriptorSet*)descriptorSet;
+
+        for (uint32 i = 0; i < numdescriptor; i++)
+        {
+            const DescriptorInfo& descriptor = descriptors[i];
+
+            switch (descriptor.type)
+            {
+                case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+                {
+                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
+
+                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0].buffer;
+                    *bufferInfo = {};
+                    bufferInfo->buffer = buffer->buffer;
+                    bufferInfo->range  = buffer->size;
+
+                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                    set->writes[i].pBufferInfo    = bufferInfo;
+
+                    break;
+                }
+
+                // ストレージバッファ
+                case DESCRIPTOR_TYPE_STORAGE_BUFFER:
+                {
+                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
+
+                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0].buffer;
+                    *bufferInfo = {};
+                    bufferInfo->buffer = buffer->buffer;
+                    bufferInfo->range  = buffer->size;
+
+                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+                    set->writes[i].pBufferInfo    = bufferInfo;
+
+                    break;
+                }
+
+                // サンプラー
+                case DESCRIPTOR_TYPE_SAMPLER:
+                {
+                    uint32 elements = descriptor.handles.size();
+                    VkDescriptorImageInfo* imgInfos = SL_STACK(VkDescriptorImageInfo, elements);
+
+                    for (uint32 j = 0; j < elements; j++)
+                    {
+                        VulkanSampler* sampler = (VulkanSampler*)descriptor.handles[j].sampler;
+                        imgInfos[j] = {};
+                        imgInfos[j].sampler     = sampler->sampler;
+                        imgInfos[j].imageView   = nullptr;
+                        imgInfos[j].imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+                    }
+
+                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+                    set->writes[i].pImageInfo     = imgInfos;
+
+                    break;
+                }
+
+                // テクスチャ
+                case DESCRIPTOR_TYPE_IMAGE:
+                {
+                    uint32 elements = descriptor.handles.size();
+                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, elements);
+
+                    for (uint32 j = 0; j < elements; j++)
+                    {
+                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
+
+                        imageInfos[j] = {};
+                        imageInfos[j].imageView   = texture->imageView;
+                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    }
+
+                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+                    set->writes[i].pImageInfo     = imageInfos;
+
+                    break;
+                }
+
+                // テクスチャ + サンプル
+                case DESCRIPTOR_TYPE_IMAGE_SAMPLER:
+                {
+                    // サンプラーとイメージがセットで1つのデスクリプタとして扱うため
+                    uint32 elements = descriptor.handles.size();
+                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, elements);
+
+                    for (uint32 j = 0; j < elements; j++)
+                    {
+                        VulkanSampler* sampler = (VulkanSampler*)descriptor.handles[j].sampler;
+                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
+
+                        imageInfos[j] = {};
+                        imageInfos[j].sampler     = sampler->sampler;
+                        imageInfos[j].imageView   = texture->imageView;
+                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    }
+
+                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                    set->writes[i].pImageInfo = imageInfos;
+
+                    break;
+                }
+
+                // ストレージイメージ
+                case DESCRIPTOR_TYPE_STORAGE_IMAGE:
+                {
+                    uint32 elements = descriptor.handles.size();
+                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, elements);
+
+                    for (uint32 j = 0; j < elements; j++)
+                    {
+                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
+
+                        imageInfos[j] = {};
+                        imageInfos[j].imageView   = texture->imageView;
+                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+                    }
+
+                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+                    set->writes[i].pImageInfo     = imageInfos;
+
+                    break;
+                }
+
+                // テクセルバッファ
+                case DESCRIPTOR_TYPE_UNIFORM_TEXTURE_BUFFER:
+                {
+                    SL_ASSERT(false, "未実装");
+                    break;
+                }
+
+                // ストレージ テクセルバッファ
+                case DESCRIPTOR_TYPE_STORAGE_TEXTURE_BUFFER:
+                {
+                    SL_ASSERT(false, "未実装");
+                    break;
+                }
+
+                // インプットアタッチメント
+                case DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+                {
+                    SL_ASSERT(false, "未実装");
+                    break;
+                }
+
+                default: SL_ASSERT(false);
+            }
+        }
+
+        vkUpdateDescriptorSets(device, numdescriptor, set->writes.data(), 0, nullptr);
     }
 
     //==================================================================================

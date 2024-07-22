@@ -120,6 +120,7 @@ namespace Silex
         //--------------------------------------------------
         virtual DescriptorSet* CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex) = 0;
         virtual void DestroyDescriptorSet(DescriptorSet* descriptorset) = 0;
+        virtual void UpdateDescriptorSet(DescriptorSet* descriptorSet, uint32 numdescriptor, DescriptorInfo* descriptors) = 0;
 
         //--------------------------------------------------
         // パイプライン

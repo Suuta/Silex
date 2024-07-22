@@ -22,22 +22,21 @@ namespace Silex
     {
     public:
 
-        void Init()
+        void Initialize(uint64 allocateByteSize = 1024 * 1024) // 1MB
         {
-            constexpr uint64 AllocationSize = uint64(10 * 1024 * 1024);
-
-            buffer         = (byte*)Memory::Malloc(AllocationSize);
+            buffer         = (byte*)Memory::Malloc(allocateByteSize);
             insertLocation = buffer;
 
-            std::memset(buffer, 0, AllocationSize);
+            std::memset(buffer, 0, allocateByteSize);
         }
 
         void Release()
         {
             if (buffer)
             {
-                Memory::Free(buffer);
+                Execute();
 
+                Memory::Free(buffer);
                 buffer         = nullptr;
                 insertLocation = nullptr;
             }
@@ -114,8 +113,8 @@ namespace Silex
             {}
 
             void        Execute() const override { std::invoke(func); }
-            uint32      GetSize() const override { return size; }
-            const char* GetName() const override { return name; }
+            uint32      GetSize() const override { return size;       }
+            const char* GetName() const override { return name;       }
         };
 
     private:

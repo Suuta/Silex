@@ -44,6 +44,9 @@ namespace Silex
         const std::filesystem::path& GetAssetDirectory() const { return m_AssetDirectory; }
         Camera* GetEditorCamera();
 
+        bool IsUsingEditorCamera() const;
+
+
     private:
 
         // ヒエラルキー選択イベント
