@@ -1209,7 +1209,7 @@ namespace Silex
         imageCreateInfo.flags         = isCube? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
         imageCreateInfo.imageType     = (VkImageType)format.type;
         imageCreateInfo.format        = (VkFormat)format.format;
-        imageCreateInfo.mipLevels     = format.mipmap;
+        imageCreateInfo.mipLevels     = format.mipLevels;
         imageCreateInfo.arrayLayers   = format.array;
         imageCreateInfo.samples       = sampleCountBits;
         imageCreateInfo.extent.width  = format.width;
@@ -1599,8 +1599,8 @@ namespace Silex
             imageBarriers[i].dstQueueFamilyIndex             = VK_QUEUE_FAMILY_IGNORED;
             imageBarriers[i].image                           = vktexture->image;
             imageBarriers[i].subresourceRange.aspectMask     = (VkImageAspectFlags)textureBarrier[i].subresources.aspect;
-            imageBarriers[i].subresourceRange.baseMipLevel   = textureBarrier[i].subresources.baseMipmap;
-            imageBarriers[i].subresourceRange.levelCount     = textureBarrier[i].subresources.mipmapCount;
+            imageBarriers[i].subresourceRange.baseMipLevel   = textureBarrier[i].subresources.baseMipLevel;
+            imageBarriers[i].subresourceRange.levelCount     = textureBarrier[i].subresources.mipLevelCount;
             imageBarriers[i].subresourceRange.baseArrayLayer = textureBarrier[i].subresources.baseLayer;
             imageBarriers[i].subresourceRange.layerCount     = textureBarrier[i].subresources.layerCount;
         }
@@ -1645,20 +1645,20 @@ namespace Silex
             copyRegion[i].srcSubresource.aspectMask     = regions[i].srcSubresources.aspect;
             copyRegion[i].srcSubresource.baseArrayLayer = regions[i].srcSubresources.baseLayer;
             copyRegion[i].srcSubresource.layerCount     = regions[i].srcSubresources.layerCount;
-            copyRegion[i].srcSubresource.mipLevel       = regions[i].srcSubresources.mipmap;
-            copyRegion[i].srcOffset.x                   = regions[i].srcOffset.x;
-            copyRegion[i].srcOffset.y                   = regions[i].srcOffset.y;
-            copyRegion[i].srcOffset.z                   = regions[i].srcOffset.z;
+            copyRegion[i].srcSubresource.mipLevel       = regions[i].srcSubresources.mipLevel;
+            copyRegion[i].srcOffset.x                   = regions[i].srcOffset.width;
+            copyRegion[i].srcOffset.y                   = regions[i].srcOffset.height;
+            copyRegion[i].srcOffset.z                   = regions[i].srcOffset.depth;
             copyRegion[i].dstSubresource.aspectMask     = regions[i].dstSubresources.aspect;
             copyRegion[i].dstSubresource.baseArrayLayer = regions[i].dstSubresources.baseLayer;
             copyRegion[i].dstSubresource.layerCount     = regions[i].dstSubresources.layerCount;
-            copyRegion[i].dstSubresource.mipLevel       = regions[i].dstSubresources.mipmap;
-            copyRegion[i].dstOffset.x                   = regions[i].dstOffset.x;
-            copyRegion[i].dstOffset.y                   = regions[i].dstOffset.y;
-            copyRegion[i].dstOffset.z                   = regions[i].dstOffset.z;
-            copyRegion[i].extent.width                  = regions[i].size.x;
-            copyRegion[i].extent.height                 = regions[i].size.y;
-            copyRegion[i].extent.depth                  = regions[i].size.z;
+            copyRegion[i].dstSubresource.mipLevel       = regions[i].dstSubresources.mipLevel;
+            copyRegion[i].dstOffset.x                   = regions[i].dstOffset.width;
+            copyRegion[i].dstOffset.y                   = regions[i].dstOffset.height;
+            copyRegion[i].dstOffset.z                   = regions[i].dstOffset.depth;
+            copyRegion[i].extent.width                  = regions[i].size.width;
+            copyRegion[i].extent.height                 = regions[i].size.height;
+            copyRegion[i].extent.depth                  = regions[i].size.depth;
         }
 
         VulkanTexture* src = (VulkanTexture*)srcTexture;
@@ -1699,8 +1699,8 @@ namespace Silex
 
         VkImageSubresourceRange vkSubresources = {};
         vkSubresources.aspectMask     = subresources.aspect;
-        vkSubresources.baseMipLevel   = subresources.baseMipmap;
-        vkSubresources.levelCount     = subresources.mipmapCount;
+        vkSubresources.baseMipLevel   = subresources.baseMipLevel;
+        vkSubresources.levelCount     = subresources.mipLevelCount;
         vkSubresources.layerCount     = subresources.layerCount;
         vkSubresources.baseArrayLayer = subresources.baseLayer;
 
@@ -1715,16 +1715,16 @@ namespace Silex
         {
             copyRegion[i] = {};
             copyRegion[i].bufferOffset                    = regions[i].bufferOffset;
-            copyRegion[i].imageExtent.width               = regions[i].textureRegionSize.x;
-            copyRegion[i].imageExtent.height              = regions[i].textureRegionSize.y;
-            copyRegion[i].imageExtent.depth               = regions[i].textureRegionSize.z;
-            copyRegion[i].imageOffset.x                   = regions[i].textureOffset.x;
-            copyRegion[i].imageOffset.y                   = regions[i].textureOffset.y;
-            copyRegion[i].imageOffset.z                   = regions[i].textureOffset.z;
+            copyRegion[i].imageExtent.width               = regions[i].textureRegionSize.width;
+            copyRegion[i].imageExtent.height              = regions[i].textureRegionSize.height;
+            copyRegion[i].imageExtent.depth               = regions[i].textureRegionSize.depth;
+            copyRegion[i].imageOffset.x                   = regions[i].textureOffset.width;
+            copyRegion[i].imageOffset.y                   = regions[i].textureOffset.height;
+            copyRegion[i].imageOffset.z                   = regions[i].textureOffset.depth;
             copyRegion[i].imageSubresource.aspectMask     = regions[i].textureSubresources.aspect;
             copyRegion[i].imageSubresource.baseArrayLayer = regions[i].textureSubresources.baseLayer;
             copyRegion[i].imageSubresource.layerCount     = regions[i].textureSubresources.layerCount;
-            copyRegion[i].imageSubresource.mipLevel       = regions[i].textureSubresources.mipmap;
+            copyRegion[i].imageSubresource.mipLevel       = regions[i].textureSubresources.mipLevel;
         }
 
         VulkanBuffer*  src = (VulkanBuffer*)srcBuffer;
@@ -1741,16 +1741,16 @@ namespace Silex
         {
             copyRegion[i] = {};
             copyRegion[i].bufferOffset                    = regions[i].bufferOffset;
-            copyRegion[i].imageExtent.width               = regions[i].textureRegionSize.x;
-            copyRegion[i].imageExtent.height              = regions[i].textureRegionSize.y;
-            copyRegion[i].imageExtent.depth               = regions[i].textureRegionSize.z;
-            copyRegion[i].imageOffset.x                   = regions[i].textureOffset.x;
-            copyRegion[i].imageOffset.y                   = regions[i].textureOffset.y;
-            copyRegion[i].imageOffset.z                   = regions[i].textureOffset.z;
+            copyRegion[i].imageExtent.width               = regions[i].textureRegionSize.width;
+            copyRegion[i].imageExtent.height              = regions[i].textureRegionSize.height;
+            copyRegion[i].imageExtent.depth               = regions[i].textureRegionSize.depth;
+            copyRegion[i].imageOffset.x                   = regions[i].textureOffset.width;
+            copyRegion[i].imageOffset.y                   = regions[i].textureOffset.height;
+            copyRegion[i].imageOffset.z                   = regions[i].textureOffset.depth;
             copyRegion[i].imageSubresource.aspectMask     = regions[i].textureSubresources.aspect;
             copyRegion[i].imageSubresource.baseArrayLayer = regions[i].textureSubresources.baseLayer;
             copyRegion[i].imageSubresource.layerCount     = regions[i].textureSubresources.layerCount;
-            copyRegion[i].imageSubresource.mipLevel       = regions[i].textureSubresources.mipmap;
+            copyRegion[i].imageSubresource.mipLevel       = regions[i].textureSubresources.mipLevel;
         }
 
         VulkanTexture* src = (VulkanTexture*)srcTexture;
@@ -1912,7 +1912,7 @@ namespace Silex
     //==================================================================================
     // 即時コマンド
     //==================================================================================
-    bool VulkanAPI::ImmidiateCommands(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func)
+    bool VulkanAPI::ImmidiateCommands(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<void(CommandBuffer*)>&& func)
     {
         VkCommandBuffer vkcmd   = ((VulkanCommandBuffer*)commandBuffer)->commandBuffer;
         VkQueue         vkqueue = ((VulkanCommandQueue*)queue)->queue;
@@ -1921,11 +1921,14 @@ namespace Silex
         VkResult vkresult = vkResetFences(device, 1, &vkfence);
         SL_CHECK_VKRESULT(vkresult, false);
 
+        vkresult = vkResetCommandBuffer(vkcmd, 0);
+        SL_CHECK_VKRESULT(vkresult, false);
+
         {
             bool result = BeginCommandBuffer(commandBuffer);
             SL_CHECK(!result, false);
 
-            result = func(commandBuffer);
+            func(commandBuffer);
 
             result = EndCommandBuffer(commandBuffer);
             SL_CHECK(!result, false);

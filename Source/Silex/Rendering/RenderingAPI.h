@@ -157,7 +157,7 @@ namespace Silex
         //--------------------------------------------------
         // MISC
         //--------------------------------------------------
-        virtual bool ImmidiateCommands(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func) = 0;
+        virtual bool ImmidiateCommands(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<void(CommandBuffer*)>&& func) = 0;
         virtual bool WaitDevice() = 0;
     };
 }

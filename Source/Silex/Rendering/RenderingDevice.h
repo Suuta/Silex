@@ -27,6 +27,13 @@ namespace Silex
         TaskQueue resourceQueue;
     };
 
+    // 即時コマンドデータ
+    struct ImmidiateCommandData
+    {
+        CommandPool*   commandPool   = nullptr;
+        CommandBuffer* commandBuffer = nullptr;
+        Fence*         fence         = nullptr;
+    };
 
     class RenderingDevice : public Object
     {
@@ -44,31 +51,6 @@ namespace Silex
         bool Initialize(RenderingContext* renderingContext);
         bool Begin();
         bool End();
-
-        // デバイス情報
-        const DeviceInfo& GetDeviceInfo() const;
-
-        // テクスチャ
-        TextureHandle* LoadTextureFromFile(const byte* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
-
-        // レンダーテクスチャ
-        TextureHandle* CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap);
-        TextureHandle* CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap);
-        TextureHandle* CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap);
-        TextureHandle* CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap);
-
-        // バッファ
-        Buffer* CreateVertexBuffer(void* data, uint64 dataByte);
-        Buffer* CreateIndexBuffer(void* data, uint64 dataByte);
-        void    DestroyBuffer(Buffer* buffer);
-
-        // スワップチェイン
-        SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode);
-        bool       ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode);
-        void       DestoySwapChain(SwapChain* swapchain);
-        bool       Present();
-
-    public:
 
         // レンダリング環境
         RenderingContext* GetContext() const;
@@ -91,12 +73,41 @@ namespace Silex
 
     public:
 
+        // デバイス情報
+        const DeviceInfo& GetDeviceInfo() const;
+
+        // テクスチャ
+        TextureHandle* LoadTextureFromFile(const byte* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
+
+        // レンダーテクスチャ
+        TextureHandle* CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap);
+        TextureHandle* CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap);
+        TextureHandle* CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap);
+
+        // バッファ
+        Buffer* CreateVertexBuffer(void* data, uint64 dataByte);
+        Buffer* CreateIndexBuffer(void* data, uint64 dataByte);
+        void    DestroyBuffer(Buffer* buffer);
+
+        // スワップチェイン
+        SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode);
+        bool       ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode);
+        void       DestoySwapChain(SwapChain* swapchain);
+        bool       Present();
+    
+    private:
+
+        void           GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height);
+        TextureHandle* CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 array, uint32 depth, bool genMipmap, TextureUsageFlags additionalFlags);
+
+    public:
+
         void TEST();
         void DOCK_SPACE(class Camera* camera);
         void DRAW(class Camera* camera);
         void RESIZE(uint32 width, uint32 height);
 
-    public:
+    private:
 
         void*              mappedSceneData      = nullptr;
         Buffer*            ubo                  = nullptr;
@@ -127,18 +138,14 @@ namespace Silex
         Buffer* vb = nullptr;
         Buffer* ib = nullptr;
 
-        //Shared<Mesh> quadMesh;
-        //Shared<Mesh> cubeMesh;
-        //Shared<Mesh> sphereMesh;
-
-        Mesh* cubeMesh;
-        Mesh* sphereMesh;
-
+        Mesh* cubeMesh   = nullptr;
+        Mesh* sphereMesh = nullptr;
 
     private:
 
-        std::array<FrameData, 2> frameData  = {};
-        uint64                   frameIndex = 0;
+        ImmidiateCommandData     immidiateContext = {};
+        std::array<FrameData, 2> frameData        = {};
+        uint64                   frameIndex       = 0;
 
         RenderingContext* context = nullptr;
         RenderingAPI*     api     = nullptr;
@@ -146,8 +153,8 @@ namespace Silex
         QueueFamily   graphicsQueueFamily = INVALID_RENDER_ID;
         CommandQueue* graphicsQueue       = nullptr;
 
-        RenderPassClearValue defaultClearColor;
-        RenderPassClearValue defaultClearDepthStencil ;
+        RenderPassClearValue defaultClearColor        = {};
+        RenderPassClearValue defaultClearDepthStencil = {};
 
     private:
 

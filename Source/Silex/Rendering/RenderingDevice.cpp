@@ -68,16 +68,21 @@ namespace Silex
         api->DestroyFramebuffer(sceneFramebuffer);
         api->DestroySampler(sceneSampler);
 
-        Memory::Deallocate(cubeMesh);
-        Memory::Deallocate(sphereMesh);
+        //Memory::Deallocate(cubeMesh);
+        //Memory::Deallocate(sphereMesh);
 
         for (uint32 i = 0; i < frameData.size(); i++)
         {
+            api->DestroyCommandBuffer(frameData[i].commandBuffer);
             api->DestroyCommandPool(frameData[i].commandPool);
             api->DestroySemaphore(frameData[i].presentSemaphore);
             api->DestroySemaphore(frameData[i].renderSemaphore);
             api->DestroyFence(frameData[i].fence);
         }
+
+        api->DestroyCommandBuffer(immidiateContext.commandBuffer);
+        api->DestroyCommandPool(immidiateContext.commandPool);
+        api->DestroyFence(immidiateContext.fence);
 
         api->DestroyCommandQueue(graphicsQueue);
         context->DestroyRendringAPI(api);
@@ -126,6 +131,17 @@ namespace Silex
             // リソース解放キュー
             frameData[i].resourceQueue.Initialize();
         }
+
+
+        // 即時コマンドデータ
+        immidiateContext.commandPool = api->CreateCommandPool(graphicsQueueFamily);
+        SL_CHECK(!immidiateContext.commandPool, false);
+
+        immidiateContext.commandBuffer = api->CreateCommandBuffer(immidiateContext.commandPool);
+        SL_CHECK(!immidiateContext.commandBuffer, false);
+
+        immidiateContext.fence = api->CreateFence();
+        SL_CHECK(!immidiateContext.fence, false);
 
         return true;
     }
@@ -238,7 +254,7 @@ namespace Silex
             color.samples   = TEXTURE_SAMPLES_1;
             color.array     = 1;
             color.depth     = 1;
-            color.mipmap    = 1;
+            color.mipLevels = 1;
 
             sceneColorTexture = api->CreateTexture(color);
 
@@ -251,7 +267,7 @@ namespace Silex
             depth.samples   = TEXTURE_SAMPLES_1;
             depth.array     = 1;
             depth.depth     = 1;
-            depth.mipmap    = 1;
+            depth.mipLevels = 1;
 
             sceneDepthTexture = api->CreateTexture(depth);
 
@@ -339,8 +355,8 @@ namespace Silex
             blitSet = api->CreateDescriptorSet(1, &info, blitShader, 0);
         }
 
-        cubeMesh   = MeshFactory::Cube();
-        sphereMesh = MeshFactory::Sphere();
+        //cubeMesh   = MeshFactory::Cube();
+        //sphereMesh = MeshFactory::Sphere();
     }
 
     void RenderingDevice::DOCK_SPACE(Camera* camera)
@@ -493,7 +509,7 @@ namespace Silex
         format.samples   = TEXTURE_SAMPLES_1;
         format.array     = 1;
         format.depth     = 1;
-        format.mipmap    = 1;
+        format.mipLevels = 1;
 
         sceneColorTexture = api->CreateTexture(format);
 
@@ -506,7 +522,7 @@ namespace Silex
         depth.samples   = TEXTURE_SAMPLES_1;
         depth.array     = 1;
         depth.depth     = 1;
-        depth.mipmap    = 1;
+        depth.mipLevels = 1;
 
         sceneDepthTexture = api->CreateTexture(depth);
 
@@ -556,7 +572,7 @@ namespace Silex
             api->BindDescriptorSet(frame.commandBuffer, descriptorSet, 0);
 
 
-#if 1
+#if 0
             Buffer* cvb       = sphereMesh->GetMeshSource()->GetVertexBuffer();
             Buffer* cib       = sphereMesh->GetMeshSource()->GetIndexBuffer();
             uint32 indexCount = sphereMesh->GetMeshSource()->GetIndexCount();
@@ -577,7 +593,7 @@ namespace Silex
 
         {
             api->BeginRenderPass(frame.commandBuffer, swapchainPass, swapchainFramebuffer, COMMAND_BUFFER_TYPE_PRIMARY, 1, &defaultClearColor);
-            
+
             api->BindPipeline(frame.commandBuffer, blitPipeline);
             api->BindDescriptorSet(frame.commandBuffer, blitSet, 0);
             api->Draw(frame.commandBuffer, 6, 1, 0, 0);
@@ -598,49 +614,98 @@ namespace Silex
         api->UnmapBuffer(staging);
 
         // テクスチャ生成
-        TextureHandle* texture = CreateTexture(TEXTURE_TYPE_2D, RENDERING_FORMAT_R8G8B8A8_UNORM, width, height, 1, genMipmap);
+        TextureUsageFlags flags = TEXTURE_USAGE_COPY_SRC_BIT | TEXTURE_USAGE_COPY_DST_BIT;
+        TextureHandle* texture = CreateTexture(TEXTURE_TYPE_2D, RENDERING_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, genMipmap, flags);
 
         // データコピー
-        api->ImmidiateCommands(graphicsQueue, frameData[frameIndex].commandBuffer, frameData[frameIndex].fence, [](CommandBuffer* cmd)->bool
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
         {
-            
+            TextureSubresourceRange range = {};
+            range.aspect = TEXTURE_ASPECT_COLOR_BIT;
+
+            TextureBarrierInfo info = {};
+            info.texture = texture;
+            info.subresources = range;
+            info.srcAccess = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.dstAccess = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.oldLayout = TEXTURE_LAYOUT_UNDEFINED;
+            info.newLayout = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+            api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+
+            TextureSubresource subresource = {};
+            subresource.aspect = TEXTURE_ASPECT_COLOR_BIT;
+            subresource.mipLevel = 0;
+            subresource.baseLayer = 0;
+            subresource.layerCount = 1;
+
+            BufferTextureCopyRegion region = {};
+            region.bufferOffset = 0;
+            region.textureOffset = { 0, 0, 0 };
+            region.textureRegionSize = { 0, 0, 0 };
+            region.textureSubresources = subresource;
+
+            api->CopyBufferToTexture(cmd, staging, texture, TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+            if (genMipmap)
+            {
+                GenerateMipmaps(cmd, texture, width, height);
+            }
+            else
+            {
+                info.oldLayout = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
+                info.newLayout = TEXTURE_LAYOUT_READ_ONLY_OPTIMAL;
+                api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+            }
         });
 
+        api->DestroyBuffer(staging);
         return texture;
     }
 
     TextureHandle* RenderingDevice::CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap)
     {
-        return CreateTexture(TEXTURE_TYPE_2D, format, width, height, 1, genMipmap);
+        return CreateTexture(TEXTURE_TYPE_2D, format, width, height, 1, 1, genMipmap, 0);
     }
 
     TextureHandle* RenderingDevice::CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap)
     {
-        return CreateTexture(TEXTURE_TYPE_2D_ARRAY, format, width, height, array, genMipmap);
+        return CreateTexture(TEXTURE_TYPE_2D_ARRAY, format, width, height, array, 1, genMipmap, 0);
     }
 
     TextureHandle* RenderingDevice::CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap)
     {
-        return CreateTexture(TEXTURE_TYPE_CUBE, format, width, height, 1, genMipmap);
+        return CreateTexture(TEXTURE_TYPE_CUBE, format, width, height, 1, 1, genMipmap, 0);
     }
 
-    TextureHandle* RenderingDevice::CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap)
+    void RenderingDevice::GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height)
     {
-        bool isDepth = RenderingUtility::IsDepthFormat(format);
-        uint32 usage = isDepth? TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : TEXTURE_USAGE_COLOR_ATTACHMENT_BIT;
+        auto mipmaps = RenderingUtility::CalculateMipmap(width, height);
+
+        for (uint32 i = 0; i < mipmaps.size(); i++)
+        {
+
+        }
+    }
+
+    TextureHandle* RenderingDevice::CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 array, uint32 depth, bool genMipmap, TextureUsageFlags additionalFlags)
+    {
+        uint32 usage = RenderingUtility::IsDepthFormat(format)? TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : TEXTURE_USAGE_COLOR_ATTACHMENT_BIT;
+        auto mipmaps = RenderingUtility::CalculateMipmap(width, height);
 
         TextureFormat texformat = {};
         texformat.format    = format;
         texformat.width     = width;
         texformat.height    = height;
         texformat.type      = type;
-        texformat.usageBits = usage | TEXTURE_USAGE_SAMPLING_BIT;
+        texformat.usageBits = usage | additionalFlags | TEXTURE_USAGE_SAMPLING_BIT;
         texformat.samples   = TEXTURE_SAMPLES_1;
         texformat.array     = array;
-        texformat.depth     = 1;
-        texformat.mipmap    = 1;
+        texformat.depth     = depth;
+        texformat.mipLevels = genMipmap? mipmaps.size() : 1;
 
         TextureHandle* texture = api->CreateTexture(texformat);
+        SL_CHECK(!texture, nullptr);
 
         return texture;
     }
@@ -656,15 +721,13 @@ namespace Silex
          api->UnmapBuffer(staging);
          
          Buffer* buffer = api->CreateBuffer(dataByte, BUFFER_USAGE_VERTEX_BIT | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_GPU);
-         
-         api->ImmidiateCommands(graphicsQueue, frameData[frameIndex].commandBuffer, frameData[frameIndex].fence, [&](CommandBuffer* cmd)->bool
+
+         api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
          {
              BufferCopyRegion region = {};
              region.size = dataByte;
          
              api->CopyBuffer(cmd, staging, buffer, 1, &region);
-         
-             return true;
          });
          
          api->DestroyBuffer(staging);
@@ -682,14 +745,12 @@ namespace Silex
         
         Buffer* buffer = api->CreateBuffer(dataByte, BUFFER_USAGE_INDEX_BIT | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_GPU);
         
-        api->ImmidiateCommands(graphicsQueue, frameData[frameIndex].commandBuffer, frameData[frameIndex].fence, [&](CommandBuffer* cmd)->bool
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
         {
             BufferCopyRegion region = {};
             region.size = dataByte;
         
             api->CopyBuffer(cmd, staging, buffer, 1, &region);
-        
-            return true;
         });
         
         api->DestroyBuffer(staging);

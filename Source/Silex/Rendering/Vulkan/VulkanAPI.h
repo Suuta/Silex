@@ -165,7 +165,7 @@ namespace Silex
         //--------------------------------------------------
         // MISC
         //--------------------------------------------------
-        bool ImmidiateCommands(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func) override;
+        bool ImmidiateCommands(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<void(CommandBuffer*)>&& func) override;
         bool WaitDevice() override;
 
 

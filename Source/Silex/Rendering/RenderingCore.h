@@ -9,7 +9,7 @@ namespace Silex
     //================================================
     // 定数
     //================================================
-    enum : uint32 { INVALID_RENDER_ID = 0x7FFFFFFF };
+    enum : int32 { INVALID_RENDER_ID = 0x7FFFFFFF };
 
     //================================================
     // ハンドル
@@ -470,7 +470,7 @@ namespace Silex
         uint32            height    = 0;
         uint32            depth     = 1;
         uint32            array     = 1;
-        uint32            mipmap    = 1;
+        uint32            mipLevels = 1;
         TextureType       type      = TEXTURE_TYPE_2D;
         TextureSamples    samples   = TEXTURE_SAMPLES_1;
         TextureUsageFlags usageBits = 0;
@@ -478,26 +478,19 @@ namespace Silex
 
     struct TextureSubresource
     {
-        TextureAspectBits aspect = TEXTURE_ASPECT_COLOR_BIT;
-        uint32            layer  = 0;
-        uint32            mipmap = 0;
-    };
-
-    struct TextureSubresourceLayers
-    {
-        TextureAspectBits aspect;
-        uint32            mipmap     = 0;
+        TextureAspectBits aspect     = TEXTURE_ASPECT_COLOR_BIT;
+        uint32            mipLevel   = 0;
         uint32            baseLayer  = 0;
-        uint32            layerCount = 0;
+        uint32            layerCount = 1;
     };
 
     struct TextureSubresourceRange
     {
-        TextureAspectBits aspect;
-        uint32            baseMipmap  = 0;
-        uint32            mipmapCount = 0;
-        uint32            baseLayer   = 0;
-        uint32            layerCount  = 0;
+        TextureAspectBits aspect        = TEXTURE_ASPECT_COLOR_BIT;
+        uint32            baseMipLevel  = 0;
+        uint32            mipLevelCount = UINT32_MAX; // 
+        uint32            baseLayer     = 0;
+        uint32            layerCount    = UINT32_MAX; // 
     };
 
     //================================================
@@ -674,8 +667,8 @@ namespace Silex
 
     struct SubpassDependency
     {
-        uint32             srcSubpass = UINT32_MAX;
-        uint32             dstSubpass = INVALID_RENDER_ID;
+        uint32             srcSubpass = UINT32_MAX; // VK_SUBPASS_EXTERNAL
+        uint32             dstSubpass = 0;
         PipelineStageFlags srcStages;
         PipelineStageFlags dstStages;
         BarrierAccessFlags srcAccess;
@@ -750,7 +743,7 @@ namespace Silex
     struct DescriptorInfo
     {
         DescriptorType                type    = DESCRIPTOR_TYPE_MAX;
-        uint32                        binding = INVALID_RENDER_ID;
+        uint32                        binding = 0;
         std::vector<DescriptorHandle> handles = {};
     };
 
@@ -1033,18 +1026,18 @@ namespace Silex
 
     struct TextureCopyRegion
     {
-        TextureSubresourceLayers srcSubresources;
-        glm::ivec3               srcOffset;
-        TextureSubresourceLayers dstSubresources;
-        glm::ivec3               dstOffset;
-        glm::ivec3               size;
+        TextureSubresource srcSubresources;
+        Extent             srcOffset;
+        TextureSubresource dstSubresources;
+        Extent             dstOffset;
+        Extent             size;
     };
 
     struct BufferTextureCopyRegion
     {
-        uint64                   bufferOffset = 0;
-        TextureSubresourceLayers textureSubresources;
-        glm::ivec3               textureOffset;
-        glm::ivec3               textureRegionSize;
+        uint64             bufferOffset;
+        TextureSubresource textureSubresources;
+        Extent             textureOffset;
+        Extent             textureRegionSize;
     };
 }
