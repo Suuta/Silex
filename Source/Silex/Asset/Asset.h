@@ -74,7 +74,7 @@ namespace Silex
     {
         std::string extention = filePath.extension().string();
 
-        if (extention == ".slmt")                       return AssetType::Material;
+        if      (extention == ".slmt")                       return AssetType::Material;
         else if (extention == ".slsc")                       return AssetType::Scene;
         else if (extention == ".fbx" || extention == ".obj") return AssetType::Mesh;
         else if (extention == ".png" || extention == ".jpg") return AssetType::Texture2D;

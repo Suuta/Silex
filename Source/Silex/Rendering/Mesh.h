@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Asset/Asset.h"
-#include "Rendering/MeshBuffer.h"
+#include "Rendering/RenderingCore.h"
 #include "Rendering/Material.h"
 
 #include <assimp/Importer.hpp>
@@ -16,8 +16,8 @@ namespace Silex
         glm::vec3 Position;
         glm::vec3 Normal;
         glm::vec2 TexCoords;
-        //glm::vec3 Tangent;
-        //glm::vec3 Bitangent;
+        glm::vec3 Tangent;
+        glm::vec3 Bitangent;
     };
 
     struct MeshTexture
@@ -37,36 +37,33 @@ namespace Silex
 
     public:
 
-        MeshSource(std::vector<Vertex>& vertices, std::vector<uint32>& indices, uint32 materialIndex);
-        MeshSource(void* rawVertexData, uint64 vertexByteSize, void* rawIndexData, uint64 indexByteSize, const VertexBufferLayout& vertexAttribute, const VertexBufferLayout& instanceAttribute);
+        MeshSource(uint64 numVertex, Vertex* vertices, uint64 numIndex, uint32* indices, uint32 materialIndex = 0);
+        MeshSource(std::vector<Vertex>& vertices, std::vector<uint32>& indices, uint32 materialIndex = 0);
         ~MeshSource();
 
         void Bind()   const;
         void Unbind() const;
 
-        void SetVertexLayout(const VertexBufferLayout& vertexAttribute, const VertexBufferLayout& instanceAttribute);
+        bool      HasIndex()         const { return hasIndex;          }
+        uint32    GetMaterialIndex() const { return materialIndex;     }
+        glm::mat4 GetTransform()     const { return relativeTransform; }
 
-        uint32    GetID()            const { return m_ID;                }
-        uint64    GetVertexCount()   const { return m_VertexCount;       }
-        uint64    GetIndexCount()    const { return m_IndexCount;        }
-        bool      HasIndex()         const { return m_HasIndex;          }
-        uint32    GetMaterialIndex() const { return m_MaterialIndex;     }
-        glm::mat4 GetTransform()     const { return m_RelativeTransform; }
+        uint64    GetVertexCount()   const { return vertexCount;       }
+        uint64    GetIndexCount()    const { return indexCount;        }
+        Buffer*   GetVertexBuffer()  const { return vertexBuffer;      }
+        Buffer*   GetIndexBuffer()   const { return indexBuffer;       }
 
-        void SetTransform(const glm::mat4& matrix) { m_RelativeTransform = matrix; }
+        void SetTransform(const glm::mat4& matrix) { relativeTransform = matrix; }
 
     private:
 
-        // 頂点配列バッファID（OpenGL固有）
-        uint32 m_ID;
-
-        bool          m_HasIndex;
-        uint32        m_MaterialIndex = 0;
-        uint32        m_VertexCount   = 0;
-        uint32        m_IndexCount    = 0;
-        VertexBuffer* m_VertexBuffer  = nullptr;
-        IndexBuffer*  m_IndexBuffer   = nullptr;
-        glm::mat4     m_RelativeTransform;
+        bool      hasIndex          = false;
+        uint32    materialIndex     = 0;
+        uint32    vertexCount       = 0;
+        uint32    indexCount        = 0;
+        Buffer*   vertexBuffer      = nullptr;
+        Buffer*   indexBuffer       = nullptr;
+        glm::mat4 relativeTransform = {};
 
     private:
 
@@ -96,18 +93,18 @@ namespace Silex
         void AddSource(MeshSource* source);
 
         // プリミティブ
-        void SetPrimitiveType(RHI::PrimitiveType primitiveType) { m_PrimitiveType = primitiveType; }
-        RHI::PrimitiveType GetPrimitiveType()                   { return m_PrimitiveType;          }
+        void SetPrimitiveType(RHI::PrimitiveType type) { primitiveType = type; }
+        RHI::PrimitiveType GetPrimitiveType()          { return primitiveType; }
 
         // サブメッシュ
-        std::vector<MeshSource*>& GetMeshSources() { return m_Meshes;        }
-        MeshSource* GetMeshSource(uint32 index)    { return m_Meshes[index]; }
+        std::vector<MeshSource*>& GetMeshSources()  { return subMeshes;        }
+        MeshSource* GetMeshSource(uint32 index = 0) { return subMeshes[index]; }
 
         // テクスチャ
-        std::unordered_map<uint32, MeshTexture>& GetTextures() { return m_Textures;        }
-        MeshTexture& GetTexture(uint32 index)                  { return m_Textures[index]; }
+        std::unordered_map<uint32, MeshTexture>& GetTextures() { return textures;        }
+        MeshTexture& GetTexture(uint32 index)                  { return textures[index]; }
 
-        uint32 GetMaterialSlotSize() const { return m_MaterialSlotSize; };
+        uint32 GetMaterialSlotCount() const { return numMaterialSlot; };
 
     private:
 
@@ -117,11 +114,11 @@ namespace Silex
 
     private:
 
-        std::unordered_map<uint32, MeshTexture> m_Textures;
-        std::vector<MeshSource*>                m_Meshes;
-        uint32                                  m_MaterialSlotSize;
+        std::unordered_map<uint32, MeshTexture> textures;
+        std::vector<MeshSource*>                subMeshes;
+        uint32                                  numMaterialSlot;
 
-        RHI::PrimitiveType m_PrimitiveType = RHI::PrimitiveType::Triangle;
+        RHI::PrimitiveType primitiveType = RHI::PrimitiveType::Triangle;
 
         friend class MeshSource;
     };

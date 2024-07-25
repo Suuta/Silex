@@ -89,9 +89,9 @@ namespace Silex
         }
 
         // メッシュ
-        m_QuadMesh = Shared<Mesh>(MeshFactory::Quad());
-        m_QuadMesh->SetPrimitiveType(RHI::PrimitiveType::TriangleStrip);
-        m_QuadMesh->GetFilePath() = "Quad";
+        //m_QuadMesh = Shared<Mesh>(MeshFactory::Quad());
+        //m_QuadMesh->SetPrimitiveType(RHI::PrimitiveType::TriangleStrip);
+        //m_QuadMesh->GetFilePath() = "Quad";
 
         m_CubeMesh = Shared<Mesh>(MeshFactory::Cube());
         m_CubeMesh->SetPrimitiveType(RHI::PrimitiveType::Triangle);

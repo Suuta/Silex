@@ -97,7 +97,7 @@ namespace Silex
         //--------------------------------------------------
         // フレームバッファ
         //--------------------------------------------------
-        FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle* textures, uint32 width, uint32 height) override;
+        FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height) override;
         void DestroyFramebuffer(FramebufferHandle* framebuffer) override;
 
         //--------------------------------------------------
@@ -123,7 +123,6 @@ namespace Silex
         //--------------------------------------------------
         DescriptorSet* CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex) override;
         void DestroyDescriptorSet(DescriptorSet* descriptorset) override;
-
         void UpdateDescriptorSet(DescriptorSet* descriptorSet, uint32 numdescriptor, DescriptorInfo* descriptors) override;
 
         //--------------------------------------------------
@@ -166,7 +165,7 @@ namespace Silex
         //--------------------------------------------------
         // MISC
         //--------------------------------------------------
-        bool ImmidiateExcute(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func) override;
+        bool ImmidiateCommands(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func) override;
         bool WaitDevice() override;
 
 

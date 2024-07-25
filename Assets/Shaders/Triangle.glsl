@@ -10,10 +10,9 @@
         mat4 ts = (projection * view * world);
         vec4 pos = ts * vec4(vin.pos, 1.0);
 
-        vout.pos    = pos;
-        vout.normal = vin.normal;
-        vout.uv     = vin.uv;
-        vout.color  = vin.color;
+        vout.pos      = pos;
+        vout.normal   = vin.normal;
+        vout.texcoord = vin.texcoord;
 
         return vout;
     }
@@ -27,8 +26,12 @@
 
     FragmentOutput Fragment(VertexOutput vout)
     {
+
+        vec3 n = (vout.normal * 0.5) + vec3(0.5);
+
         FragmentOutput fout;
-        fout.color = vout.color;
+        fout.texcoord = vout.texcoord;
+        fout.normal   = n;
 
         return fout;
     }

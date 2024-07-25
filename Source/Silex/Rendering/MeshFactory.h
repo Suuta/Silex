@@ -9,7 +9,7 @@ namespace Silex
 {
     struct MeshFactory
     {
-        static Mesh* Quad();
+        //static Mesh* Quad();
         static Mesh* Cube();
         static Mesh* Sphere();
     };

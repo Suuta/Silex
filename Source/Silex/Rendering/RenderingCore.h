@@ -1,6 +1,7 @@
 
 #pragma once
 #include "Core/Core.h"
+#include <d3d12.h>
 
 
 namespace Silex
@@ -773,19 +774,19 @@ namespace Silex
     //================================================
     enum PrimitiveTopology
     {
-        PRIMITIVE_TOPOLOGY_POINTS,
-        PRIMITIVE_TOPOLOGY_LINES,
-        PRIMITIVE_TOPOLOGY_LINES_WITH_ADJACENCY,
-        PRIMITIVE_TOPOLOGY_LINESTRIPS,
-        PRIMITIVE_TOPOLOGY_LINESTRIPS_WITH_ADJACENCY,
-        PRIMITIVE_TOPOLOGY_TRIANGLES,
-        PRIMITIVE_TOPOLOGY_TRIANGLES_WITH_ADJACENCY,
-        PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS,
-        PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS_WITH_AJACENCY,
-        PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS_WITH_RESTART_INDEX,
-        PRIMITIVE_TOPOLOGY_TESSELATION_PATCH,
+        PRIMITIVE_TOPOLOGY_POINTS,                        // VK_PRIMITIVE_TOPOLOGY_POINT_LIST                    = 0,
+        PRIMITIVE_TOPOLOGY_LINES,                         // VK_PRIMITIVE_TOPOLOGY_LINE_LIST                     = 1,
+        PRIMITIVE_TOPOLOGY_LINESTRIPS,                    // VK_PRIMITIVE_TOPOLOGY_LINE_STRIP                    = 2,
+        PRIMITIVE_TOPOLOGY_TRIANGLES,                     // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST                 = 3,
+        PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS,               // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP                = 4,
+        PRIMITIVE_TOPOLOGY_TRIANGLE_FAN,                  // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN                  = 5,
+        PRIMITIVE_TOPOLOGY_LINES_WITH_ADJACENCY,          // VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY      = 6,
+        PRIMITIVE_TOPOLOGY_LINESTRIPS_WITH_ADJACENCY,     // VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY     = 7,
+        PRIMITIVE_TOPOLOGY_TRIANGLES_WITH_ADJACENCY,      // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY  = 8,
+        PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS_WITH_AJACENCY, // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY = 9,
+        PRIMITIVE_TOPOLOGY_TESSELATION_PATCH,             // VK_PRIMITIVE_TOPOLOGY_PATCH_LIST                    = 10,
 
-        RENDER_PRIMITIVE_MAX
+        RENDER_PRIMITIVE_MAX                              // VK_PRIMITIVE_TOPOLOGY_MAX_ENUM = 0x7FFFFFFF
     };
 
     enum PolygonCullMode
@@ -879,7 +880,8 @@ namespace Silex
 
     struct PipelineInputAssemblyState
     {
-        PrimitiveTopology topology = PRIMITIVE_TOPOLOGY_TRIANGLES;
+        PrimitiveTopology topology               = PRIMITIVE_TOPOLOGY_TRIANGLES;
+        bool              primitiveRestartEnable = false;
     };
 
     struct PipelineRasterizationState
@@ -887,7 +889,7 @@ namespace Silex
         bool             enable_depth_clamp      = false;
         bool             discard_primitives      = false;
         bool             wireframe               = false;
-        PolygonCullMode  cullMode                = POLYGON_CULL_DISABLED;
+        PolygonCullMode  cullMode                = POLYGON_CULL_BACK;
         PolygonFrontFace frontFace               = POLYGON_FRONT_FACE_COUNTER_CLOCKWISE;
         bool             depthBiasEnabled        = false;
         float            depthBiasConstantFactor = 0.0f;
@@ -909,14 +911,15 @@ namespace Silex
 
     struct PipelineDepthStencilState
     {
-        bool            enableDepthTest  = false;
-        bool            enableDepthWrite = false;
+        // 深度
+        bool            enableDepthTest  = true;
+        bool            enableDepthWrite = true;
         bool            enableDepthRange = false;
-        bool            enableStencil    = false;
-        CompareOperator depthCompareOp   = COMPARE_OP_ALWAYS;
-        float           depthRangeMin    = 0;
-        float           depthRangeMax    = 0;
+        CompareOperator depthCompareOp   = COMPARE_OP_LESS_OR_EQUAL;
+        float           depthRangeMin    = 0.0f;
+        float           depthRangeMax    = 1.0f;
 
+        // ステンシル
         struct StencilOperationState
         {
             StencilOperation fail        = STENCIL_OP_ZERO;
@@ -928,8 +931,9 @@ namespace Silex
             uint32           reference   = 0;
         };
 
-        StencilOperationState frontOp;
-        StencilOperationState backOp;
+        bool                  enableStencil = true;
+        StencilOperationState frontOp       = {};
+        StencilOperationState backOp        = {};
     };
 
     struct PipelineColorBlendState
@@ -1005,8 +1009,12 @@ namespace Silex
     //================================================
     union RenderPassClearValue
     {
-        glm::vec4 color = { 0.5f, 0.0f, 0.5f, 1.0f };
-        struct { float depth; uint32 stencil; };
+        glm::vec4 color;
+        struct 
+        {
+            float  depth;
+            uint32 stencil;
+        };
     };
 
     struct AttachmentClear

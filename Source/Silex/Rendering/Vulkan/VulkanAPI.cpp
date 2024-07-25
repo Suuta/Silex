@@ -1330,13 +1330,14 @@ namespace Silex
     //==================================================================================
     // フレームバッファ
     //==================================================================================
-    FramebufferHandle* VulkanAPI::CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle* textures, uint32 width, uint32 height)
+    FramebufferHandle* VulkanAPI::CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height)
     {
         VkImageView* views = SL_STACK(VkImageView, numTexture);
+
+        VulkanTexture** texes = (VulkanTexture**)textures;
         for (uint32 i = 0; i < numTexture; i++)
         {
-            VulkanTexture* vktexture = (VulkanTexture*)textures;
-            views[i] = vktexture[i].imageView;
+            views[i] = texes[i]->imageView;
         }
 
         VkFramebufferCreateInfo createInfo = {};
@@ -1911,7 +1912,7 @@ namespace Silex
     //==================================================================================
     // 即時コマンド
     //==================================================================================
-    bool VulkanAPI::ImmidiateExcute(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func)
+    bool VulkanAPI::ImmidiateCommands(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func)
     {
         VkCommandBuffer vkcmd   = ((VulkanCommandBuffer*)commandBuffer)->commandBuffer;
         VkQueue         vkqueue = ((VulkanCommandQueue*)queue)->queue;
@@ -1925,7 +1926,6 @@ namespace Silex
             SL_CHECK(!result, false);
 
             result = func(commandBuffer);
-            SL_CHECK(!result, false);
 
             result = EndCommandBuffer(commandBuffer);
             SL_CHECK(!result, false);
@@ -2548,7 +2548,7 @@ namespace Silex
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = {};
         inputAssemblyCreateInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         inputAssemblyCreateInfo.topology               = (VkPrimitiveTopology)inputAssemblyState.topology;
-        inputAssemblyCreateInfo.primitiveRestartEnable = (inputAssemblyState.topology == PRIMITIVE_TOPOLOGY_TRIANGLE_STRIPS_WITH_RESTART_INDEX);
+        inputAssemblyCreateInfo.primitiveRestartEnable = inputAssemblyState.primitiveRestartEnable;
 
         // ===== テッセレーション =====
         VkPipelineTessellationStateCreateInfo tessellationCreateInfo = {};
@@ -2566,7 +2566,7 @@ namespace Silex
         rasterizationStateCreateInfo.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
         rasterizationStateCreateInfo.depthClampEnable        = rasterizationState.enable_depth_clamp;
         rasterizationStateCreateInfo.rasterizerDiscardEnable = rasterizationState.discard_primitives;
-        rasterizationStateCreateInfo.polygonMode             = rasterizationState.wireframe? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+        rasterizationStateCreateInfo.polygonMode             = rasterizationState.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
         rasterizationStateCreateInfo.cullMode                = (PolygonCullMode)rasterizationState.cullMode;
         rasterizationStateCreateInfo.frontFace               = (rasterizationState.frontFace == POLYGON_FRONT_FACE_CLOCKWISE ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE);
         rasterizationStateCreateInfo.depthBiasEnable         = rasterizationState.depthBiasEnabled;

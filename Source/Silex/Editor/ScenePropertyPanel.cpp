@@ -245,7 +245,7 @@ namespace Silex
                                     Shared<Mesh> m = asset.As<Mesh>();
                                     component.mesh = m;
 
-                                    uint32 numSlots = m->GetMaterialSlotSize();
+                                    uint32 numSlots = m->GetMaterialSlotCount();
                                     component.materials.resize(numSlots);
                                 }
 

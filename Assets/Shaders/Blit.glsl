@@ -115,12 +115,12 @@
     {
         vec4 color = texture(inputAttachment, uv);
 
+        // シーンフレームバッファ（RGBA16F）から スワップチェイン(BGRA8N) への 0.0 ~ 1.0 補間
+        color.rgb = ACES_ToneMap(color.rgb).rgb;
+
         // FXAA
         vec2 pixelSize = 1.0 / textureSize(inputAttachment, 0);
         color.rgb = FXAA(pixelSize);
-
-        // シーンフレームバッファ（RGBA16F）から スワップチェイン(BGRA8UNORM) への 0.0 ~ 1.0 補間
-        //color.rgb = ACES_ToneMap(color.rgb).rgb;
 
         piexl = color;
     }

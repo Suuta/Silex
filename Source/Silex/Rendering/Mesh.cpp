@@ -3,7 +3,7 @@
 
 #include "Rendering/Mesh.h"
 #include "Rendering/Texture.h"
-#include "Rendering/OpenGL/OpenGLCore.h"
+#include "Rendering/RenderingDevice.h"
 #include "Asset/TextureReader.h"
 #include "Editor/SplashImage.h"
 
@@ -26,126 +26,50 @@ namespace Silex
         }
     }
 
+
     //===========================================
     // 頂点データから生成
     //===========================================
-    MeshSource::MeshSource(void* rawVertexData, uint64 vertexByteSize, void* rawIndexData, uint64 indexByteSize, const VertexBufferLayout& vertexAttribute, const VertexBufferLayout& instanceAttribute)
-        : m_RelativeTransform(glm::mat4(1.0f))
+    MeshSource::MeshSource(std::vector<Vertex>& vertices, std::vector<uint32>& indices, uint32 materialIndex)
+        : vertexCount(vertices.size())
+        , indexCount(indices.size())
+        , hasIndex(!indices.empty())
+        , materialIndex(materialIndex)
     {
-        glGenVertexArrays(1, &m_ID);
-
-        if (rawVertexData)
-        {
-            m_VertexBuffer = VertexBuffer::Create(rawVertexData, vertexByteSize);
-            m_HasIndex     = false;
-            m_VertexCount  = vertexByteSize / vertexAttribute.Stride;
-        }
-
-        if (rawIndexData)
-        {
-            m_IndexBuffer = IndexBuffer::Create(rawIndexData, indexByteSize);
-            m_HasIndex    = true;
-            m_IndexCount  = indexByteSize / sizeof(uint32);
-        }
-
-        SetVertexLayout(vertexAttribute, instanceAttribute);
+        vertexBuffer = RenderingDevice::Get()->CreateVertexBuffer(vertices.data(), sizeof(Vertex) * vertexCount);
+        indexBuffer  = RenderingDevice::Get()->CreateIndexBuffer(indices.data(), sizeof(uint32) * indexCount);
     }
 
-    //===========================================
-    // モデルデータから生成
-    //===========================================
-    MeshSource::MeshSource(std::vector<Vertex>& vertices, std::vector<uint32>& indices, uint32 materialIndex)
-        : m_HasIndex(indices.size() != 0)
-        , m_MaterialIndex(materialIndex)
+    MeshSource::MeshSource(uint64 numVertex, Vertex* vertices, uint64 numIndex, uint32* indices, uint32 materialIndex)
+        : vertexCount(numVertex)
+        , indexCount(numIndex)
+        , hasIndex(indices != nullptr || numIndex == 0)
+        , materialIndex(materialIndex)
     {
-        glGenVertexArrays(1, &m_ID);
-
-        m_VertexBuffer = VertexBuffer::Create(vertices.data(), sizeof(Vertex) * vertices.size());
-        m_IndexBuffer  = IndexBuffer::Create(indices.data(), sizeof(uint32) * indices.size());
-
-        m_VertexCount = vertices.size();
-        m_IndexCount  = indices.size();
-
-
-        // 頂点属性
-        VertexBufferLayout vertex;
-        vertex.Add(0, "Position", RHI::ShaderDataType::Float3);
-        vertex.Add(1, "Normal",   RHI::ShaderDataType::Float3);
-        vertex.Add(2, "Texcoord", RHI::ShaderDataType::Float2);
-        //layout.Add("Tangent",   RHI::ShaderDataType::Float3);
-        //layout.Add("Bitangent", RHI::ShaderDataType::Float3);
-
-        // インスタンス属性
-        VertexBufferLayout instance;
-        //instance.Add(3, "Transform_0", RHI::ShaderDataType::Float4);
-        //instance.Add(4, "Transform_1", RHI::ShaderDataType::Float4);
-        //instance.Add(5, "Transform_2", RHI::ShaderDataType::Float4);
-        //instance.Add(6, "Transform_3", RHI::ShaderDataType::Float4);
-
-        SetVertexLayout(vertex, instance);
+        vertexBuffer = RenderingDevice::Get()->CreateVertexBuffer(vertices, sizeof(Vertex) * vertexCount);
+        indexBuffer  = RenderingDevice::Get()->CreateIndexBuffer(indices, sizeof(uint32) * indexCount);
     }
 
     MeshSource::~MeshSource()
     {
-        glDeleteVertexArrays(1, &m_ID);
-
-        if (m_VertexBuffer) Memory::Deallocate(m_VertexBuffer);
-        if (m_IndexBuffer)  Memory::Deallocate(m_IndexBuffer);
-    }
-
-    //===========================================
-    // 頂点属性の設定
-    //===========================================
-    void MeshSource::SetVertexLayout(const VertexBufferLayout& vertexAttribute, const VertexBufferLayout& instanceAttribute)
-    {
-        Bind();
-
-        if (m_VertexBuffer) m_VertexBuffer->Bind();
-        if (m_IndexBuffer ) m_IndexBuffer->Bind();
-
-        // 頂点属性
-        for (auto& element : vertexAttribute.Elements)
-        {
-            uint32 componentSize  = RHI::ShaderDataTypeComponentSize(element.Type);
-            uint32 stride         = vertexAttribute.Stride;
-            uint32 offsetFromHead = element.Offset;
-
-            glEnableVertexAttribArray(element.LayoutIndex);
-            glVertexAttribPointer(element.LayoutIndex, componentSize, GL_FLOAT, GL_FALSE, stride, (void*)offsetFromHead);
-        }
-
-        // インスタンス属性
-        for (auto& element : instanceAttribute.Elements)
-        {
-            uint32 componentSize = RHI::ShaderDataTypeComponentSize(element.Type);
-            uint32 stride         = instanceAttribute.Stride;
-            uint32 offsetFromHead = element.Offset;
-        
-            glEnableVertexAttribArray(element.LayoutIndex);
-            glVertexAttribPointer(element.LayoutIndex, componentSize, GL_FLOAT, GL_FALSE, stride, (void*)offsetFromHead);
-        
-            glVertexAttribDivisor(element.LayoutIndex, 1);
-        }
-
-        Unbind();
+        if (vertexBuffer) RenderingDevice::Get()->DestroyBuffer(vertexBuffer);
+        if (indexBuffer) RenderingDevice::Get()->DestroyBuffer(indexBuffer);
     }
 
     void MeshSource::Bind() const
     {
-        glBindVertexArray(m_ID);
+        // glBindVertexArray(m_ID);
     }
 
     void MeshSource::Unbind() const
     {
-        glBindVertexArray(0);
+        // glBindVertexArray(0);
     }
 
     Mesh::Mesh()
     {
         SetAssetType(AssetType::Mesh);
-
-        //m_MaterialTable.resize(1);
-        m_MaterialSlotSize = 1;
+        numMaterialSlot = 1;
     }
 
     Mesh::~Mesh()
@@ -157,13 +81,13 @@ namespace Silex
     {
         m_FilePath = filePath.string();
 
-        uint32 flags =
-            aiProcess_OptimizeMeshes   |
-            aiProcess_Triangulate      |
-            aiProcess_GenSmoothNormals |
-            aiProcess_FlipUVs          |
-            aiProcess_GenUVCoords      |
-            aiProcess_CalcTangentSpace;
+        uint32 flags = 0;
+        flags |= aiProcess_OptimizeMeshes;
+        flags |= aiProcess_Triangulate;
+        flags |= aiProcess_GenSmoothNormals;
+        flags |= aiProcess_FlipUVs;
+        flags |= aiProcess_GenUVCoords;
+        flags |= aiProcess_CalcTangentSpace;
 
         // メッシュファイルを読み込み
         Assimp::Importer importer;
@@ -173,25 +97,25 @@ namespace Silex
             SL_LOG_ERROR("Assimp Error: {}", importer.GetErrorString());
         }
 
-        // 各メッシュ情報を処理
+        // 各メッシュ情報を読み込み
         ProcessNode(scene->mRootNode, scene);
 
-        // マテリアルテーブル構成
-        //m_MaterialTable.resize(scene->mNumMaterials);
-        m_MaterialSlotSize = scene->mNumMaterials;
+        // マテリアル数
+        numMaterialSlot = scene->mNumMaterials;
     }
 
+    // 明示的に呼び出したい場合に（デストラクタで呼び出されるため、不要）
     void Mesh::Unload()
     {
-        for (auto mesh : m_Meshes)
+        for (auto source : subMeshes)
         {
-            Memory::Deallocate(mesh);
+            Memory::Deallocate(source);
         }
     }
 
     void Mesh::AddSource(MeshSource* source)
     {
-        m_Meshes.push_back(source);
+        subMeshes.push_back(source);
     }
 
     void Mesh::ProcessNode(aiNode* node, const aiScene* scene)
@@ -202,9 +126,9 @@ namespace Silex
             aiMesh* mesh = scene->mMeshes[subMeshIndex];
 
             MeshSource* ms = ProcessMesh(mesh, scene);
-            ms->m_RelativeTransform = Internal::aiMatrixToGLMMatrix(node->mTransformation);
+            ms->relativeTransform = Internal::aiMatrixToGLMMatrix(node->mTransformation);
 
-            m_Meshes.emplace_back(ms);
+            subMeshes.emplace_back(ms);
         }
 
         for (uint32 i = 0; i < node->mNumChildren; i++)
@@ -227,10 +151,13 @@ namespace Silex
             glm::vec3 vector;
 
             // 座標
-            vector.x = mesh->mVertices[i].x;
-            vector.y = mesh->mVertices[i].y;
-            vector.z = mesh->mVertices[i].z;
-            vertex.Position = vector;
+            if (mesh->HasPositions())
+            {
+                vector.x = mesh->mVertices[i].x;
+                vector.y = mesh->mVertices[i].y;
+                vector.z = mesh->mVertices[i].z;
+                vertex.Position = vector;
+            }
 
             // ノーマル
             if (mesh->HasNormals())
@@ -239,16 +166,20 @@ namespace Silex
                 vector.y = mesh->mNormals[i].y;
                 vector.z = mesh->mNormals[i].z;
                 vertex.Normal = vector;
+            }
 
-                //vector.x = mesh->mTangents[i].x;
-                //vector.y = mesh->mTangents[i].y;
-                //vector.z = mesh->mTangents[i].z;
-                //vertex.Tangent = vector;
+            // 接線
+            if (mesh->HasTangentsAndBitangents())
+            {
+                vector.x = mesh->mTangents[i].x;
+                vector.y = mesh->mTangents[i].y;
+                vector.z = mesh->mTangents[i].z;
+                vertex.Tangent = vector;
 
-                //vector.x = mesh->mBitangents[i].x;
-                //vector.y = mesh->mBitangents[i].y;
-                //vector.z = mesh->mBitangents[i].z;
-                //vertex.Bitangent = vector;
+                vector.x = mesh->mBitangents[i].x;
+                vector.y = mesh->mBitangents[i].y;
+                vector.z = mesh->mBitangents[i].z;
+                vertex.Bitangent = vector;
             }
 
             // テクスチャ座標
@@ -286,8 +217,12 @@ namespace Silex
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
         LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_DIFFUSE);           // ディフューズ
+      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_DIFFUSE_ROUGHNESS); // 
       //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_NORMALS);           // ノーマル
       //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_AMBIENT_OCCLUSION); // AO
+      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_SPECULAR);          // スペキュラ
+      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_EMISSIVE);          // 
+      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_EMISSION_COLOR);    // 
 
         //==============================================
         // メッシュソース生成
@@ -309,7 +244,7 @@ namespace Silex
             std::string parebtPath = modelFilePath.parent_path().string();
             std::string path       = parebtPath + '/' + aspath;
 
-            MeshTexture& tex = m_Textures[materialInddex];
+            MeshTexture& tex = textures[materialInddex];
             tex.Path   = path;
             tex.Albedo = 0;
         }

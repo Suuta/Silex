@@ -94,7 +94,7 @@ namespace Silex
         //--------------------------------------------------
         // フレームバッファ
         //--------------------------------------------------
-        virtual FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle* textures, uint32 width, uint32 height) = 0;
+        virtual FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height) = 0;
         virtual void DestroyFramebuffer(FramebufferHandle* framebuffer) = 0;
 
         //--------------------------------------------------
@@ -157,7 +157,7 @@ namespace Silex
         //--------------------------------------------------
         // MISC
         //--------------------------------------------------
-        virtual bool ImmidiateExcute(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func) = 0;
+        virtual bool ImmidiateCommands(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<bool(CommandBuffer*)>&& func) = 0;
         virtual bool WaitDevice() = 0;
     };
 }

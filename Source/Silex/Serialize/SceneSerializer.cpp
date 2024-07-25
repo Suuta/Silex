@@ -182,7 +182,7 @@ namespace Silex
                     mc.castShadow = mesh["castShadow"].as<bool>();
 
                     auto material = mesh["material"];
-                    auto numSlots = mc.mesh->GetMaterialSlotSize();
+                    auto numSlots = mc.mesh->GetMaterialSlotCount();
 
                     for (uint32 i = 0; i < numSlots; i++)
                     {

@@ -6,9 +6,12 @@
 #include "Rendering/RenderingDevice.h"
 #include "Rendering/RenderingContext.h"
 #include "Rendering/RenderingAPI.h"
+#include "Rendering/RenderingUtility.h"
 #include "Rendering/ShaderCompiler.h"
 #include "Rendering/Camera.h"
+#include "Rendering/Mesh.h"
 #include "Rendering/Vulkan/VulkanStructures.h"
+#include "Rendering/MeshFactory.h"
 
 #include <imgui/imgui_internal.h>
 #include <imgui/imgui.h>
@@ -22,11 +25,7 @@ namespace Silex
     static ShaderCompiler shaserCompiler;
 
 
-    struct Data
-    {
-        glm::vec3 pos;
-        glm::vec4 color;
-    };
+
 
     struct SceneData
     {
@@ -34,6 +33,7 @@ namespace Silex
         glm::mat4 view;
         glm::mat4 projection;
     };
+
 
     RenderingDevice* RenderingDevice::Get()
     {
@@ -54,8 +54,22 @@ namespace Silex
 
         api->UnmapBuffer(ubo);
         api->DestroyBuffer(ubo);
-        api->DestroyBuffer(buffer);
-        api->DestroyTexture(sceneTexture);
+        api->DestroyBuffer(vb);
+        api->DestroyBuffer(ib);
+        api->DestroyTexture(sceneColorTexture);
+        api->DestroyTexture(sceneDepthTexture);
+        api->DestroyShader(shader);
+        api->DestroyShader(blitShader);
+        api->DestroyDescriptorSet(blitSet);
+        api->DestroyDescriptorSet(descriptorSet);
+        api->DestroyPipeline(pipeline);
+        api->DestroyPipeline(blitPipeline);
+        api->DestroyRenderPass(scenePass);
+        api->DestroyFramebuffer(sceneFramebuffer);
+        api->DestroySampler(sceneSampler);
+
+        Memory::Deallocate(cubeMesh);
+        Memory::Deallocate(sphereMesh);
 
         for (uint32 i = 0; i < frameData.size(); i++)
         {
@@ -116,18 +130,42 @@ namespace Silex
         return true;
     }
 
-
-    static glm::vec3 ACES(glm::vec3 color)
+    bool RenderingDevice::Begin()
     {
-        const float a = 2.51;
-        const float b = 0.03;
-        const float c = 2.43;
-        const float d = 0.59;
-        const float e = 0.14;
+        SwapChain* swapchain = Window::Get()->GetSwapChain();
+        FrameData& frame     = frameData[frameIndex];
 
-        color = glm::clamp((color * (a * color + b)) / (color * (c * color + d) + e), 0.0f, 1.0f);
-        return color;
+        // GPU 待機
+        bool result = api->WaitFence(frame.fence);
+        SL_CHECK(!result, false);
+
+        // 削除キュー実行
+        frame.resourceQueue.Execute();
+
+        // 描画先スワップチェインバッファを取得
+        swapchainFramebuffer = api->GetCurrentBackBuffer(swapchain, frame.presentSemaphore);
+        SL_CHECK(!swapchainFramebuffer, false);
+
+        // コマンドバッファ開始
+        result = api->BeginCommandBuffer(frame.commandBuffer);
+        SL_CHECK(!result, false);
+
+        return true;
     }
+
+    bool RenderingDevice::End()
+    {
+        SwapChain* swapchain = Window::Get()->GetSwapChain();
+        FrameData& frame     = frameData[frameIndex];
+  
+        api->EndRenderPass(frame.commandBuffer);
+        api->EndCommandBuffer(frame.commandBuffer);
+
+        api->SubmitQueue(graphicsQueue, frame.commandBuffer, frame.fence, frame.presentSemaphore, frame.renderSemaphore);
+
+        return true;
+    }
+
 
 
     void RenderingDevice::TEST()
@@ -139,54 +177,96 @@ namespace Silex
         }
 
         {
-            Attachment attachment = {};
-            attachment.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
-            attachment.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            attachment.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
-            attachment.storeOp       = ATTACHMENT_STORE_OP_STORE;
-            attachment.samples       = TEXTURE_SAMPLES_1;
-            attachment.format        = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
+            Attachment color = {};
+            color.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
+            color.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            color.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
+            color.storeOp       = ATTACHMENT_STORE_OP_STORE;
+            color.samples       = TEXTURE_SAMPLES_1;
+            color.format        = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
 
-            AttachmentReference ref = {};
-            ref.attachment = 0;
-            ref.layout     = TEXTURE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            AttachmentReference colorRef = {};
+            colorRef.attachment = 0;
+            colorRef.layout     = TEXTURE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+            Attachment depth = {};
+            depth.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
+            depth.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            depth.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
+            depth.storeOp       = ATTACHMENT_STORE_OP_STORE;
+            depth.samples       = TEXTURE_SAMPLES_1;
+            depth.format        = RENDERING_FORMAT_D32_SFLOAT_S8_UINT;
+
+            AttachmentReference depthRef = {};
+            depthRef.attachment = 1;
+            depthRef.layout     = TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
             Subpass subpass = {};
-            subpass.colorReferences.push_back(ref);
+            subpass.colorReferences.push_back(colorRef);
+            subpass.depthstencilReference = depthRef;
 
-            SubpassDependency dependency = {};
-            dependency.srcSubpass = UINT32_MAX;
-            dependency.dstSubpass = 0;
-            dependency.srcStages  = PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependency.dstStages  = PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            dependency.srcAccess  = 0;
-            dependency.dstAccess  = BARRIER_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            // SubpassDependency colorDependency = {};
+            // colorDependency.srcSubpass = UINT32_MAX;
+            // colorDependency.dstSubpass = 0;
+            // colorDependency.srcStages  = PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            // colorDependency.dstStages  = PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            // colorDependency.srcAccess  = 0;
+            // colorDependency.dstAccess  = BARRIER_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-            scenePass = api->CreateRenderPass(1, &attachment, 1, &subpass, 1, &dependency);
+            // SubpassDependency depthDependency = {};
+            // depthDependency.srcSubpass = UINT32_MAX;
+            // depthDependency.dstSubpass = 0;
+            // depthDependency.srcStages  = PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+            // depthDependency.dstStages  = PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+            // depthDependency.srcAccess  = 0;
+            // depthDependency.dstAccess  = BARRIER_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+            Attachment attachments[] = {color, depth};
+            scenePass = api->CreateRenderPass(std::size(attachments), attachments, 1, &subpass, 0, nullptr);
         }
 
         {
             SamplerInfo info = {};
             sceneSampler = api->CreateSampler(info);
 
-            TextureFormat format = {};
-            format.format    = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
-            format.width     = size.x;
-            format.height    = size.y;
-            format.type      = TEXTURE_TYPE_2D;
-            format.usageBits = TEXTURE_USAGE_COLOR_ATTACHMENT_BIT | TEXTURE_USAGE_SAMPLING_BIT;
-            format.samples   = TEXTURE_SAMPLES_1;
-            format.array     = 1;
-            format.depth     = 1;
-            format.mipmap    = 1;
+            TextureFormat color = {};
+            color.format    = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
+            color.width     = size.x;
+            color.height    = size.y;
+            color.type      = TEXTURE_TYPE_2D;
+            color.usageBits = TEXTURE_USAGE_COLOR_ATTACHMENT_BIT | TEXTURE_USAGE_SAMPLING_BIT;
+            color.samples   = TEXTURE_SAMPLES_1;
+            color.array     = 1;
+            color.depth     = 1;
+            color.mipmap    = 1;
 
-            sceneTexture     = api->CreateTexture(format);
-            sceneFramebuffer = api->CreateFramebuffer(scenePass, 1, sceneTexture, size.x, size.y);
+            sceneColorTexture = api->CreateTexture(color);
+
+            TextureFormat depth = {};
+            depth.format    = RENDERING_FORMAT_D32_SFLOAT_S8_UINT;
+            depth.width     = size.x;
+            depth.height    = size.y;
+            depth.type      = TEXTURE_TYPE_2D;
+            depth.usageBits = TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | TEXTURE_USAGE_SAMPLING_BIT;
+            depth.samples   = TEXTURE_SAMPLES_1;
+            depth.array     = 1;
+            depth.depth     = 1;
+            depth.mipmap    = 1;
+
+            sceneDepthTexture = api->CreateTexture(depth);
+
+
+            TextureHandle* textures[] = { sceneColorTexture , sceneDepthTexture };
+            sceneFramebuffer = api->CreateFramebuffer(scenePass, std::size(textures), textures, size.x, size.y);
         }
 
         InputBinding binding;
         binding.AddAttribute(0, 12, RENDERING_FORMAT_R32G32B32_SFLOAT);
-        binding.AddAttribute(1, 16, RENDERING_FORMAT_R32G32B32A32_SFLOAT);
+        binding.AddAttribute(1, 12, RENDERING_FORMAT_R32G32B32_SFLOAT);
+        binding.AddAttribute(2,  8, RENDERING_FORMAT_R32G32_SFLOAT);
+        binding.AddAttribute(3, 12, RENDERING_FORMAT_R32G32B32_SFLOAT);
+        binding.AddAttribute(4, 12, RENDERING_FORMAT_R32G32B32_SFLOAT);
+
         InputLayout* layout = api->CreateInputLayout(1, &binding);
 
         PipelineInputAssemblyState ia = {};
@@ -209,34 +289,19 @@ namespace Silex
             blitPipeline = api->CreateGraphicsPipeline(blitShader, nullptr, ia, rs, ms, ds, bs, swapchainPass);
         }
 
-        Data data[] =
+        Vertex data[] =
         {
-            {{ 0.0,  1.0, 0.0 }, {1.0, 0.0, 0.0, 0.5}},
-            {{-1.0, -1.0, 0.0 }, {0.0, 1.0, 0.0, 0.5}},
-            {{ 1.0, -1.0, 0.0 }, {0.0, 0.0, 1.0, 0.5}},
+            {{-1.0,  1.0,  0.0 }, { 0.0, 0.0, 0.0 }, { 0.0, 0.0 }}, // 0
+            {{-1.0, -1.0,  0.0 }, { 0.0, 0.0, 0.0 }, { 1.0, 0.0 }}, // 1
+            {{ 1.0, -1.0,  0.0 }, { 0.0, 0.0, 0.0 }, { 0.0, 1.0 }}, // 2
+            {{ 1.0,  1.0,  0.0 }, { 0.0, 0.0, 0.0 }, { 1.0, 1.0 }}, // 3
         };
 
-        {
-            Buffer* staging = api->CreateBuffer(sizeof(data), BUFFER_USAGE_VERTEX_BIT | BUFFER_USAGE_TRANSFER_SRC_BIT, MEMORY_ALLOCATION_TYPE_CPU);
-        
-            byte* mapped = api->MapBuffer(staging);
-            std::memcpy(mapped, data, sizeof(data));
-            api->UnmapBuffer(staging);
-        
-            buffer = api->CreateBuffer(sizeof(data), BUFFER_USAGE_VERTEX_BIT | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_GPU);
+        uint32 indices[] = { 0, 1, 2,  2, 3, 0};
 
-            api->ImmidiateExcute(graphicsQueue, frameData[frameIndex].commandBuffer, frameData[frameIndex].fence, [&](CommandBuffer* cmd)->bool
-            {
-                BufferCopyRegion region = {};
-                region.size = sizeof(data);
-        
-                api->CopyBuffer(cmd, staging, buffer, 1, &region);
-        
-                return true;
-            });
-        
-            api->DestroyBuffer(staging);
-        }
+
+        vb = CreateVertexBuffer(data, sizeof(data));
+        ib = CreateIndexBuffer(indices, sizeof(indices));
 
         {
             SceneData sceneData;
@@ -264,7 +329,7 @@ namespace Silex
         {
             DescriptorHandle handles = {};
             handles.sampler = sceneSampler;
-            handles.image   = sceneTexture;
+            handles.image   = sceneColorTexture;
 
             DescriptorInfo info = {};
             info.handles.push_back(handles);
@@ -273,6 +338,9 @@ namespace Silex
 
             blitSet = api->CreateDescriptorSet(1, &info, blitShader, 0);
         }
+
+        cubeMesh   = MeshFactory::Cube();
+        sphereMesh = MeshFactory::Sphere();
     }
 
     void RenderingDevice::DOCK_SPACE(Camera* camera)
@@ -346,7 +414,6 @@ namespace Silex
         // アセットプロパティ
         //m_AssetBrowserPanel.Render(&bShowAssetBrowser, &bShowMaterial);
 
-
         ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
         ImGui::Begin("シーン", nullptr, isUsingCamera? ImGuiWindowFlags_NoInputs : 0);
 
@@ -356,14 +423,17 @@ namespace Silex
         // ウィンドウ内のコンテンツサイズ（タブやパディングは含めないので、ImGui::GetWindowSize関数は使わない）
         ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
         ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
-        ImVec2 content = { contentMax.x - contentMin.x, contentMax.y - contentMin.y };
+        ImVec2 content    = { contentMax.x - contentMin.x, contentMax.y - contentMin.y };
 
         // ウィンドウ左端からのオフセット
         ImVec2 viewportOffset = ImGui::GetWindowPos();
 
         // ImGuizmo用 相対ウィンドウ座標
-        //m_RelativeViewportRect[0] = { contentMin.x + viewportOffset.x, contentMin.y + viewportOffset.y };
-        //m_RelativeViewportRect[1] = { contentMax.x + viewportOffset.x, contentMax.y + viewportOffset.y };
+        ImVec2 relativeViewportRect[2] =
+        {
+            { contentMin.x + viewportOffset.x, contentMin.y + viewportOffset.y },
+            { contentMax.x + viewportOffset.x, contentMax.y + viewportOffset.y }
+        };
 
         // シーン描画
         {
@@ -373,11 +443,10 @@ namespace Silex
                 sceneFramebufferSize.x = content.x;
                 sceneFramebufferSize.y = content.y;
 
-                SL_LOG_TRACE("Resize SceneFramebuffer: {}, {}", sceneFramebufferSize.x, sceneFramebufferSize.y);
-            
                 camera->SetViewportSize(sceneFramebufferSize.x, sceneFramebufferSize.y);
                 AddResourceFreeQueue("Resize SceneFramebuffer", [this]()
                 {
+                    SL_LOG_TRACE("Resize SceneFramebuffer: {}, {}", sceneFramebufferSize.x, sceneFramebufferSize.y);
                     RESIZE(sceneFramebufferSize.x, sceneFramebufferSize.y);
                 });
             }
@@ -389,17 +458,17 @@ namespace Silex
         ImGui::End();
         ImGui::PopStyleVar();
 
+
         ImGui::Begin("Viewport Info", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
+        ImGui::Separator();
+        ImGui::Text("FPS: %d", Engine::Get()->GetFrameRate());
+        ImGui::Separator();
         ImGui::Text("ReginonMin:     %d, %d", (int)contentMin.x, (int)contentMin.y);
         ImGui::Text("ReginonMax:     %d, %d", (int)contentMax.x, (int)contentMax.y);
         ImGui::Text("viewportOffset: %d, %d", (int)viewportOffset.x, (int)viewportOffset.y);
         ImGui::Text("Hover:          %s",     bHoveredViewport? "true" : "false");
-
         ImGui::End();
 
-        ImGui::Begin("Test", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
-        ImGui::Text("FPS: %d", Engine::Get()->GetFrameRate());
-        ImGui::End();
 
         ImGui::PopStyleVar(2);
     }
@@ -410,7 +479,10 @@ namespace Silex
             return;
 
         api->WaitDevice();
-        api->DestroyTexture(sceneTexture);
+
+        api->DestroyTexture(sceneColorTexture);
+        api->DestroyTexture(sceneDepthTexture);
+        api->DestroyFramebuffer(sceneFramebuffer);
 
         TextureFormat format = {};
         format.format    = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
@@ -423,14 +495,28 @@ namespace Silex
         format.depth     = 1;
         format.mipmap    = 1;
 
-        sceneTexture = api->CreateTexture(format);
+        sceneColorTexture = api->CreateTexture(format);
 
-        api->DestroyFramebuffer(sceneFramebuffer);
-        sceneFramebuffer = api->CreateFramebuffer(scenePass, 1, sceneTexture, width, height);
+        TextureFormat depth = {};
+        depth.format    = RENDERING_FORMAT_D32_SFLOAT_S8_UINT;
+        depth.width     = width;
+        depth.height    = height;
+        depth.type      = TEXTURE_TYPE_2D;
+        depth.usageBits = TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | TEXTURE_USAGE_SAMPLING_BIT;
+        depth.samples   = TEXTURE_SAMPLES_1;
+        depth.array     = 1;
+        depth.depth     = 1;
+        depth.mipmap    = 1;
+
+        sceneDepthTexture = api->CreateTexture(depth);
+
+
+        TextureHandle* textures[] = { sceneColorTexture , sceneDepthTexture };
+        sceneFramebuffer = api->CreateFramebuffer(scenePass, std::size(textures), textures, width, height);
 
 
         DescriptorHandle handles = {};
-        handles.image   = sceneTexture;
+        handles.image   = sceneColorTexture;
         handles.sampler = sceneSampler;
 
         DescriptorInfo info = {};
@@ -458,13 +544,30 @@ namespace Silex
         api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
 
         {
-            api->BeginRenderPass(frame.commandBuffer, scenePass, sceneFramebuffer, COMMAND_BUFFER_TYPE_PRIMARY, 1, &defaultClearColor);
+            defaultClearColor.color          = {0.1f, 0.1f, 0.1f, 1.0f};
+            defaultClearDepthStencil.depth   = 1.0f;
+            defaultClearDepthStencil.stencil = 0;
+
+            RenderPassClearValue clearValue[] = { defaultClearColor, defaultClearDepthStencil };
+            api->BeginRenderPass(frame.commandBuffer, scenePass, sceneFramebuffer, COMMAND_BUFFER_TYPE_PRIMARY, std::size(clearValue), clearValue);
             
             uint64 offset = 0;
             api->BindPipeline(frame.commandBuffer, pipeline);
             api->BindDescriptorSet(frame.commandBuffer, descriptorSet, 0);
-            api->BindVertexBuffers(frame.commandBuffer, 1, &buffer, &offset);
-            api->Draw(frame.commandBuffer, 3, 1, 0, 0);
+
+
+#if 1
+            Buffer* cvb       = sphereMesh->GetMeshSource()->GetVertexBuffer();
+            Buffer* cib       = sphereMesh->GetMeshSource()->GetIndexBuffer();
+            uint32 indexCount = sphereMesh->GetMeshSource()->GetIndexCount();
+            api->BindVertexBuffers(frame.commandBuffer, 1, &cvb, &offset);
+            api->BindIndexBuffer(frame.commandBuffer, cib, INDEX_BUFFER_FORMAT_UINT32, 0);
+            api->DrawIndexed(frame.commandBuffer, indexCount, 1, 0, 0, 0);
+#else
+            api->BindVertexBuffers(frame.commandBuffer, 1, &vb, &offset);
+            api->BindIndexBuffer(frame.commandBuffer, ib, INDEX_BUFFER_FORMAT_UINT32, 0);
+            api->DrawIndexed(frame.commandBuffer, 6, 1, 0, 0, 0);
+#endif
 
             api->EndRenderPass(frame.commandBuffer);
         }
@@ -477,52 +580,129 @@ namespace Silex
             
             api->BindPipeline(frame.commandBuffer, blitPipeline);
             api->BindDescriptorSet(frame.commandBuffer, blitSet, 0);
-            api->Draw(frame.commandBuffer, 3, 1, 0, 0);
+            api->Draw(frame.commandBuffer, 6, 1, 0, 0);
         }
     }
 
-    bool RenderingDevice::Begin()
+
+
+
+    TextureHandle* RenderingDevice::LoadTextureFromFile(const byte* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap)
     {
-        SwapChain* swapchain = Window::Get()->GetSwapChain();
-        FrameData& frame     = frameData[frameIndex];
+        // ステージングバッファ
+        Buffer* staging = api->CreateBuffer(dataSize, BUFFER_USAGE_TRANSFER_SRC_BIT, MEMORY_ALLOCATION_TYPE_CPU);
 
-        bool result = api->WaitFence(frame.fence);
-        SL_CHECK(!result, false);
+        // ステージングにテクスチャデータをコピー
+        void* mappedPtr = api->MapBuffer(staging);
+        std::memcpy(mappedPtr, pixelData, dataSize);
+        api->UnmapBuffer(staging);
 
-        frame.resourceQueue.Execute();
+        // テクスチャ生成
+        TextureHandle* texture = CreateTexture(TEXTURE_TYPE_2D, RENDERING_FORMAT_R8G8B8A8_UNORM, width, height, 1, genMipmap);
 
-        swapchainFramebuffer = api->GetCurrentBackBuffer(swapchain, frame.presentSemaphore);
-        SL_CHECK(!swapchainFramebuffer, false);
+        // データコピー
+        api->ImmidiateCommands(graphicsQueue, frameData[frameIndex].commandBuffer, frameData[frameIndex].fence, [](CommandBuffer* cmd)->bool
+        {
+            
+        });
 
-        result = api->BeginCommandBuffer(frame.commandBuffer);
-        SL_CHECK(!result, false);
-
-        return true;
+        return texture;
     }
 
-    bool RenderingDevice::End()
+    TextureHandle* RenderingDevice::CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap)
     {
-        SwapChain* swapchain = Window::Get()->GetSwapChain();
-        FrameData& frame     = frameData[frameIndex];
-  
-        api->EndRenderPass(frame.commandBuffer);
-        api->EndCommandBuffer(frame.commandBuffer);
-
-        api->SubmitQueue(graphicsQueue, frame.commandBuffer, frame.fence, frame.presentSemaphore, frame.renderSemaphore);
-
-        return true;
+        return CreateTexture(TEXTURE_TYPE_2D, format, width, height, 1, genMipmap);
     }
 
-    bool RenderingDevice::Present()
+    TextureHandle* RenderingDevice::CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap)
     {
-        SwapChain* swapchain = Window::Get()->GetSwapChain();
-        FrameData& frame = frameData[frameIndex];
-
-        api->Present(graphicsQueue, swapchain, frame.renderSemaphore);
-        frameIndex = (frameIndex + 1) % 2;
-
-        return true;
+        return CreateTexture(TEXTURE_TYPE_2D_ARRAY, format, width, height, array, genMipmap);
     }
+
+    TextureHandle* RenderingDevice::CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap)
+    {
+        return CreateTexture(TEXTURE_TYPE_CUBE, format, width, height, 1, genMipmap);
+    }
+
+    TextureHandle* RenderingDevice::CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap)
+    {
+        bool isDepth = RenderingUtility::IsDepthFormat(format);
+        uint32 usage = isDepth? TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : TEXTURE_USAGE_COLOR_ATTACHMENT_BIT;
+
+        TextureFormat texformat = {};
+        texformat.format    = format;
+        texformat.width     = width;
+        texformat.height    = height;
+        texformat.type      = type;
+        texformat.usageBits = usage | TEXTURE_USAGE_SAMPLING_BIT;
+        texformat.samples   = TEXTURE_SAMPLES_1;
+        texformat.array     = array;
+        texformat.depth     = 1;
+        texformat.mipmap    = 1;
+
+        TextureHandle* texture = api->CreateTexture(texformat);
+
+        return texture;
+    }
+
+
+
+    Buffer* RenderingDevice::CreateVertexBuffer(void* data, uint64 dataByte)
+    {
+         Buffer* staging = api->CreateBuffer(dataByte, BUFFER_USAGE_VERTEX_BIT | BUFFER_USAGE_TRANSFER_SRC_BIT, MEMORY_ALLOCATION_TYPE_CPU);
+         
+         byte* mapped = api->MapBuffer(staging);
+         std::memcpy(mapped, data, dataByte);
+         api->UnmapBuffer(staging);
+         
+         Buffer* buffer = api->CreateBuffer(dataByte, BUFFER_USAGE_VERTEX_BIT | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_GPU);
+         
+         api->ImmidiateCommands(graphicsQueue, frameData[frameIndex].commandBuffer, frameData[frameIndex].fence, [&](CommandBuffer* cmd)->bool
+         {
+             BufferCopyRegion region = {};
+             region.size = dataByte;
+         
+             api->CopyBuffer(cmd, staging, buffer, 1, &region);
+         
+             return true;
+         });
+         
+         api->DestroyBuffer(staging);
+
+        return buffer;
+    }
+
+    Buffer* RenderingDevice::CreateIndexBuffer(void* data, uint64 dataByte)
+    {
+        Buffer* staging = api->CreateBuffer(dataByte, BUFFER_USAGE_INDEX_BIT | BUFFER_USAGE_TRANSFER_SRC_BIT, MEMORY_ALLOCATION_TYPE_CPU);
+        
+        byte* mapped = api->MapBuffer(staging);
+        std::memcpy(mapped, data, dataByte);
+        api->UnmapBuffer(staging);
+        
+        Buffer* buffer = api->CreateBuffer(dataByte, BUFFER_USAGE_INDEX_BIT | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_GPU);
+        
+        api->ImmidiateCommands(graphicsQueue, frameData[frameIndex].commandBuffer, frameData[frameIndex].fence, [&](CommandBuffer* cmd)->bool
+        {
+            BufferCopyRegion region = {};
+            region.size = dataByte;
+        
+            api->CopyBuffer(cmd, staging, buffer, 1, &region);
+        
+            return true;
+        });
+        
+        api->DestroyBuffer(staging);
+
+        return buffer;
+    }
+
+    void RenderingDevice::DestroyBuffer(Buffer* buffer)
+    {
+        api->DestroyBuffer(buffer);
+    }
+
+
 
     SwapChain* RenderingDevice::CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode)
     {
@@ -537,6 +717,32 @@ namespace Silex
         api->DestroySwapChain(swapchain);
     }
 
+    bool RenderingDevice::ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode)
+    {
+        bool result = api->ResizeSwapChain(swapchain, width, height, swapchainBufferCount, mode);
+        SL_CHECK(!result, false);
+
+        return false;
+    }
+
+    bool RenderingDevice::Present()
+    {
+        SwapChain* swapchain = Window::Get()->GetSwapChain();
+        FrameData& frame = frameData[frameIndex];
+
+        api->Present(graphicsQueue, swapchain, frame.renderSemaphore);
+        frameIndex = (frameIndex + 1) % 2;
+
+        return true;
+    }
+
+
+
+    const DeviceInfo& RenderingDevice::GetDeviceInfo() const
+    {
+        return context->GetDeviceInfo();
+    }
+
     RenderingContext* RenderingDevice::GetContext() const
     {
         return context;
@@ -545,11 +751,6 @@ namespace Silex
     RenderingAPI* RenderingDevice::GetAPI() const
     {
         return api;
-    }
-
-    CommandQueue* RenderingDevice::GetGraphicsCommandQueue() const
-    {
-        return graphicsQueue;
     }
 
     FrameData& RenderingDevice::GetFrameData()
@@ -561,17 +762,14 @@ namespace Silex
     {
         return frameData[frameIndex];
     }
+    
+    CommandQueue* RenderingDevice::GetGraphicsCommandQueue() const
+    {
+        return graphicsQueue;
+    }
 
     QueueFamily RenderingDevice::GetGraphicsQueueFamily() const
     {
         return graphicsQueueFamily;
-    }
-
-    bool RenderingDevice::ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode)
-    {
-        bool result = api->ResizeSwapChain(swapchain, width, height, swapchainBufferCount, mode);
-        SL_CHECK(!result, false);
-
-        return false;
     }
 }

@@ -4,14 +4,17 @@
 struct FragmentOutput
 {
     vec4 color;
+
+    vec4 pos;
+    vec3 normal;
+    vec2 texcoord;
 };
 
 struct VertexOutput
 {
     vec4 pos;
     vec3 normal;
-    vec2 uv;
-    vec4 color;
+    vec2 texcoord;
 };
 
 layout (location = 0) in  VertexOutput outv;
@@ -33,5 +36,5 @@ void main()
     //if (checker <= 0.0)
         //discard;
 
-    outFragColor = fout.color;
+    outFragColor = vec4(fout.normal, 1.0);
 }
