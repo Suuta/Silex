@@ -137,9 +137,10 @@ project "Silex"
         "/utf-8",  -- 文字列リテラルを utf8 として認識する (ImGuiが utf8 のみ対応しているため)
 
         --=======================================================================================================
-        -- C++20 可変長マクロ __VA_OPT__() を MSVC がデフォルトではサポートしていない
+        -- C++20 可変長マクロ __VA_OPT__() を サポートしていない MSVC バージョンのために
         -- /Zc:preprocessor オプションを有効にすることで回避する
         -- https://stackoverflow.com/questions/68484818/function-like-macros-with-c20-va-opt-error-in-manual-code
+        -- https://learn.microsoft.com/ja-jp/cpp/preprocessor/preprocessor-experimental-overview?view=msvc-170#comma-elision-in-variadic-macros
         -- 
         -- 有効にしないと、展開部分のみならず、プロジェクト全体からエラーが出るので注意
         --=======================================================================================================

@@ -18,7 +18,7 @@ namespace Silex
     //========================================
     RendererPlatform* RendererPlatform::Create()
     {
-        return Memory::Allocate<GLRenderer>();
+        return slnew(GLRenderer);
     }
 
     //========================================
@@ -34,7 +34,7 @@ namespace Silex
     //========================================
     Texture2D* Texture2D::Create(const RHI::TextureDesc& desc)
     {
-        return Memory::Allocate<GLTexture2D>(desc);
+        return slnew(GLTexture2D, desc);
     }
 
     Shared<Texture2D> Texture2D::Create(const RHI::TextureDesc& desc, const std::string& path)
@@ -44,12 +44,12 @@ namespace Silex
 
     Texture2DArray* Texture2DArray::Create(const RHI::TextureDesc& desc, uint32 size)
     {
-        return Memory::Allocate<GLTexture2DArray>(desc, size);
+        return slnew(GLTexture2DArray, desc, size);
     }
 
     TextureCube* TextureCube::Create(const RHI::TextureDesc& desc, const std::string& filePath)
     {
-        return Memory::Allocate<GLTextureCube>(desc, filePath);
+        return slnew(GLTextureCube, desc, filePath);
     }
 
     //========================================
@@ -57,7 +57,7 @@ namespace Silex
     //========================================
     VertexBuffer* VertexBuffer::Create(void* data, uint32 byteSize)
     {
-        return Memory::Allocate<GLVertexBuffer>(data, byteSize);
+        return slnew(GLVertexBuffer, data, byteSize);
     }
 
     //========================================
@@ -65,7 +65,7 @@ namespace Silex
     //========================================
     IndexBuffer* IndexBuffer::Create(void* data, uint32 byteSize)
     {
-        return Memory::Allocate<GLIndexBuffer>(data, byteSize);
+        return slnew(GLIndexBuffer, data, byteSize);
     }
 
     //========================================

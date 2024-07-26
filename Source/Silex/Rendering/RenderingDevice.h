@@ -127,6 +127,7 @@ namespace Silex
         Pipeline*          pipeline      = nullptr;
         ShaderHandle*      shader        = nullptr;
         DescriptorSet*     descriptorSet = nullptr;
+        DescriptorSet*     textureSet    = nullptr;
 
         // Swapchain Blit パス
         RenderPass*        swapchainPass = nullptr;

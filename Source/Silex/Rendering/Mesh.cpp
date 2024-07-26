@@ -109,7 +109,7 @@ namespace Silex
     {
         for (auto source : subMeshes)
         {
-            Memory::Deallocate(source);
+            sldelete(source);
         }
     }
 
@@ -227,7 +227,7 @@ namespace Silex
         //==============================================
         // メッシュソース生成
         //==============================================
-        return Memory::Allocate<MeshSource>(vertices, indices, mesh->mMaterialIndex);
+        return slnew(MeshSource, vertices, indices, mesh->mMaterialIndex);
     }
     
     void Mesh::LoadMaterialTextures(uint32 materialInddex, aiMaterial* material, aiTextureType type)

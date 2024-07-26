@@ -199,7 +199,7 @@ namespace Silex
 
             if (object->GetRefCount() == 0)
             {
-                Memory::Deallocate(object);
+                sldelete(object);
             }
         }
 
@@ -216,7 +216,7 @@ namespace Silex
     template<class T, class... Args>
     static Shared<T> CreateShared(Args&&... args)
     {
-        return Shared<T>(Memory::Allocate<T>(Traits::Forward<Args>(args)...));
+        return Shared<T>(slnew(T, Traits::Forward<Args>(args)...));
     }
 
 

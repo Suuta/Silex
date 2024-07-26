@@ -107,7 +107,7 @@ namespace Silex
         mesh->SetAssetType(AssetType::Mesh);
 #endif
 
-        Mesh* mesh = Memory::Allocate<Mesh>();
+        Mesh* mesh = slnew(Mesh);
         mesh->Load("Assets/Models/Cube.fbx");
 
         return mesh;
@@ -169,8 +169,8 @@ namespace Silex
         // Blender の UV球 は triangle_list で描画できたからこちら側を使用
         // パイプラインの切り替えや、ダイナミックステートの使用を回避できる
         //===========================================================
-        Mesh* mesh = Memory::Allocate<Mesh>();
-        mesh->Load("Assets/Models/Sphere.fbx");
+        Mesh* mesh = slnew(Mesh);
+        mesh->Load("Assets/Models/monkey.fbx");
 
         return mesh;
     }

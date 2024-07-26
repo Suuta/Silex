@@ -49,7 +49,7 @@ namespace Silex
         VkResult result = CreateWin32SurfaceKHR(instance, &createInfo, nullptr, &vkSurface);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanSurface* surface = Memory::Allocate<VulkanSurface>();
+        VulkanSurface* surface = slnew(VulkanSurface);
         surface->surface = vkSurface;
 
         return surface;
@@ -62,7 +62,7 @@ namespace Silex
             VulkanSurface* vkSurface = (VulkanSurface*)surface;
             DestroySurfaceKHR(instance, vkSurface->surface, nullptr);
 
-            Memory::Deallocate(vkSurface);
+            sldelete(vkSurface);
         }
     }
 }

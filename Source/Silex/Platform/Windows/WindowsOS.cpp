@@ -56,19 +56,19 @@ namespace Silex
     // Windows Window
     static Window* CreateWindowsWindow(const char* title, uint32 width, uint32 height)
     {
-        return Memory::Allocate<WindowsWindow>(title, width, height);
+        return slnew(WindowsWindow, title, width, height);
     }
 
     // Windows VulkanContext
     static RenderingContext* CreateVulkanRenderContext(void* platformHandle)
     {
-        return Memory::Allocate<WindowsVulkanContext>(platformHandle);
+        return slnew(WindowsVulkanContext, platformHandle);
     }
 
     // VulkanGUI
     static GUI* CreateVulkanGUI()
     {
-        return Memory::Allocate<VulkanGUI>();
+        return slnew(VulkanGUI);
     }
 
 
@@ -264,7 +264,7 @@ namespace Silex
     }
 
 
-    // SDKで定義されているかどうかを確認（ver 10.0.22000.0 ~)
+    // SDKで定義されているかどうかを確認する（ver 10.0.22000.0 ~)
     SL_DECLARE_ENUMERATOR_TRAITS(DWMWINDOWATTRIBUTE,           DWMWA_WINDOW_CORNER_PREFERENCE);
     SL_DECLARE_ENUMERATOR_TRAITS(DWM_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND);
     SL_DECLARE_ENUMERATOR_TRAITS(DWM_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND);

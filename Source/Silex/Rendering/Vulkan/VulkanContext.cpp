@@ -283,12 +283,12 @@ namespace Silex
 
     RenderingAPI* VulkanContext::CreateRendringAPI()
     {
-        return Memory::Allocate<VulkanAPI>(this);
+        return slnew(VulkanAPI, this);
     }
 
     void VulkanContext::DestroyRendringAPI(RenderingAPI* api)
     {
-        Memory::Deallocate(api);
+        sldelete(api);
     }
 
     const DeviceInfo& VulkanContext::GetDeviceInfo() const

@@ -23,7 +23,7 @@ namespace Silex
 {
     void SceneRenderer::Init()
     {
-        context = Memory::Allocate<SceneRenderingContext>();
+        context = slnew(SceneRenderingContext);
 
         //============================================
         // シェーダー
@@ -215,11 +215,11 @@ namespace Silex
 
         for (int i = 0; i < context->bloomTextures.size(); i++)
         {
-            Memory::Deallocate(context->bloomTextures[i]);
+            sldelete(context->bloomTextures[i]);
         }
 
-        Memory::Deallocate(context->preDownSamplingTexture);
-        Memory::Deallocate(context);
+        sldelete(context->preDownSamplingTexture);
+        sldelete(context);
     }
 
     void SceneRenderer::BeginFrame(Scene* scene, Camera* camera)
@@ -314,14 +314,14 @@ namespace Silex
 
                 for (int i = 0; i < context->bloomResolutions.size(); i++)
                 {
-                    Memory::Deallocate(context->bloomTextures[i]);
+                    sldelete(context->bloomTextures[i]);
 
                     bloomTextureDesc.Width     = context->bloomResolutions[i].x;
                     bloomTextureDesc.Height    = context->bloomResolutions[i].y;
                     context->bloomTextures[i] = Texture2D::Create(bloomTextureDesc);
                 }
 
-                Memory::Deallocate(context->preDownSamplingTexture);
+                sldelete(context->preDownSamplingTexture);
                 bloomTextureDesc.Width  = width;
                 bloomTextureDesc.Height = height;
                 context->preDownSamplingTexture = Texture2D::Create(bloomTextureDesc);

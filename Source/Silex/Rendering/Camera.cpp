@@ -40,10 +40,10 @@ namespace Silex
     {
         float velocity = MovementSpeed * deltaTime;
 
-        if (direction == CameraMovementDir::Forward)  Position += Front * velocity;
-        if (direction == CameraMovementDir::Backward) Position -= Front * velocity;
-        if (direction == CameraMovementDir::Left)     Position -= Right * velocity;
-        if (direction == CameraMovementDir::Right)    Position += Right * velocity;
+        if (direction == CameraMovementDir::Forward)  Position += Front   * velocity;
+        if (direction == CameraMovementDir::Backward) Position -= Front   * velocity;
+        if (direction == CameraMovementDir::Left)     Position -= Right   * velocity;
+        if (direction == CameraMovementDir::Right)    Position += Right   * velocity;
         if (direction == CameraMovementDir::Up)       Position += WorldUp * velocity;
         if (direction == CameraMovementDir::Down)     Position -= WorldUp * velocity;
     }
@@ -73,8 +73,8 @@ namespace Silex
         Up    = glm::normalize(glm::cross(Right, Front));
     }
 
-    void Camera::ProcessMouseScroll(float yoffset)
+    void Camera::ProcessMouseScroll(float offset)
     {
-        Position += Front * yoffset;
+        Position += Front * offset * 1.5f;
     }
 }

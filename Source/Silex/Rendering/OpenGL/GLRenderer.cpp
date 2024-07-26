@@ -95,7 +95,7 @@ namespace Silex
     void GLRenderer::Shutdown()
     {
         SL_LOG_TRACE("GLRenderer::Shutdown");
-        Memory::Deallocate(this);
+        sldelete(this);
     }
 
     void GLRenderer::BeginFrame()

@@ -74,7 +74,7 @@ namespace Silex
     void AssetManager::Init()
     {
         SL_ASSERT(s_Instance == nullptr)
-        s_Instance = Memory::Allocate<AssetManager>();
+        s_Instance = slnew(AssetManager);
 
         // ビルトインデータ(ID: 1 - 5 に割り当て)
         // アセットデータベースには登録されない（メモリオンリーアセット）
@@ -134,7 +134,7 @@ namespace Silex
 
         if (s_Instance)
         {
-            Memory::Deallocate(s_Instance);
+            sldelete(s_Instance);
         }
     }
 

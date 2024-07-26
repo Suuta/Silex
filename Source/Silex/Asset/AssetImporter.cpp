@@ -14,7 +14,7 @@ namespace Silex
     template<>
     Shared<Mesh> AssetImporter::Import<Mesh>(const std::string& filePath)
     {
-        Mesh* m = Memory::Allocate<Mesh>();
+        Mesh* m = slnew(Mesh);
         m->Load(filePath);
 
         m->SetupAssetProperties(filePath, AssetType::Mesh);

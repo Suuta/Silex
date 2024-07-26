@@ -32,7 +32,7 @@ namespace Silex
 
     WindowsWindow::WindowsWindow(const char* title, uint32 width, uint32 height)
     {
-        data = Memory::Allocate<WindowData>();
+        data = slnew(WindowData);
         data->width  = width;
         data->height = height;
         data->title  = title;
@@ -40,7 +40,7 @@ namespace Silex
 
     WindowsWindow::~WindowsWindow()
     {
-        Memory::Deallocate(data);
+        sldelete(data);
         glfwDestroyWindow(window);
     }
 

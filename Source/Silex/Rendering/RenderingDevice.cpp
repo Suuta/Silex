@@ -68,8 +68,8 @@ namespace Silex
         api->DestroyFramebuffer(sceneFramebuffer);
         api->DestroySampler(sceneSampler);
 
-        //Memory::Deallocate(cubeMesh);
-        //Memory::Deallocate(sphereMesh);
+        sldelete(cubeMesh);
+        sldelete(sphereMesh);
 
         for (uint32 i = 0; i < frameData.size(); i++)
         {
@@ -80,7 +80,7 @@ namespace Silex
             api->DestroyFence(frameData[i].fence);
         }
 
-        api->DestroyCommandBuffer(immidiateContext.commandBuffer);
+        //api->DestroyCommandBuffer(immidiateContext.commandBuffer);
         api->DestroyCommandPool(immidiateContext.commandPool);
         api->DestroyFence(immidiateContext.fence);
 
@@ -296,6 +296,8 @@ namespace Silex
             ShaderCompiler::Get()->Compile("Assets/Shaders/Triangle.glsl", compiledData);
             shader   = api->CreateShader(compiledData);
             pipeline = api->CreateGraphicsPipeline(shader, layout, ia, rs, ms, ds, bs, scenePass);
+
+            api->DestroyInputLayout(layout);
         }
 
         {
@@ -343,6 +345,18 @@ namespace Silex
         }
 
         {
+            //DescriptorHandle handles = {};
+            //handles.buffer = image;
+            //
+            //DescriptorInfo info = {};
+            //info.handles.push_back(handles);
+            //info.binding = 0;
+            //info.type    = DESCRIPTOR_TYPE_IMAGE_SAMPLER;
+            //
+            //textureSet = api->CreateDescriptorSet(1, &info, shader, 1);
+        }
+
+        {
             DescriptorHandle handles = {};
             handles.sampler = sceneSampler;
             handles.image   = sceneColorTexture;
@@ -355,8 +369,8 @@ namespace Silex
             blitSet = api->CreateDescriptorSet(1, &info, blitShader, 0);
         }
 
-        //cubeMesh   = MeshFactory::Cube();
-        //sphereMesh = MeshFactory::Sphere();
+        cubeMesh   = MeshFactory::Cube();
+        sphereMesh = MeshFactory::Sphere();
     }
 
     void RenderingDevice::DOCK_SPACE(Camera* camera)
@@ -571,8 +585,7 @@ namespace Silex
             api->BindPipeline(frame.commandBuffer, pipeline);
             api->BindDescriptorSet(frame.commandBuffer, descriptorSet, 0);
 
-
-#if 0
+#if 1
             Buffer* cvb       = sphereMesh->GetMeshSource()->GetVertexBuffer();
             Buffer* cib       = sphereMesh->GetMeshSource()->GetIndexBuffer();
             uint32 indexCount = sphereMesh->GetMeshSource()->GetIndexCount();

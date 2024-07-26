@@ -291,7 +291,7 @@ namespace Silex
         VkQueue vkQueue = nullptr;
         vkGetDeviceQueue(device, family, indexInFamily, &vkQueue);
 
-        VulkanCommandQueue* queue = Memory::Allocate<VulkanCommandQueue>();
+        VulkanCommandQueue* queue = slnew(VulkanCommandQueue);
         queue->family = family;
         queue->index  = indexInFamily;
         queue->queue  = vkQueue;
@@ -307,7 +307,7 @@ namespace Silex
             //...
 
             VulkanCommandQueue* vkqueue = (VulkanCommandQueue*)queue;
-            Memory::Deallocate(vkqueue);
+            sldelete(vkqueue);
         }
     }
 
@@ -382,7 +382,7 @@ namespace Silex
         VkResult result = vkCreateCommandPool(device, &commandPoolInfo, nullptr, &vkCommandPool);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanCommandPool* commandPool = Memory::Allocate<VulkanCommandPool>();
+        VulkanCommandPool* commandPool = slnew(VulkanCommandPool);
         commandPool->commandPool = vkCommandPool;
         commandPool->type        = type;
 
@@ -396,7 +396,7 @@ namespace Silex
             VulkanCommandPool* vkpool = (VulkanCommandPool*)pool;
             vkDestroyCommandPool(device, vkpool->commandPool, nullptr);
 
-            Memory::Deallocate(vkpool);
+            sldelete(vkpool);
         }
     }
 
@@ -417,7 +417,7 @@ namespace Silex
         VkResult result = vkAllocateCommandBuffers(device, &createInfo, &vkcommandbuffer);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanCommandBuffer* cmdBuffer = Memory::Allocate<VulkanCommandBuffer>();
+        VulkanCommandBuffer* cmdBuffer = slnew(VulkanCommandBuffer);
         cmdBuffer->commandBuffer = vkcommandbuffer;
 
         return cmdBuffer;
@@ -431,7 +431,7 @@ namespace Silex
             //...
 
             VulkanCommandBuffer* vkcommandBuffer = (VulkanCommandBuffer*)commandBuffer;
-            Memory::Deallocate(vkcommandBuffer);
+            sldelete(vkcommandBuffer);
         }
     }
 
@@ -480,7 +480,7 @@ namespace Silex
         VkResult result = vkCreateSemaphore(device, &createInfo, nullptr, &vkSemaphore);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanSemaphore* semaphore = Memory::Allocate<VulkanSemaphore>();
+        VulkanSemaphore* semaphore = slnew(VulkanSemaphore);
         semaphore->semaphore = vkSemaphore;
 
         return semaphore;
@@ -493,7 +493,7 @@ namespace Silex
             VulkanSemaphore* vkSemaphore = (VulkanSemaphore*)semaphore;
             vkDestroySemaphore(device, vkSemaphore->semaphore, nullptr);
 
-            Memory::Deallocate(vkSemaphore);
+            sldelete(vkSemaphore);
         }
     }
 
@@ -511,7 +511,7 @@ namespace Silex
         VkResult result = vkCreateFence(device, &createInfo, nullptr, &vkfence);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanFence* fence = Memory::Allocate<VulkanFence>();
+        VulkanFence* fence = slnew(VulkanFence);
         fence->fence = vkfence;
 
         return fence;
@@ -524,7 +524,7 @@ namespace Silex
             VulkanFence* vkfence = (VulkanFence*)fence;
             vkDestroyFence(device, vkfence->fence, nullptr);
 
-            Memory::Deallocate(vkfence);
+            sldelete(vkfence);
         }
     }
 
@@ -638,10 +638,10 @@ namespace Silex
         result = vkCreateRenderPass(device, &passInfo, nullptr, &vkRenderPass);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanRenderPass* renderpass = Memory::Allocate<VulkanRenderPass>();
+        VulkanRenderPass* renderpass = slnew(VulkanRenderPass);
         renderpass->renderpass = vkRenderPass;
 
-        VulkanSwapChain* vkSwapchain = Memory::Allocate<VulkanSwapChain>();
+        VulkanSwapChain* vkSwapchain = slnew(VulkanSwapChain);
         vkSwapchain->surface    = ((VulkanSurface*)surface);
         vkSwapchain->format     = format;
         vkSwapchain->colorspace = colorspace;
@@ -801,7 +801,7 @@ namespace Silex
             result = vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &framebuffer);
             SL_CHECK_VKRESULT(result, nullptr);
 
-            VulkanFramebuffer* vkFramebuffer = Memory::Allocate<VulkanFramebuffer>();
+            VulkanFramebuffer* vkFramebuffer = slnew(VulkanFramebuffer);
             vkFramebuffer->framebuffer = framebuffer;
             vkFramebuffer->rect        = { 0, 0, extent.width, extent.height };
 
@@ -1009,7 +1009,7 @@ namespace Silex
             result = vkCreateFramebuffer(device, &framebufferCreateInfo, nullptr, &framebuffer);
             SL_CHECK_VKRESULT(result, false);
 
-            VulkanFramebuffer* vkFramebuffer = Memory::Allocate<VulkanFramebuffer>();
+            VulkanFramebuffer* vkFramebuffer = slnew(VulkanFramebuffer);
             vkFramebuffer->framebuffer = framebuffer;
             vkFramebuffer->rect        = { 0, 0, extent.width, extent.height };
 
@@ -1079,7 +1079,7 @@ namespace Silex
                 VulkanFramebuffer* vkfb = (VulkanFramebuffer*)vkSwapchain->framebuffers[i];
                 vkDestroyFramebuffer(device, vkfb->framebuffer, nullptr);
 
-                Memory::Deallocate(vkfb);
+                sldelete(vkfb);
             }
 
             // イメージビュー破棄
@@ -1097,7 +1097,8 @@ namespace Silex
             //レンダーパス破棄
             vkDestroyRenderPass(device, vkSwapchain->renderpass->renderpass, nullptr);
 
-            Memory::Deallocate(vkSwapchain);
+            sldelete(vkSwapchain->renderpass);
+            sldelete(vkSwapchain);
         }
     }
 
@@ -1148,7 +1149,7 @@ namespace Silex
         VkResult result = vmaCreateBuffer(allocator, &createInfo, &allocationCreateInfo, &vkbuffer, &allocation, &allocationInfo);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanBuffer* buffer = Memory::Allocate<VulkanBuffer>();
+        VulkanBuffer* buffer = slnew(VulkanBuffer);
         buffer->allocationHandle = allocation;
         buffer->allocationSize   = allocationInfo.size;
         buffer->size             = size;
@@ -1169,7 +1170,7 @@ namespace Silex
             }
 
             vmaDestroyBuffer(allocator, vkbuffer->buffer, vkbuffer->allocationHandle);
-            Memory::Deallocate(vkbuffer);
+            sldelete(vkbuffer);
         }
     }
 
@@ -1256,7 +1257,7 @@ namespace Silex
             return nullptr;
         }
 
-        VulkanTexture* texture = Memory::Allocate<VulkanTexture>();
+        VulkanTexture* texture = slnew(VulkanTexture);
         texture->allocationHandle = allocation;
         texture->allocationInfo   = allocationInfo;
         texture->image            = vkimage;
@@ -1276,7 +1277,7 @@ namespace Silex
             vkDestroyImageView(device, vktexture->imageView, nullptr);
             vmaDestroyImage(allocator, vktexture->image, vktexture->allocationHandle);
 
-            Memory::Deallocate(vktexture);
+            sldelete(vktexture);
         }
     }
 
@@ -1310,7 +1311,7 @@ namespace Silex
         VkResult result = vkCreateSampler(device, &createInfo, nullptr, &vksampler);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanSampler* sampler = Memory::Allocate<VulkanSampler>();
+        VulkanSampler* sampler = slnew(VulkanSampler);
         sampler->sampler = vksampler;
 
         return sampler;
@@ -1323,7 +1324,7 @@ namespace Silex
             VulkanSampler* vksampler = (VulkanSampler * )sampler;
             vkDestroySampler(device, vksampler->sampler, nullptr);
 
-            Memory::Deallocate(vksampler);
+            sldelete(vksampler);
         }
     }
 
@@ -1353,7 +1354,7 @@ namespace Silex
         VkResult result = vkCreateFramebuffer(device, &createInfo, nullptr, &vkfb);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanFramebuffer* framebuffer = Memory::Allocate<VulkanFramebuffer>();
+        VulkanFramebuffer* framebuffer = slnew(VulkanFramebuffer);
         framebuffer->framebuffer = vkfb;
         framebuffer->rect.x      = 0;
         framebuffer->rect.y      = 0;
@@ -1370,7 +1371,7 @@ namespace Silex
             VulkanFramebuffer* vkfb = (VulkanFramebuffer*)framebuffer;
             vkDestroyFramebuffer(device, vkfb->framebuffer, nullptr);
 
-            Memory::Deallocate(vkfb);
+            sldelete(vkfb);
         }
     }
 
@@ -1379,7 +1380,7 @@ namespace Silex
     //==================================================================================
     InputLayout* VulkanAPI::CreateInputLayout(uint32 numBindings, InputBinding* bindings)
     {
-        VulkanInputLayout* vklayout = Memory::Allocate<VulkanInputLayout>();
+        VulkanInputLayout* vklayout = slnew(VulkanInputLayout);
 
         uint32 attribeIndex = 0;
         uint32 attribeSize  = 0;
@@ -1431,7 +1432,7 @@ namespace Silex
             vklayout->attributes.clear();
             vklayout->createInfo = {};
 
-            Memory::Deallocate(vklayout);
+            sldelete(vklayout);
         }
     }
 
@@ -1540,7 +1541,7 @@ namespace Silex
         VkResult result = vkCreateRenderPass(device, &createInfo, nullptr, &vkRenderPass);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanRenderPass* renderpass = Memory::Allocate<VulkanRenderPass>();
+        VulkanRenderPass* renderpass = slnew(VulkanRenderPass);
         renderpass->renderpass = vkRenderPass;
 
         return renderpass;
@@ -1553,7 +1554,7 @@ namespace Silex
             VulkanRenderPass* vkRenderpass = (VulkanRenderPass*)renderpass;
             vkDestroyRenderPass(device, vkRenderpass->renderpass, nullptr);
 
-            Memory::Deallocate(vkRenderpass);
+            sldelete(vkRenderpass);
         }
     }
 
@@ -2121,7 +2122,7 @@ namespace Silex
         }
 
         // Vulkanデータ生成
-        VulkanShader* vkshader = Memory::Allocate<VulkanShader>();
+        VulkanShader* vkshader = slnew(VulkanShader);
         vkshader->descriptorsetLayouts = layouts;
         vkshader->stageFlags           = stageFlags;
         vkshader->pipelineLayout       = vkpipelineLayout;
@@ -2148,7 +2149,7 @@ namespace Silex
                 vkDestroyShaderModule(device, vkshader->stageCreateInfos[i].module, nullptr);
             }
 
-            Memory::Deallocate(vkshader);
+            sldelete(vkshader);
         }
     }
 
@@ -2354,7 +2355,7 @@ namespace Silex
             vkUpdateDescriptorSets(device, numdescriptors, writes.data(), 0, nullptr);
         }
 
-        VulkanDescriptorSet* descriptorset = Memory::Allocate<VulkanDescriptorSet>();
+        VulkanDescriptorSet* descriptorset = slnew(VulkanDescriptorSet);
         descriptorset->descriptorPool = vkPool;
         descriptorset->descriptorSet  = vkdescriptorset;
         descriptorset->pipelineLayout = vkShader->pipelineLayout;
@@ -2374,7 +2375,7 @@ namespace Silex
             // 同一キーのデスクリプタプールの参照カウントを減らす(参照カウントが0ならデスクリプタプールを破棄)
             _DecrementPoolRefCount(vkdescriptorset->descriptorPool, vkdescriptorset->poolKey);
 
-            Memory::Deallocate(vkdescriptorset);
+            sldelete(vkdescriptorset);
         }
     }
 
@@ -2727,7 +2728,7 @@ namespace Silex
         VkResult result = vkCreateGraphicsPipelines(device, nullptr, 1, &pipelineCreateInfo, nullptr, &vkpipeline);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanPipeline* pipeline = Memory::Allocate<VulkanPipeline>();
+        VulkanPipeline* pipeline = slnew(VulkanPipeline);
         pipeline->pipeline = vkpipeline;
 
         return pipeline;
@@ -2747,7 +2748,7 @@ namespace Silex
         VkResult result = vkCreateComputePipelines(device, nullptr, 1, &pipelineCreateInfo, nullptr, &vkpipeline);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        VulkanPipeline* pipeline = Memory::Allocate<VulkanPipeline>();
+        VulkanPipeline* pipeline = slnew(VulkanPipeline);
         pipeline->pipeline = vkpipeline;
 
         return pipeline;
@@ -2760,7 +2761,7 @@ namespace Silex
             VulkanPipeline* vkpipeline = (VulkanPipeline*)pipeline;
             vkDestroyPipeline(device, vkpipeline->pipeline, nullptr);
 
-            Memory::Deallocate(vkpipeline);
+            sldelete(vkpipeline);
         }
     }
 }

@@ -30,7 +30,7 @@ namespace Silex
         SL_LOG_INFO("***** Launch Engine *****");
 
         // エンジン初期化
-        engine = Memory::Allocate<Engine>();
+        engine = slnew(Engine);
         if (!engine->Initialize())
         {
             return false;
@@ -47,7 +47,7 @@ namespace Silex
         if (engine)
         {
             engine->Finalize();
-            Memory::Deallocate(engine);
+            sldelete(engine);
         }
 
         SL_LOG_INFO("***** Shutdown Engine *****");
@@ -85,7 +85,7 @@ namespace Silex
         SL_CHECK(!result, false);
 
         // レンダリングデバイス生成 (描画APIを抽象化)
-        renderingDevice = Memory::Allocate<RenderingDevice>();
+        renderingDevice = slnew(RenderingDevice);
         result = renderingDevice->Initialize(renderingContext);
         SL_CHECK(!result, false);
 
@@ -110,7 +110,7 @@ namespace Silex
         imgui->Init(renderingContext);
 
         // エディター
-        editor = Memory::Allocate<Editor>();
+        editor = slnew(Editor);
         editor->Init();
 
         // ウィンドウ表示
@@ -125,10 +125,10 @@ namespace Silex
     void Engine::Finalize()
     {
         editor->Shutdown();
-        Memory::Deallocate(editor);
+        sldelete(editor);
 
         // ImGui 破棄
-        Memory::Deallocate(imgui);
+        sldelete(imgui);
 
         //AssetManager::Get()->Shutdown();
         //Renderer::Get()->Shutdown();
@@ -137,13 +137,13 @@ namespace Silex
         mainWindow->CleanupWindowContext(renderingContext);
 
         // レンダリングデバイス破棄
-        Memory::Deallocate(renderingDevice);
+        sldelete(renderingDevice);
 
         // レンダリングコンテキスト破棄
-        Memory::Deallocate(renderingContext);
+        sldelete(renderingContext);
 
         // ウィンドウ破棄
-        Memory::Deallocate(mainWindow);
+        sldelete(mainWindow);
     }
 
     bool Engine::MainLoop()

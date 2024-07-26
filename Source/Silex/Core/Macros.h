@@ -2,14 +2,17 @@
 #pragma once
 
 // デバッグ
-#define SL_ENABLE_TRACK_HEAP_ALLOCATION 0
-#define SL_ENABLE_ASSERTS               1
+#define SL_ENABLE_ALLOCATION_TRACKER 0
+#define SL_ENABLE_ASSERTS            1
 
 // レンダリング
-#define SL_PLATFORM_OPENGL              0
-#define SL_PLATFORM_VULKAN              1
-#define SL_VULKNA_INVERT_Y_AXIS         1
+#define SL_PLATFORM_OPENGL           0
+#define SL_PLATFORM_VULKAN           1
+#define SL_VULKNA_INVERT_Y_AXIS      1
 
+// glm
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_RIGHT_HANDED
 
 
 // 結合マクロ
@@ -71,8 +74,8 @@
 #define SL_MESSAGE_ALERT(...) Silex::OS::Get()->Message(OS_MESSEGA_TYPE_ALERT, std::format(__VA_ARGS__))
 
 // エラー
-#define SL_LOG_LOCATION()            SL_LOG_ERROR("{}, {}, {}",            SL_FUNCNAME, __FILE__, __LINE__);
-#define SL_LOG_LOCATION_ERROR(error) SL_LOG_ERROR("{}: {}, {}, {}", error, SL_FUNCNAME, __FILE__, __LINE__);
+#define SL_LOG_LOCATION()            SL_LOG_ERROR("{}, {}, {}",            SL_FUNCNAME, __FILE__, __LINE__)
+#define SL_LOG_LOCATION_ERROR(error) SL_LOG_ERROR("{}: {}, {}, {}", error, SL_FUNCNAME, __FILE__, __LINE__)
 
 // エラーチェック
 #define SL_CHECK(expr, retval) if (expr) { SL_LOG_LOCATION(); return retval; }
@@ -142,6 +145,14 @@ inline void* operator new  (size_t, void* where, SLEmpty) noexcept { return wher
 inline void* operator new[](size_t, void* where, SLEmpty) noexcept { return where; }
 inline void  operator delete  (void*, void*, SLEmpty) noexcept { return; }
 inline void  operator delete[](void*, void*, SLEmpty) noexcept { return; }
+#else
+    #if SL_ENABLE_ALLOCATION_TRACKER
+        #define slnew(T, ...) Memory::Allocate<T>(#T, __FILE__, __LINE__ __VA_OPT__(,) __VA_ARGS__)
+        #define sldelete(ptr) Memory::Deallocate(ptr)
+    #else
+        #define slnew(T, ...) Memory::Allocate<T>(__VA_ARGS__)
+        #define sldelete(ptr) Memory::Deallocate(ptr)
+    #endif
 #endif
 
 

@@ -171,11 +171,9 @@ namespace Silex
 
     private:
 
-        // デスクリプターセットシグネチャから同一シグネチャのデスクリプタプールを検索、なければ新規生成
+        // デスクリプタプールから、特定の組み合わせのデスクリプタのキーを検索、なければ新規生成
         VkDescriptorPool _FindOrCreateDescriptorPool(const DescriptorSetPoolKey& key);
-
-        // デスクリプタプールの参照カウントを減らす（0なら破棄）
-        void _DecrementPoolRefCount(VkDescriptorPool pool, DescriptorSetPoolKey& poolKey);
+        void             _DecrementPoolRefCount(VkDescriptorPool pool, DescriptorSetPoolKey& poolKey);
 
         // 指定されたサンプル数が、利用可能なサンプル数かどうかチェックする
         VkSampleCountFlagBits _CheckSupportedSampleCounts(TextureSamples samples);
@@ -198,7 +196,7 @@ namespace Silex
         // 論理デバイス
         VkDevice device = nullptr;
 
-        // VMAアロケータ (VulkanMemoryAllocator: VkImage/VkBuffer の生成にともなうメモリ管理を代行)
+        // VMAアロケータ (VulkanMemoryAllocator: VkImage/VkBuffer に関るメモリ管理を代行)
         VmaAllocator allocator = nullptr;
     };
 }

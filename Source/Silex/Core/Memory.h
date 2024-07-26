@@ -50,32 +50,9 @@ public:
 namespace Silex
 {
     //===============================================================
-    // プールロケータ
+    // デバッグメモリトラッカー
     //===============================================================
-    class PoolAllocator
-    {
-    public:
-
-        static void Initialize();
-        static void Finalize();
-
-        static void* Allocate(uint64 sizeByte);
-        static void  Deallocate(void* pointer);
-
-        static const std::array<MemoryPoolStatus, 6>& GetStatus()
-        {
-            return pool.GetStatus();
-        }
-
-    private:
-
-        static inline MemoryPool pool;
-    };
-
-
-    //===============================================================
-    // デバッグ用メモリトラッカー
-    //===============================================================
+#if 0
     class MemoryTracker
     {
     public:
@@ -110,8 +87,56 @@ namespace Silex
             uint64            totalAllocationSize;
         };
 
-
         static inline AllocationMap* allocationData = nullptr;
+    };
+#endif
+
+    class MemoryTracker
+    {
+    public:
+
+        static void RecordAllocate(void* ptr, uint64 size, const char* desc, const char* file, uint64 line);
+        static void RecordDeallocate(void* ptr);
+        static void DumpMemoryStats();
+
+    private:
+
+        // メモリデータ
+        struct AllocationElement
+        {
+            uint64      size = {};
+            const char* desc = {};
+            const char* file = {};
+            uint64      line = {};
+        };
+
+        static inline std::unordered_map<void*, AllocationElement> allocationMap;
+    };
+
+
+
+
+    //===============================================================
+    // プールロケータ
+    //===============================================================
+    class PoolAllocator
+    {
+    public:
+
+        static void Initialize();
+        static void Finalize();
+
+        static void* Allocate(uint64 sizeByte);
+        static void  Deallocate(void* pointer);
+
+        static const std::array<MemoryPoolStatus, 6>& GetStatus()
+        {
+            return pool.GetStatus();
+        }
+
+    private:
+
+        static inline MemoryPool pool;
     };
 
 
@@ -121,19 +146,16 @@ namespace Silex
 
         static void Initialize()
         {
-            MemoryTracker::Initialize();
             PoolAllocator::Initialize();
         }
 
         static void Finalize()
         {
+            MemoryTracker::DumpMemoryStats();
             PoolAllocator::Finalize();
-            MemoryTracker::Finalize();
         }
 
-        //=======================================
         // コンストラクタ / デストラクタ 呼び出し
-        //=======================================
         template<typename T, typename ... Args>
         static T* Construct(void* ptr, Args&& ... args)
         {
@@ -146,28 +168,27 @@ namespace Silex
             std::destroy_at(ptr);
         }
 
-        //=======================================
         // ヒープ確保
-        //=======================================
-        SL_FORCEINLINE static void* Malloc(uint64 size)
+        static void* Malloc(uint64 size)
         {
             return std::malloc(size);
         }
 
-        SL_FORCEINLINE static void Free(void* ptr)
+        static void Free(void* ptr)
         {
             std::free(ptr);
         }
 
-        //=======================================
         // プールから確保
-        //=======================================
+#if SL_ENABLE_ALLOCATION_TRACKER
         template<typename T, typename... Args>
-        static T* Allocate(Args&& ... args)
+        static T* Allocate(const char* desc, const char* file, uint64 line, Args&& ... args)
         {
             static_assert(sizeof(T) <= 1024);
 
             void* ptr = PoolAllocator::Allocate(sizeof(T));
+            MemoryTracker::RecordAllocate(ptr, sizeof(T), desc, file, line);
+
             return Memory::Construct<T>(ptr, Traits::Forward<Args>(args)...);
         }
 
@@ -175,8 +196,27 @@ namespace Silex
         static void Deallocate(T* ptr)
         {
             Memory::Destruct(ptr);
+            MemoryTracker::RecordDeallocate((void*)ptr);
+
             PoolAllocator::Deallocate((void*)ptr);
         }
+#else
+        template<typename T, typename... Args>
+        static T* Allocate(Args&& ... args)
+        {
+            static_assert(sizeof(T) <= 1024);
+
+            void* ptr = PoolAllocator::Allocate(sizeof(T));
+            return Memory::Construct<T>(ptr, Traits::Forward<Args>(args)...);
+    }
+
+        template<typename T>
+        static void Deallocate(T* ptr)
+        {
+            Memory::Destruct(ptr);
+            PoolAllocator::Deallocate((void*)ptr);
+        }
+#endif
     };
 
 

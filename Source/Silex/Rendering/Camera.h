@@ -39,7 +39,7 @@ namespace Silex
 
         void Move(CameraMovementDir direction, float deltaTime);
         void ProcessMouseMovement(float xoffset, float yoffset);
-        void ProcessMouseScroll(float yoffset);
+        void ProcessMouseScroll(float offset);
 
     private:
 

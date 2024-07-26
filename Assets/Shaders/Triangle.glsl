@@ -26,7 +26,6 @@
 
     FragmentOutput Fragment(VertexOutput vout)
     {
-
         vec3 n = (vout.normal * 0.5) + vec3(0.5);
 
         FragmentOutput fout;

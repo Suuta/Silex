@@ -32,9 +32,35 @@ namespace Silex
         pool.Deallocate(pointer);
     }
 
+    const uint64 t = 10 * 1024 * 1024;
+
+    void MemoryTracker::RecordAllocate(void* ptr, uint64 size, const char* desc, const char* file, uint64 line)
+    {
+        allocationMap[ptr] = {size, desc, file, line};
+    }
+
+    void MemoryTracker::RecordDeallocate(void* ptr)
+    {
+        allocationMap.erase(ptr);
+    }
+
+    void MemoryTracker::DumpMemoryStats()
+    {
+#if SL_ENABLE_ALLOCATION_TRACKER
+        SL_LOG_WARN("*************************************************************************************************************");
+        SL_LOG_WARN(" Memory In Use:");
+        SL_LOG_WARN("*************************************************************************************************************");
+        for (auto& [ptr, info] : allocationMap)
+        {
+            SL_LOG_WARN(" {:>4} byte | {:<16} | {} [{}]", info.size, info.desc, info.file, info.line);
+        }
+        SL_LOG_WARN("*************************************************************************************************************");
+#endif
+    }
 
 
 
+#if 0
     void MemoryTracker::Initialize()
     {
         if (s_Initialized)
@@ -98,7 +124,6 @@ namespace Silex
 
     void MemoryTracker::DumpMemoryStats()
     {
-#if SL_ENABLE_TRACK_HEAP_ALLOCATION
         SL_LOG_DEBUG("***************************************************************************************************");
         SL_LOG_DEBUG("MemoryUsage: {} byte", s_AllocationData->TotalAllocationSize);
 
@@ -110,6 +135,6 @@ namespace Silex
             SL_LOG_DEBUG(" {:>8} byte | {:<16} | {} [{}]", info.size, info.desc, info.file, info.line);
         }
         SL_LOG_DEBUG("***************************************************************************************************");
-#endif
     }
+#endif
 }
