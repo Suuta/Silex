@@ -35,10 +35,10 @@ namespace Silex
     {
         // テクスチャファイル読み込み
         TextureReader reader;
-        byte* pixels  = reader.Read(filePath.c_str());
-        uint32 width     = reader.Data.Width;
-        uint32 height    = reader.Data.Height;
-        uint32 component = reader.Data.Channels;
+        byte* pixels     = reader.Read8bit(filePath.c_str());
+        uint32 width     = reader.data.width;
+        uint32 height    = reader.data.height;
+        uint32 component = reader.data.channels;
 
         GLenum format         = 0;
         GLenum internalFormat = 0;

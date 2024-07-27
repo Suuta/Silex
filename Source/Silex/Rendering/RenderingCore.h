@@ -2,6 +2,7 @@
 #pragma once
 #include "Core/Core.h"
 #include <d3d12.h>
+#include <dxgi.h>
 
 
 namespace Silex
@@ -9,7 +10,8 @@ namespace Silex
     //================================================
     // 定数
     //================================================
-    enum : int32 { INVALID_RENDER_ID = 0x7FFFFFFF };
+    enum : int32  { RENDER_INVALID_ID = 0x7FFFFFFF }; // INT_MAX
+    enum : uint32 { RENDER_AUTO_ID    = 0xFFFFFFFF }; // UINT32_MAX
 
     //================================================
     // ハンドル
@@ -56,7 +58,7 @@ namespace Silex
     {
         uint32 width  = 0;
         uint32 height = 0;
-        uint32 depth  = 0;
+        uint32 depth  = 1;
     };
 
     //================================================
@@ -429,14 +431,14 @@ namespace Silex
         TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL,
         TEXTURE_LAYOUT_PREINITIALIZED,
 
-        TEXTURE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL = 1000117000,
-        TEXTURE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL = 1000117001,
-        TEXTURE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL                   = 1000241000,
-        TEXTURE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL                    = 1000241001,
-        TEXTURE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL                 = 1000241002,
-        TEXTURE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL                  = 1000241003,
-        TEXTURE_LAYOUT_READ_ONLY_OPTIMAL                          = 1000314000,
-        TEXTURE_LAYOUT_ATTACHMENT_OPTIMAL                         = 1000314001,
+        //TEXTURE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL = 1000117000,
+        //TEXTURE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL = 1000117001,
+        //TEXTURE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL                   = 1000241000,
+        //TEXTURE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL                    = 1000241001,
+        //TEXTURE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL                 = 1000241002,
+        //TEXTURE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL                  = 1000241003,
+        //TEXTURE_LAYOUT_READ_ONLY_OPTIMAL                          = 1000314000,
+        //TEXTURE_LAYOUT_ATTACHMENT_OPTIMAL                         = 1000314001,
         TEXTURE_LAYOUT_PRESENT_SRC                                = 1000001002,
     };
 
@@ -476,22 +478,45 @@ namespace Silex
         TextureUsageFlags usageBits = 0;
     };
 
+
+
+    // コピー・Blit 系のサブリソース指定
     struct TextureSubresource
     {
-        TextureAspectBits aspect     = TEXTURE_ASPECT_COLOR_BIT;
-        uint32            mipLevel   = 0;
-        uint32            baseLayer  = 0;
-        uint32            layerCount = 1;
+        TextureAspectFlags aspect     = TEXTURE_ASPECT_COLOR_BIT;
+        uint32             mipLevel   = 0;
+        uint32             baseLayer  = 0;
+
+        // 必ず対象イメージのレイヤー数を指定する必要がある（maintenance5 を有効にした場合を除いて）
+        // 残念ながら、VK_REMAINING_ARRAY_LAYERS(UINT32_MAX)は指定できない
+        // 
+        // VkPhysicalDeviceMaintenance5FeaturesKHR
+        // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkPhysicalDeviceMaintenance5FeaturesKHR.html
+        uint32 layerCount = 1;
     };
 
+    //===========================================================================
+    // ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ ↑ 
+    //---------------------------------------------------------------------------
+    // TODO: 類似構造体の削除
+    //---------------------------------------------------------------------------
+    // ミップレベルが複数かどうかの違いしかないが、VulkanAPI で区別されているので現状は分けておく
+    // 分かり辛いのでこの構造体は統合する予定、Vulkan にはこのような類似した構造体が存在するので
+    // 可能な限り修正したい...
+    //---------------------------------------------------------------------------
+    // ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ 
+    //===========================================================================
+
+    // テクスチャバリアのサブリソース範囲指定
     struct TextureSubresourceRange
     {
-        TextureAspectBits aspect        = TEXTURE_ASPECT_COLOR_BIT;
-        uint32            baseMipLevel  = 0;
-        uint32            mipLevelCount = UINT32_MAX; // 
-        uint32            baseLayer     = 0;
-        uint32            layerCount    = UINT32_MAX; // 
+        TextureAspectFlags aspect        = TEXTURE_ASPECT_COLOR_BIT;
+        uint32             baseMipLevel  = 0;
+        uint32             mipLevelCount = UINT32_MAX; // 
+        uint32             baseLayer     = 0;
+        uint32             layerCount    = UINT32_MAX; // 
     };
+
 
     //================================================
     // サンプラー
@@ -595,24 +620,24 @@ namespace Silex
 
     struct MemoryBarrierInfo
     {
-        BarrierAccessBits srcAccess;
-        BarrierAccessBits dstAccess;
+        BarrierAccessFlags srcAccess;
+        BarrierAccessFlags dstAccess;
     };
 
     struct BufferBarrierInfo
     {
-        Buffer*           buffer;
-        BarrierAccessBits srcAccess;
-        BarrierAccessBits dstAccess;
-        uint64            offset;
-        uint64            size;
+        Buffer*            buffer;
+        BarrierAccessFlags srcAccess;
+        BarrierAccessFlags dstAccess;
+        uint64             offset;
+        uint64             size;
     };
 
     struct TextureBarrierInfo
     {
         TextureHandle*          texture;
-        BarrierAccessBits       srcAccess;
-        BarrierAccessBits       dstAccess;
+        BarrierAccessFlags      srcAccess;
+        BarrierAccessFlags      dstAccess;
         TextureLayout           oldLayout = TEXTURE_LAYOUT_UNDEFINED;
         TextureLayout           newLayout = TEXTURE_LAYOUT_UNDEFINED;
         TextureSubresourceRange subresources;
@@ -652,7 +677,7 @@ namespace Silex
 
     struct AttachmentReference
     {
-        uint32        attachment = INVALID_RENDER_ID;
+        uint32        attachment = RENDER_INVALID_ID;
         TextureLayout layout     = TEXTURE_LAYOUT_UNDEFINED;
     };
 
@@ -759,8 +784,9 @@ namespace Silex
         SHADER_STAGE_FRAGMENT_BIT               = SL_BIT(4),
         SHADER_STAGE_COMPUTE_BIT                = SL_BIT(5),
 
-        SHADER_STAGE_ALL                        = 0x7FFFFFFF,
+        SHADER_STAGE_ALL                        = RENDER_INVALID_ID,
     };
+    using ShaderStageFlags = int32;
 
     //================================================
     // パイプライン
@@ -1039,5 +1065,13 @@ namespace Silex
         TextureSubresource textureSubresources;
         Extent             textureOffset;
         Extent             textureRegionSize;
+    };
+
+    struct TextureBlitRegion
+    {
+        TextureSubresource srcSubresources;
+        Extent             srcOffset[2];
+        TextureSubresource dstSubresources;
+        Extent             dstOffset[2];
     };
 }

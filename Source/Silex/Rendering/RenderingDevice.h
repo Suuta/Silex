@@ -77,7 +77,7 @@ namespace Silex
         const DeviceInfo& GetDeviceInfo() const;
 
         // テクスチャ
-        TextureHandle* LoadTextureFromFile(const byte* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
+        TextureHandle* CreateTextureFromMemory(const byte* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
 
         // レンダーテクスチャ
         TextureHandle* CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap);
@@ -97,8 +97,8 @@ namespace Silex
     
     private:
 
-        void           GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height);
-        TextureHandle* CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 array, uint32 depth, bool genMipmap, TextureUsageFlags additionalFlags);
+        void           _GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, TextureAspectFlags aspect);
+        TextureHandle* _CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 array, uint32 depth, bool genMipmap, TextureUsageFlags additionalFlags);
 
     public:
 
@@ -129,6 +129,10 @@ namespace Silex
         DescriptorSet*     descriptorSet = nullptr;
         DescriptorSet*     textureSet    = nullptr;
 
+        // テスクチャファイル
+        TextureHandle* textureFile = nullptr;
+
+
         // Swapchain Blit パス
         RenderPass*        swapchainPass = nullptr;
         Pipeline*          blitPipeline  = nullptr;
@@ -151,7 +155,7 @@ namespace Silex
         RenderingContext* context = nullptr;
         RenderingAPI*     api     = nullptr;
 
-        QueueFamily   graphicsQueueFamily = INVALID_RENDER_ID;
+        QueueFamily   graphicsQueueFamily = RENDER_INVALID_ID;
         CommandQueue* graphicsQueue       = nullptr;
 
         RenderPassClearValue defaultClearColor        = {};

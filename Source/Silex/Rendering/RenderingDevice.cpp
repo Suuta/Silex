@@ -12,6 +12,7 @@
 #include "Rendering/Mesh.h"
 #include "Rendering/Vulkan/VulkanStructures.h"
 #include "Rendering/MeshFactory.h"
+#include "Asset/TextureReader.h"
 
 #include <imgui/imgui_internal.h>
 #include <imgui/imgui.h>
@@ -58,10 +59,12 @@ namespace Silex
         api->DestroyBuffer(ib);
         api->DestroyTexture(sceneColorTexture);
         api->DestroyTexture(sceneDepthTexture);
+        api->DestroyTexture(textureFile);
         api->DestroyShader(shader);
         api->DestroyShader(blitShader);
         api->DestroyDescriptorSet(blitSet);
         api->DestroyDescriptorSet(descriptorSet);
+        api->DestroyDescriptorSet(textureSet);
         api->DestroyPipeline(pipeline);
         api->DestroyPipeline(blitPipeline);
         api->DestroyRenderPass(scenePass);
@@ -100,7 +103,7 @@ namespace Silex
        
         // グラフィックスをサポートするキューファミリを取得
         graphicsQueueFamily = api->QueryQueueFamily(QUEUE_FAMILY_GRAPHICS_BIT, Window::Get()->GetSurface());
-        SL_CHECK(graphicsQueueFamily == INVALID_RENDER_ID, false);
+        SL_CHECK(graphicsQueueFamily == RENDER_INVALID_ID, false);
 
         // コマンドキュー生成
         graphicsQueue = api->CreateCommandQueue(graphicsQueueFamily);
@@ -345,15 +348,24 @@ namespace Silex
         }
 
         {
-            //DescriptorHandle handles = {};
-            //handles.buffer = image;
-            //
-            //DescriptorInfo info = {};
-            //info.handles.push_back(handles);
-            //info.binding = 0;
-            //info.type    = DESCRIPTOR_TYPE_IMAGE_SAMPLER;
-            //
-            //textureSet = api->CreateDescriptorSet(1, &info, shader, 1);
+            TextureReader reader;
+            byte* pixels    = reader.Read8bit("Assets/Textures/checkerboard.png");
+            int32 width     = reader.data.width;
+            int32 height    = reader.data.height;
+            uint64 dataSize = width * height * reader.data.channels * sizeof(byte);
+
+            textureFile = CreateTextureFromMemory(pixels, dataSize, width, height, false);
+
+            DescriptorHandle handles = {};
+            handles.sampler = sceneSampler;
+            handles.image   = textureFile;
+            
+            DescriptorInfo info = {};
+            info.handles.push_back(handles);
+            info.binding = 0;
+            info.type    = DESCRIPTOR_TYPE_IMAGE_SAMPLER;
+            
+            textureSet = api->CreateDescriptorSet(1, &info, shader, 1);
         }
 
         {
@@ -584,6 +596,7 @@ namespace Silex
             uint64 offset = 0;
             api->BindPipeline(frame.commandBuffer, pipeline);
             api->BindDescriptorSet(frame.commandBuffer, descriptorSet, 0);
+            api->BindDescriptorSet(frame.commandBuffer, textureSet, 1);
 
 #if 1
             Buffer* cvb       = sphereMesh->GetMeshSource()->GetVertexBuffer();
@@ -616,7 +629,7 @@ namespace Silex
 
 
 
-    TextureHandle* RenderingDevice::LoadTextureFromFile(const byte* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap)
+    TextureHandle* RenderingDevice::CreateTextureFromMemory(const byte* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap)
     {
         // ステージングバッファ
         Buffer* staging = api->CreateBuffer(dataSize, BUFFER_USAGE_TRANSFER_SRC_BIT, MEMORY_ALLOCATION_TYPE_CPU);
@@ -628,7 +641,7 @@ namespace Silex
 
         // テクスチャ生成
         TextureUsageFlags flags = TEXTURE_USAGE_COPY_SRC_BIT | TEXTURE_USAGE_COPY_DST_BIT;
-        TextureHandle* texture = CreateTexture(TEXTURE_TYPE_2D, RENDERING_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, genMipmap, flags);
+        TextureHandle* texture = _CreateTexture(TEXTURE_TYPE_2D, RENDERING_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, genMipmap, flags);
 
         // データコピー
         api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
@@ -637,37 +650,41 @@ namespace Silex
             range.aspect = TEXTURE_ASPECT_COLOR_BIT;
 
             TextureBarrierInfo info = {};
-            info.texture = texture;
+            info.texture      = texture;
             info.subresources = range;
-            info.srcAccess = BARRIER_ACCESS_MEMORY_WRITE_BIT;
-            info.dstAccess = BARRIER_ACCESS_MEMORY_WRITE_BIT;
-            info.oldLayout = TEXTURE_LAYOUT_UNDEFINED;
-            info.newLayout = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.oldLayout    = TEXTURE_LAYOUT_UNDEFINED;
+            info.newLayout    = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
 
             api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
 
             TextureSubresource subresource = {};
-            subresource.aspect = TEXTURE_ASPECT_COLOR_BIT;
-            subresource.mipLevel = 0;
-            subresource.baseLayer = 0;
-            subresource.layerCount = 1;
+            subresource.aspect     = TEXTURE_ASPECT_COLOR_BIT;
 
             BufferTextureCopyRegion region = {};
-            region.bufferOffset = 0;
-            region.textureOffset = { 0, 0, 0 };
-            region.textureRegionSize = { 0, 0, 0 };
+            region.bufferOffset        = 0;
+            region.textureOffset       = { 0, 0, 0 };
+            region.textureRegionSize   = { width, height, 1 };
             region.textureSubresources = subresource;
 
             api->CopyBufferToTexture(cmd, staging, texture, TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
             if (genMipmap)
             {
-                GenerateMipmaps(cmd, texture, width, height);
+                // ミップマップ生成
+                _GenerateMipmaps(cmd, texture, width, height, TEXTURE_ASPECT_COLOR_BIT);
+
+                // シェーダーリードに移行 (ミップマップ生成時のコピーでコピーソースに移行するため、コピーソース -> シェーダーリード)
+                info.oldLayout = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+                info.newLayout = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
             }
             else
             {
+                // シェーダーリードに移行 (バッファからの転送でレイアウト変更がないため、コピー先 -> シェーダーリード)
                 info.oldLayout = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
-                info.newLayout = TEXTURE_LAYOUT_READ_ONLY_OPTIMAL;
+                info.newLayout = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                 api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
             }
         });
@@ -678,30 +695,88 @@ namespace Silex
 
     TextureHandle* RenderingDevice::CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap)
     {
-        return CreateTexture(TEXTURE_TYPE_2D, format, width, height, 1, 1, genMipmap, 0);
+        return _CreateTexture(TEXTURE_TYPE_2D, format, width, height, 1, 1, genMipmap, 0);
     }
 
     TextureHandle* RenderingDevice::CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap)
     {
-        return CreateTexture(TEXTURE_TYPE_2D_ARRAY, format, width, height, array, 1, genMipmap, 0);
+        return _CreateTexture(TEXTURE_TYPE_2D_ARRAY, format, width, height, array, 1, genMipmap, 0);
     }
 
     TextureHandle* RenderingDevice::CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap)
     {
-        return CreateTexture(TEXTURE_TYPE_CUBE, format, width, height, 1, 1, genMipmap, 0);
+        return _CreateTexture(TEXTURE_TYPE_CUBE, format, width, height, 1, 1, genMipmap, 0);
     }
 
-    void RenderingDevice::GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height)
+    void RenderingDevice::_GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, TextureAspectFlags aspect)
     {
         auto mipmaps = RenderingUtility::CalculateMipmap(width, height);
 
-        for (uint32 i = 0; i < mipmaps.size(); i++)
+        // コピー回数は (ミップ数 - 1)
+        for (uint32 mipLevel = 0; mipLevel < mipmaps.size() - 1; mipLevel++)
         {
+            // バリア
+            TextureSubresourceRange range = {};
+            range.aspect        = aspect;
+            range.baseMipLevel  = mipLevel;
+            range.mipLevelCount = 1;
 
+            TextureBarrierInfo info = {};
+            info.texture      = texture;
+            info.subresources = range;
+            info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT | BARRIER_ACCESS_MEMORY_READ_BIT;
+            info.oldLayout    = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            info.newLayout    = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+            api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+
+            // Blit
+            Extent srcoffset = mipmaps[mipLevel + 0];
+            Extent dstoffset = mipmaps[mipLevel + 1];
+
+            TextureBlitRegion region = {};
+            region.srcOffset[0] = { 0, 0, 1 };
+            region.srcOffset[1] = srcoffset;
+            region.dstOffset[0] = { 0, 0, 1 };
+            region.dstOffset[1] = dstoffset;
+
+            region.srcSubresources.aspect     = aspect;
+            region.srcSubresources.mipLevel   = mipLevel;
+            region.srcSubresources.baseLayer  = 0;
+            region.srcSubresources.layerCount = UINT32_MAX;
+
+            region.dstSubresources.aspect     = aspect;
+            region.dstSubresources.mipLevel   = mipLevel + 1;
+            region.dstSubresources.baseLayer  = 0;
+            region.dstSubresources.layerCount = UINT32_MAX;
+
+            api->BlitTexture(cmd, texture, TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL, texture, TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, &region, SAMPLER_FILTER_LINEAR);
         }
+
+        //------------------------------------------------------------------------
+        // 最後のミップレベルはコピー先としか利用せず、コピーソースレイアウトに移行していない
+        // 後で実行されるレイアウト移行時に、ミップレベル間でレイアウトの不一致があると不便なので
+        // 最後のミップレベルのレイアウトも [コピー先 → コピーソース] に移行させておく
+        //------------------------------------------------------------------------
+        // バリア
+        TextureSubresourceRange range = {};
+        range.aspect        = TEXTURE_ASPECT_COLOR_BIT;
+        range.baseMipLevel  = mipmaps.size();
+        range.mipLevelCount = 1;
+
+        TextureBarrierInfo info = {};
+        info.texture      = texture;
+        info.subresources = range;
+        info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+        info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT | BARRIER_ACCESS_MEMORY_READ_BIT;
+        info.oldLayout    = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        info.newLayout    = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+        api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
     }
 
-    TextureHandle* RenderingDevice::CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 array, uint32 depth, bool genMipmap, TextureUsageFlags additionalFlags)
+    TextureHandle* RenderingDevice::_CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 array, uint32 depth, bool genMipmap, TextureUsageFlags additionalFlags)
     {
         uint32 usage = RenderingUtility::IsDepthFormat(format)? TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : TEXTURE_USAGE_COLOR_ATTACHMENT_BIT;
         auto mipmaps = RenderingUtility::CalculateMipmap(width, height);

@@ -16,13 +16,13 @@ namespace Silex
         {
             uint32 id;
             TextureReader reader;
-            byte* pixels = reader.Read(filePath.c_str(), true);
+            byte* pixels = reader.Read8bit(filePath.c_str(), true);
 
             if (pixels)
             {
                 glGenTextures(1, &id);
                 glBindTexture(GL_TEXTURE_2D, id);
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, reader.Data.Width, reader.Data.Height, 0, GL_RGB, GL_FLOAT, pixels);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, reader.data.width, reader.data.height, 0, GL_RGB, GL_FLOAT, pixels);
 
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
                 glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

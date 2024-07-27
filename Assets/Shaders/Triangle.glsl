@@ -27,10 +27,12 @@
     FragmentOutput Fragment(VertexOutput vout)
     {
         vec3 n = (vout.normal * 0.5) + vec3(0.5);
+        vec4 c = texture(mainTexture, vout.texcoord);
 
         FragmentOutput fout;
         fout.texcoord = vout.texcoord;
         fout.normal   = n;
+        fout.color    = c;
 
         return fout;
     }

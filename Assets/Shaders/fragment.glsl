@@ -4,7 +4,6 @@
 struct FragmentOutput
 {
     vec4 color;
-
     vec4 pos;
     vec3 normal;
     vec2 texcoord;
@@ -38,5 +37,8 @@ void main()
     //if (checker <= 0.0)
         //discard;
 
-    outFragColor = vec4(fout.normal, 1.0);
+    if (fout.color.a <= 0.001)
+        discard;
+
+    outFragColor = fout.color;
 }

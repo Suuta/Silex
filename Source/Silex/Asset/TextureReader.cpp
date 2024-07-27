@@ -8,46 +8,47 @@
 
 namespace Silex
 {
-    TextureReader::~TextureReader()
+    static void* _Read(const char* path, bool hdr, bool flipOnRead, TextureReader* reader)
     {
-        Unload(Data.Pixels);
-    }
+        bool isHDR = stbi_is_hdr(path);
+        if (isHDR != hdr)
+        {
+            SL_LOG_ERROR("{} は破損しているか、期待しているファイル形式ではありません", path);
+            return nullptr;
+        }
 
-    byte* TextureReader::Read(const char* path, bool flipOnRead)
-    {
         stbi_set_flip_vertically_on_load(flipOnRead);
 
-        int32 width, height, channels;
-        byte* pixels = nullptr;
+        reader->data.pixels = isHDR?
+            (void*)stbi_loadf(path, &reader->data.width, &reader->data.height, &reader->data.channels, 4):
+            (void*)stbi_load(path,  &reader->data.width, &reader->data.height, &reader->data.channels, 4);
 
-        //----------------------------------------------------------------------
-        // NOTE: hdr形式の stbi_loadf() が float* を返すが、uint8* にキャストしている
-        // 動作はしているが、おそらく正しい値になっていないので注意
-        //----------------------------------------------------------------------
-        if (stbi_is_hdr(path))
+        if (!reader->data.pixels)
         {
-            pixels     = reinterpret_cast<byte*>(stbi_loadf(path, &width, &height, &channels, 0));
-            Data.IsHDR = true;
-        }
-        else
-        {
-            pixels     = stbi_load(path, &width, &height, &channels, 0);
-            Data.IsHDR = false;
+            SL_LOG_ERROR("{} が見つからなかったか、データが破損しています", path);
         }
 
-        if (pixels)
-        {
-            Data.Channels = channels;
-            Data.Width    = width;
-            Data.Height   = height;
-            Data.Pixels   = pixels;
-        }
-        else
-        {
-            SL_LOG_ERROR("{} が見つかりません", path);
-        }
+        return reader->data.pixels;
+    }
 
-        return pixels;
+
+    TextureReader::TextureReader()
+    {
+    }
+
+    TextureReader::~TextureReader()
+    {
+        Unload(data.pixels);
+    }
+
+    byte* TextureReader::Read8bit(const char* path, bool flipOnRead)
+    {
+        return (byte*)_Read(path, false, flipOnRead, this);
+    }
+
+    float* TextureReader::ReadHDR(const char* path, bool flipOnRead)
+    {
+        return (float*)_Read(path, true, flipOnRead, this);
     }
 
     void TextureReader::Unload(void* data)

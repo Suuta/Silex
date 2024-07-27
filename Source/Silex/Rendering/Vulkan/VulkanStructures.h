@@ -22,8 +22,8 @@ namespace Silex
     struct VulkanCommandQueue : public CommandQueue
     {
         VkQueue queue  = nullptr;
-        uint32  family = INVALID_RENDER_ID;
-        uint32  index  = INVALID_RENDER_ID;
+        uint32  family = RENDER_INVALID_ID;
+        uint32  index  = RENDER_INVALID_ID;
     };
 
     // コマンドプール
@@ -87,22 +87,22 @@ namespace Silex
     // バッファ
     struct VulkanBuffer : public Buffer
     {
-        VkBuffer      buffer = nullptr;
-        VkBufferView  view = nullptr;
-        uint64        size = 0;
+        VkBuffer      buffer           = nullptr;
+        VkBufferView  view             = nullptr;
+        uint64        size             = 0;
         VmaAllocation allocationHandle = nullptr;
-        uint64        allocationSize = 0;
+        uint64        allocationSize   = 0;
     };
 
     // テクスチャ
     struct VulkanTexture : public TextureHandle
     {
-        VkImage     image = nullptr;
+        VkImage     image     = nullptr;
         VkImageView imageView = nullptr;
-        VkExtent3D  extent = {};
+        VkExtent3D  extent    = {};
 
         VmaAllocation     allocationHandle = nullptr;
-        VmaAllocationInfo allocationInfo = {};
+        VmaAllocationInfo allocationInfo   = {};
     };
 
     // サンプラー

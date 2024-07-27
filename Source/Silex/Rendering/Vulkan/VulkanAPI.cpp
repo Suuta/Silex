@@ -313,7 +313,7 @@ namespace Silex
 
     QueueFamily VulkanAPI::QueryQueueFamily(QueueFamilyFlags queueFlag, Surface* surface) const
     {
-        QueueFamily familyIndex = INVALID_RENDER_ID;
+        QueueFamily familyIndex = RENDER_INVALID_ID;
 
         const auto& queueFamilyProperties = context->GetQueueFamilyProperties();
         for (uint32 i = 0; i < queueFamilyProperties.size(); i++)
@@ -1482,7 +1482,7 @@ namespace Silex
 
             // マルチサンプル解決アタッチメント参照
             VkAttachmentReference* resolveAttachmentRef = nullptr;
-            if (subpasses[i].resolveReferences.attachment != INVALID_RENDER_ID)
+            if (subpasses[i].resolveReferences.attachment != RENDER_INVALID_ID)
             {
                 resolveAttachmentRef = SL_STACK(VkAttachmentReference, 1);
 
@@ -1493,7 +1493,7 @@ namespace Silex
 
             // 深度ステンシルアタッチメント参照
             VkAttachmentReference* depthstencilAttachmentRef = nullptr;
-            if (subpasses[i].depthstencilReference.attachment != INVALID_RENDER_ID)
+            if (subpasses[i].depthstencilReference.attachment != RENDER_INVALID_ID)
             {
                 depthstencilAttachmentRef = SL_STACK(VkAttachmentReference, 1);
 
@@ -1711,6 +1711,14 @@ namespace Silex
 
     void VulkanAPI::CopyBufferToTexture(CommandBuffer* commandbuffer, Buffer* srcBuffer, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, BufferTextureCopyRegion* regions)
     {
+        //[ERROR] Validation Error: [ VUID-VkImageSubresourceLayers-layerCount-09243 ] 
+        // Object 0: handle = 0x1a5e4aa82c0, type = VK_OBJECT_TYPE_COMMAND_BUFFER; | MessageID = 0xd8445716 | vkCmdCopyBufferToImage():
+        // pRegions[0].imageSubresource.layerCount is VK_REMAINING_ARRAY_LAYERS. The Vulkan spec states:
+        // If the maintenance5 feature is not enabled, layerCount must not be VK_REMAINING_ARRAY_LAYERS
+
+        // imageSubresource.layerCount に VK_REMAINING_ARRAY_LAYERS() を指定できないようです（maintenance5 を有効にする必要がある）
+        // 必ずレイヤー数を指定しないといけないっぽい
+
         VkBufferImageCopy* copyRegion = SL_STACK(VkBufferImageCopy, numRegion);
         for (uint32 i = 0; i < numRegion; i++)
         {
@@ -1759,6 +1767,41 @@ namespace Silex
 
         VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
         vkCmdCopyImageToBuffer(cmd->commandBuffer, src->image, (VkImageLayout)srcTextureLayout, dst->buffer, numRegion, copyRegion);
+    }
+
+    void VulkanAPI::BlitTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureBlitRegion* regions, SamplerFilter filter)
+    {
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanTexture* srctex    = (VulkanTexture*)srcTexture;
+        VulkanTexture* dsttex    = (VulkanTexture*)dstTexture;
+
+        VkImageBlit* blitRegions = SL_STACK(VkImageBlit, numRegion);
+        for (uint32 i = 0; i < numRegion; i++)
+        {
+            blitRegions[i].srcOffsets[0].x               = regions[i].srcOffset[0].width;
+            blitRegions[i].srcOffsets[0].y               = regions[i].srcOffset[0].height;
+            blitRegions[i].srcOffsets[0].z               = regions[i].srcOffset[0].depth;
+            blitRegions[i].srcOffsets[1].x               = regions[i].srcOffset[1].width;
+            blitRegions[i].srcOffsets[1].y               = regions[i].srcOffset[1].height;
+            blitRegions[i].srcOffsets[1].z               = regions[i].srcOffset[1].depth;
+            blitRegions[i].srcSubresource.aspectMask     = regions[i].srcSubresources.aspect;
+            blitRegions[i].srcSubresource.mipLevel       = regions[i].srcSubresources.mipLevel;
+            blitRegions[i].srcSubresource.baseArrayLayer = regions[i].srcSubresources.baseLayer;
+            blitRegions[i].srcSubresource.layerCount     = regions[i].srcSubresources.layerCount;
+
+            blitRegions[i].dstOffsets[0].x               = regions[i].dstOffset[0].width;
+            blitRegions[i].dstOffsets[0].y               = regions[i].dstOffset[0].height;
+            blitRegions[i].dstOffsets[0].z               = regions[i].dstOffset[0].depth;
+            blitRegions[i].dstOffsets[1].x               = regions[i].dstOffset[1].width;
+            blitRegions[i].dstOffsets[1].y               = regions[i].dstOffset[1].height;
+            blitRegions[i].dstOffsets[1].z               = regions[i].dstOffset[1].depth;
+            blitRegions[i].dstSubresource.aspectMask     = regions[i].dstSubresources.aspect;
+            blitRegions[i].dstSubresource.mipLevel       = regions[i].dstSubresources.mipLevel;
+            blitRegions[i].dstSubresource.baseArrayLayer = regions[i].dstSubresources.baseLayer;
+            blitRegions[i].dstSubresource.layerCount     = regions[i].dstSubresources.layerCount;
+        }
+
+        vkCmdBlitImage(cmd->commandBuffer, srctex->image, (VkImageLayout)srcTextureLayout, dsttex->image, (VkImageLayout)srcTextureLayout, numRegion, blitRegions, (VkFilter)filter);
     }
 
     void VulkanAPI::PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData)
