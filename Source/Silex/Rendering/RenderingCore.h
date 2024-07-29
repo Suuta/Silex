@@ -478,8 +478,6 @@ namespace Silex
         TextureUsageFlags usageBits = 0;
     };
 
-
-
     // コピー・Blit 系のサブリソース指定
     struct TextureSubresource
     {
@@ -487,10 +485,8 @@ namespace Silex
         uint32             mipLevel   = 0;
         uint32             baseLayer  = 0;
 
-        // 必ず対象イメージのレイヤー数を指定する必要がある（maintenance5 を有効にした場合を除いて）
-        // 残念ながら、VK_REMAINING_ARRAY_LAYERS(UINT32_MAX)は指定できない
-        // 
-        // VkPhysicalDeviceMaintenance5FeaturesKHR
+        // 残念ながら VK_REMAINING_ARRAY_LAYERS (UINT32_MAX)は指定できず、必ず対象イメージのレイヤー数を指定する必要がある
+        // VK_REMAINING_ARRAY_LAYERS を指定するには maintenance5 拡張を有効にする必要がある
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkPhysicalDeviceMaintenance5FeaturesKHR.html
         uint32 layerCount = 1;
     };

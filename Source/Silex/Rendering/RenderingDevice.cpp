@@ -500,7 +500,6 @@ namespace Silex
         ImGui::End();
         ImGui::PopStyleVar();
 
-
         ImGui::Begin("Viewport Info", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
         ImGui::Separator();
         ImGui::Text("FPS: %d", Engine::Get()->GetFrameRate());
@@ -510,7 +509,6 @@ namespace Silex
         ImGui::Text("viewportOffset: %d, %d", (int)viewportOffset.x, (int)viewportOffset.y);
         ImGui::Text("Hover:          %s",     bHoveredViewport? "true" : "false");
         ImGui::End();
-
 
         ImGui::PopStyleVar(2);
     }

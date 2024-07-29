@@ -1,37 +1,37 @@
 
 #include "PCH.h"
 #include "Rendering/ShaderCompiler.h"
-#include <regex>
 
 //==========================================================================
 // NOTE:
 // glslang + spirv_tool のコンパイルでは、静的ライブラリが複雑 + サイズが大きすぎる
 // 特に "SPIRV-Tools-optd.lib" が 300MB あり、100MB制限で github にアップできない
-// 共有ライブラリでビルドできる shaderc に移行
+// 共有ライブラリでビルドした shaderc に移行
 //==========================================================================
 #define SHADERC 1
 #if !SHADERC
     #include <glslang/Public/ResourceLimits.h>
     #include <glslang/SPIRV/GlslangToSpv.h>
     #include <glslang/Public/ShaderLang.h>
+#else
+    #include <shaderc/shaderc.hpp>
 #endif
 
-#include <shaderc/shaderc.hpp>
 #include <spirv_cross/spirv_glsl.hpp>
+
 
 
 namespace Silex
 {
-    static bool ReadFile(std::string& out_result, const std::string& filepath)
+    static bool ReadString(std::string& output, const std::string& filepath)
     {
         std::ifstream in(filepath, std::ios::in | std::ios::binary);
-
         if (in)
         {
             in.seekg(0, std::ios::end);
-            out_result.resize(in.tellg());
+            output.resize(in.tellg());
             in.seekg(0, std::ios::beg);
-            in.read(&out_result[0], out_result.size());
+            in.read(&output[0], output.size());
         }
         else
         {
@@ -42,6 +42,59 @@ namespace Silex
         in.close();
         return true;
     }
+
+    static bool ReadSpvBinary(std::vector<uint32>& output, const std::string& filepath)
+    {
+        FILE* f = std::fopen(filepath.c_str(), "rb");
+        if (f)
+        {
+            std::fseek(f, 0, SEEK_END);
+            uint64 size = std::ftell(f);
+            std::fseek(f, 0, SEEK_SET);
+
+            output = std::vector<uint32>(size / sizeof(uint32));
+            std::fread(output.data(), sizeof(uint32), output.size(), f);
+        }
+        else
+        {
+            SL_LOG_ERROR("ファイルの読み込みに失敗しました: {}", filepath.c_str());
+            return false;
+        }
+
+        std::fclose(f);
+        return true;
+    }
+
+    static bool WriteSpvBinary(const std::vector<uint32>& writeData, const std::string& filepath)
+    {
+        FILE* f = std::fopen(filepath.c_str(), "wb");
+        if (f)
+        {
+            std::fwrite(writeData.data(), sizeof(uint32), writeData.size(), f);
+        }
+        else
+        {
+            SL_LOG_ERROR("ファイルの読み込みに失敗しました: {}", filepath.c_str());
+            return false;
+        }
+
+        std::fclose(f);
+        return true;
+    }
+
+    static bool IsFileCachedRecently(const std::filesystem::path& file, const std::filesystem::path& cacheFile)
+    {
+        auto fts = std::filesystem::last_write_time(file);
+        auto cts = std::filesystem::last_write_time(cacheFile);
+
+        auto fsec = std::chrono::duration_cast<std::chrono::seconds>(fts.time_since_epoch());
+        auto csec = std::chrono::duration_cast<std::chrono::seconds>(cts.time_since_epoch());
+
+        // コンパイルに成功した場合にキャッシュが更新されるので、キャッシュのタイムスタンプが最近であれば
+        // 最新のコンパイル済みキャッシュと判断できる
+        return csec > fsec;
+    }
+
 
     class ShaderIncluder : public shaderc::CompileOptions::IncluderInterface
     {
@@ -57,7 +110,7 @@ namespace Silex
             std::replace(includePath.begin(), includePath.end(), '\\', '/');
 
             std::string content;
-            bool res = ReadFile(content, includePath);
+            bool res = ReadString(content, includePath);
 
             shaderc_include_result* result = new shaderc_include_result;
             result->source_name        = _strdup(includePath.c_str());
@@ -82,6 +135,25 @@ namespace Silex
     };
 
 
+    static const char* ToEntryPoint(ShaderStage stage)
+    {
+        //========================================================================
+        // shaderc における GLSLコンパイラでは、エントリーポイントは "main" であると想定され
+        // エントリーポイント指定は HLSL 専用の機能になっている
+        //========================================================================
+        switch (stage)
+        {
+            case Silex::SHADER_STAGE_VERTEX_BIT:                 return "vsmain";
+            case Silex::SHADER_STAGE_TESSELATION_CONTROL_BIT:    return "tcsmain"; // hull
+            case Silex::SHADER_STAGE_TESSELATION_EVALUATION_BIT: return "tesmain"; // domain
+            case Silex::SHADER_STAGE_GEOMETRY_BIT:               return "gsmain";
+            case Silex::SHADER_STAGE_FRAGMENT_BIT:               return "fsmain";
+            case Silex::SHADER_STAGE_COMPUTE_BIT:                return "csmain";
+        }
+
+        return "";
+    }
+
     static ShaderStage ToShaderStage(const std::string& type)
     {
         if (type == "VERTEX")   return SHADER_STAGE_VERTEX_BIT;
@@ -100,6 +172,16 @@ namespace Silex
         if (stage & SHADER_STAGE_COMPUTE_BIT)  return "COMPUTE";
 
         return "SHADER_STAGE_ALL";
+    }
+
+    static const char* ToExtention(const ShaderStage stage)
+    {
+        if (stage & SHADER_STAGE_VERTEX_BIT)   return ".vs";
+        if (stage & SHADER_STAGE_FRAGMENT_BIT) return ".fs";
+        if (stage & SHADER_STAGE_GEOMETRY_BIT) return ".gs";
+        if (stage & SHADER_STAGE_COMPUTE_BIT)  return ".cs";
+
+        return ".undefine";
     }
 
     static ShaderDataType ToShaderDataType(const spirv_cross::SPIRType& type)
@@ -156,12 +238,16 @@ namespace Silex
     }
 #endif
 
+    using setindex = uint32;
+    using binding  = uint32;
 
     // ステージ間共有バッファ保存用変数  ※リフレクション時のバッファ複数回定義を防ぐ
-    // map<descriptorset_index, map<bind_index, buffer>>
-    static std::unordered_map<uint32, std::unordered_map<uint32, ShaderBuffer>> ExistUniformBuffers;
-    static std::unordered_map<uint32, std::unordered_map<uint32, ShaderBuffer>> ExistStorageBuffers;
-    static ShaderReflectionData                                                 ReflectionData;
+    static std::unordered_map<setindex, std::unordered_map<binding, ShaderBuffer>> ExistUniformBuffers;
+    static std::unordered_map<setindex, std::unordered_map<binding, ShaderBuffer>> ExistStorageBuffers;
+    static ShaderReflectionData                                                    ReflectionData;
+
+    static const char* ShaderCacheDirectory = "Assets/Shaders/Cache/";
+
 
     ShaderCompiler* ShaderCompiler::Get()
     {
@@ -174,7 +260,7 @@ namespace Silex
         
         // ファイル読み込み
         std::string rawSource;
-        result = ReadFile(rawSource, filePath);
+        result = ReadString(rawSource, filePath);
         SL_CHECK(!result, false);
 
         // コンパイル前処理として、ステージごとに分割する
@@ -189,12 +275,26 @@ namespace Silex
         std::unordered_map<ShaderStage, std::vector<uint32>> spirvBinaries;
         for (const auto& [stage, source] : parsedRawSources)
         {
-            std::string error = _CompileStage(stage, source, spirvBinaries[stage], filePath);
-            if (!error.empty())
+            std::filesystem::path file = filePath;
+            std::string cachepath = ShaderCacheDirectory + file.stem().string() + ToExtention(stage) + ".bin";
+
+            // キャッシュファイルが存在し、タイムスタンプが最新であれば使用する
+            if (std::filesystem::exists(cachepath) && IsFileCachedRecently(file, cachepath))
             {
-                SL_LOG_ERROR("ShaderCompile: {}", error.c_str());
-                return false;
+                ReadSpvBinary(spirvBinaries[stage], cachepath);
             }
+            else
+            {
+                std::string error = _CompileStage(stage, source, spirvBinaries[stage], filePath);
+                if (!error.empty())
+                {
+                    SL_LOG_ERROR("ShaderCompile: {}", error.c_str());
+                    return false;
+                }
+            }
+
+            // バイナリファイル書き込み（キャッシュ）
+            WriteSpvBinary(spirvBinaries[stage], cachepath);
         }
 
         // ステージごとにリフレクション
@@ -216,39 +316,6 @@ namespace Silex
         ReflectionData.resources.clear();
 
         return true;
-    }
-
-#if 0
-
-    // #include + ".glsl" を含むコードを探し出す
-    static std::vector<std::string> _FindIncludeDirective(const std::string& shaderCode)
-    {
-        std::vector<std::string> includes;
-        std::regex includePattern(R"(#include\s*"[^"]+\.glsl"\s*)");
-        std::smatch matches;
-
-        std::string::const_iterator searchStart(shaderCode.cbegin());
-        while (std::regex_search(searchStart, shaderCode.cend(), matches, includePattern))
-        {
-            includes.push_back(matches[0]);
-            searchStart = matches.suffix().first;
-        }
-
-        return includes;
-    }
-#endif
-
-    static void _TrimBraces(std::string& str)
-    {
-        size_t startPos = str.find('{');
-
-        if (startPos != std::string::npos)
-            str.erase(startPos, 1);
-
-        size_t endPos = str.rfind('}');
-
-        if (endPos != std::string::npos)
-            str.erase(endPos, 1);
     }
 
     std::unordered_map<ShaderStage, std::string> ShaderCompiler::_SplitStages(const std::string& source)
@@ -275,10 +342,18 @@ namespace Silex
             pos = source.find("#pragma", nextLinePos);
             
             // #pragma XXXX を取り除いたソースを追加
-            shaderSources[ToShaderStage(type)] = source.substr(nextLinePos, pos - (nextLinePos == std::string::npos ? source.size() - 1 : nextLinePos));
+            shaderSources[ToShaderStage(type)] = source.substr(nextLinePos, pos - (nextLinePos == std::string::npos? source.size() - 1 : nextLinePos));
             
             // ステージ間の '{' '}' を取り除く
-            _TrimBraces(shaderSources[ToShaderStage(type)]);
+            size_t startPos = shaderSources[ToShaderStage(type)].find('{');
+
+            if (startPos != std::string::npos)
+                shaderSources[ToShaderStage(type)].erase(startPos, 1);
+
+            size_t endPos = shaderSources[ToShaderStage(type)].rfind('}');
+
+            if (endPos != std::string::npos)
+                shaderSources[ToShaderStage(type)].erase(endPos, 1);
         }
 
         return shaderSources;
@@ -286,28 +361,6 @@ namespace Silex
 
     std::string ShaderCompiler::_CompileStage(ShaderStage stage, const std::string& source, std::vector<uint32>& out_putSpirv, const std::string& filepath)
     {
-        //=====================================================================================================================
-        // shaderc における GLSLコンパイラでは、エントリーポイントは "main" であると想定され、エントリーポイント指定は HLSL 専用の機能になっている
-        //=====================================================================================================================
-#if 0
-        auto entrypointName = [](ShaderStage stage) -> std::string
-        {
-            switch (stage)
-            {
-                case Silex::SHADER_STAGE_VERTEX_BIT:                 return "vsmain";
-                case Silex::SHADER_STAGE_TESSELATION_CONTROL_BIT:    return "tcsmain"; // hull
-                case Silex::SHADER_STAGE_TESSELATION_EVALUATION_BIT: return "tesmain"; // domain
-                case Silex::SHADER_STAGE_GEOMETRY_BIT:               return "gsmain";
-                case Silex::SHADER_STAGE_FRAGMENT_BIT:               return "fsmain";
-                case Silex::SHADER_STAGE_COMPUTE_BIT:                return "csmain";
-            }
-
-            return "";
-        };
-
-        std::string entrypoint = entrypointName(stage);
-#endif
-
 #if SHADERC
 
         shaderc::Compiler compiler;
