@@ -176,7 +176,6 @@ namespace Silex
     {
         const FrameData& frame = RenderingDevice::Get()->GetFrameData();
         VkCommandBuffer commandBuffer = ((VulkanCommandBuffer*)(frame.commandBuffer))->commandBuffer;
-
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
     }
 }

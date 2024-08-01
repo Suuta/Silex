@@ -20,20 +20,26 @@
 
 namespace Silex
 {
+    namespace Test
+    {
+        struct SceneData
+        {
+            glm::mat4 world = glm::mat4(1.0f);
+            glm::mat4 view;
+            glm::mat4 projection;
+        };
+    }
+
+    //======================================
+    // 定数
+    //======================================
+    // TODO: エディターの設定項目として扱える形にする
+    const uint32 swapchainBufferCount = 3;
+
     //======================================
     // シェーダーコンパイラ
     //======================================
     static ShaderCompiler shaserCompiler;
-
-
-
-
-    struct SceneData
-    {
-        glm::mat4 world = glm::mat4(1.0f);
-        glm::mat4 view;
-        glm::mat4 projection;
-    };
 
 
     RenderingDevice* RenderingDevice::Get()
@@ -48,10 +54,10 @@ namespace Silex
 
     RenderingDevice::~RenderingDevice()
     {
-        for (uint32 i = 0; i < frameData.size(); i++)
-        {
-            frameData[i].resourceQueue.Release();
-        }
+        api->WaitDevice();
+
+        sldelete(cubeMesh);
+        sldelete(sphereMesh);
 
         api->UnmapBuffer(ubo);
         api->DestroyBuffer(ubo);
@@ -71,8 +77,11 @@ namespace Silex
         api->DestroyFramebuffer(sceneFramebuffer);
         api->DestroySampler(sceneSampler);
 
-        sldelete(cubeMesh);
-        sldelete(sphereMesh);
+
+        for (uint32 i = 0; i < frameData.size(); i++)
+        {
+            DestroyPendingResources(i);
+        }
 
         for (uint32 i = 0; i < frameData.size(); i++)
         {
@@ -81,9 +90,11 @@ namespace Silex
             api->DestroySemaphore(frameData[i].presentSemaphore);
             api->DestroySemaphore(frameData[i].renderSemaphore);
             api->DestroyFence(frameData[i].fence);
+
+            frameData[i].resourceQueue.Release();
         }
 
-        //api->DestroyCommandBuffer(immidiateContext.commandBuffer);
+        api->DestroyCommandBuffer(immidiateContext.commandBuffer);
         api->DestroyCommandPool(immidiateContext.commandPool);
         api->DestroyFence(immidiateContext.fence);
 
@@ -153,13 +164,21 @@ namespace Silex
     {
         SwapChain* swapchain = Window::Get()->GetSwapChain();
         FrameData& frame     = frameData[frameIndex];
+        bool result          = false;
 
         // GPU 待機
-        bool result = api->WaitFence(frame.fence);
-        SL_CHECK(!result, false);
+        if (frameData[frameIndex].waitingSignal)
+        {
+            result = api->WaitFence(frame.fence);
+            SL_CHECK(!result, false);
+
+            frameData[frameIndex].waitingSignal = false;
+        }
 
         // 削除キュー実行
-        frame.resourceQueue.Execute();
+        //frame.resourceQueue.Execute();
+        DestroyPendingResources(frameIndex);
+
 
         // 描画先スワップチェインバッファを取得
         swapchainFramebuffer = api->GetCurrentBackBuffer(swapchain, frame.presentSemaphore);
@@ -168,6 +187,7 @@ namespace Silex
         // コマンドバッファ開始
         result = api->BeginCommandBuffer(frame.commandBuffer);
         SL_CHECK(!result, false);
+
 
         return true;
     }
@@ -181,6 +201,7 @@ namespace Silex
         api->EndCommandBuffer(frame.commandBuffer);
 
         api->SubmitQueue(graphicsQueue, frame.commandBuffer, frame.fence, frame.presentSemaphore, frame.renderSemaphore);
+        frameData[frameIndex].waitingSignal = true;
 
         return true;
     }
@@ -214,7 +235,7 @@ namespace Silex
             depth.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
             depth.storeOp       = ATTACHMENT_STORE_OP_STORE;
             depth.samples       = TEXTURE_SAMPLES_1;
-            depth.format        = RENDERING_FORMAT_D32_SFLOAT_S8_UINT;
+            depth.format        = RENDERING_FORMAT_D24_UNORM_S8_UINT;
 
             AttachmentReference depthRef = {};
             depthRef.attachment = 1;
@@ -248,32 +269,8 @@ namespace Silex
             SamplerInfo info = {};
             sceneSampler = api->CreateSampler(info);
 
-            TextureFormat color = {};
-            color.format    = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
-            color.width     = size.x;
-            color.height    = size.y;
-            color.type      = TEXTURE_TYPE_2D;
-            color.usageBits = TEXTURE_USAGE_COLOR_ATTACHMENT_BIT | TEXTURE_USAGE_SAMPLING_BIT;
-            color.samples   = TEXTURE_SAMPLES_1;
-            color.array     = 1;
-            color.depth     = 1;
-            color.mipLevels = 1;
-
-            sceneColorTexture = api->CreateTexture(color);
-
-            TextureFormat depth = {};
-            depth.format    = RENDERING_FORMAT_D32_SFLOAT_S8_UINT;
-            depth.width     = size.x;
-            depth.height    = size.y;
-            depth.type      = TEXTURE_TYPE_2D;
-            depth.usageBits = TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | TEXTURE_USAGE_SAMPLING_BIT;
-            depth.samples   = TEXTURE_SAMPLES_1;
-            depth.array     = 1;
-            depth.depth     = 1;
-            depth.mipLevels = 1;
-
-            sceneDepthTexture = api->CreateTexture(depth);
-
+            sceneColorTexture = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, size.x, size.y, false);
+            sceneDepthTexture = CreateTexture2D(RENDERING_FORMAT_D24_UNORM_S8_UINT,   size.x, size.y, false);
 
             TextureHandle* textures[] = { sceneColorTexture , sceneDepthTexture };
             sceneFramebuffer = api->CreateFramebuffer(scenePass, std::size(textures), textures, size.x, size.y);
@@ -325,16 +322,16 @@ namespace Silex
         ib = CreateIndexBuffer(indices, sizeof(indices));
 
         {
-            SceneData sceneData;
+            Test::SceneData sceneData;
             sceneData.world      = glm::translate(glm::mat4(1.0f), glm::vec3(0, 0, 0));
             sceneData.view       = glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
             sceneData.projection = glm::perspectiveFov(glm::radians(60.0f), (float)size.x, (float)size.y, 0.1f, 1000.0f);
         
-            ubo = api->CreateBuffer(sizeof(SceneData), (BUFFER_USAGE_UNIFORM_BIT | BUFFER_USAGE_TRANSFER_DST_BIT), MEMORY_ALLOCATION_TYPE_CPU);
+            ubo = api->CreateBuffer(sizeof(Test::SceneData), (BUFFER_USAGE_UNIFORM_BIT | BUFFER_USAGE_TRANSFER_DST_BIT), MEMORY_ALLOCATION_TYPE_CPU);
             mappedSceneData = api->MapBuffer(ubo);
-            std::memcpy(mappedSceneData, &sceneData, sizeof(SceneData));
+            std::memcpy(mappedSceneData, &sceneData, sizeof(Test::SceneData));
         }
-        
+
         {
             DescriptorHandle handles = {};
             handles.buffer = ubo;
@@ -354,11 +351,11 @@ namespace Silex
             int32 height    = reader.data.height;
             uint64 dataSize = width * height * reader.data.channels * sizeof(byte);
 
-            textureFile = CreateTextureFromMemory(pixels, dataSize, width, height, false);
+            textureFile = CreateTextureFromMemory(pixels, dataSize, width, height, true);
 
             DescriptorHandle handles = {};
-            handles.sampler = sceneSampler;
             handles.image   = textureFile;
+            handles.sampler = sceneSampler;
             
             DescriptorInfo info = {};
             info.handles.push_back(handles);
@@ -370,8 +367,8 @@ namespace Silex
 
         {
             DescriptorHandle handles = {};
-            handles.sampler = sceneSampler;
             handles.image   = sceneColorTexture;
+            handles.sampler = sceneSampler;
 
             DescriptorInfo info = {};
             info.handles.push_back(handles);
@@ -484,13 +481,10 @@ namespace Silex
             {
                 sceneFramebufferSize.x = content.x;
                 sceneFramebufferSize.y = content.y;
-
                 camera->SetViewportSize(sceneFramebufferSize.x, sceneFramebufferSize.y);
-                AddResourceFreeQueue("Resize SceneFramebuffer", [this]()
-                {
-                    SL_LOG_TRACE("Resize SceneFramebuffer: {}, {}", sceneFramebufferSize.x, sceneFramebufferSize.y);
-                    RESIZE(sceneFramebufferSize.x, sceneFramebufferSize.y);
-                });
+
+                SL_LOG_TRACE("Resize SceneFramebuffer: {}, {}", sceneFramebufferSize.x, sceneFramebufferSize.y);
+                RESIZE(sceneFramebufferSize.x, sceneFramebufferSize.y);
             }
 
             // シーン描画
@@ -518,53 +512,30 @@ namespace Silex
         if (width == 0 || height == 0)
             return;
 
-        api->WaitDevice();
+        DestroyDescriptorSet(blitSet);
+        DestroyFramebuffer(sceneFramebuffer);
 
-        api->DestroyTexture(sceneColorTexture);
-        api->DestroyTexture(sceneDepthTexture);
-        api->DestroyFramebuffer(sceneFramebuffer);
+        DestroyTexture(sceneColorTexture);
+        DestroyTexture(sceneDepthTexture);
 
-        TextureFormat format = {};
-        format.format    = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
-        format.width     = width;
-        format.height    = height;
-        format.type      = TEXTURE_TYPE_2D;
-        format.usageBits = TEXTURE_USAGE_COLOR_ATTACHMENT_BIT | TEXTURE_USAGE_SAMPLING_BIT;
-        format.samples   = TEXTURE_SAMPLES_1;
-        format.array     = 1;
-        format.depth     = 1;
-        format.mipLevels = 1;
-
-        sceneColorTexture = api->CreateTexture(format);
-
-        TextureFormat depth = {};
-        depth.format    = RENDERING_FORMAT_D32_SFLOAT_S8_UINT;
-        depth.width     = width;
-        depth.height    = height;
-        depth.type      = TEXTURE_TYPE_2D;
-        depth.usageBits = TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | TEXTURE_USAGE_SAMPLING_BIT;
-        depth.samples   = TEXTURE_SAMPLES_1;
-        depth.array     = 1;
-        depth.depth     = 1;
-        depth.mipLevels = 1;
-
-        sceneDepthTexture = api->CreateTexture(depth);
-
+        sceneColorTexture = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, width, height, false);
+        sceneDepthTexture = CreateTexture2D(RENDERING_FORMAT_D24_UNORM_S8_UINT,   width, height, false);
 
         TextureHandle* textures[] = { sceneColorTexture , sceneDepthTexture };
         sceneFramebuffer = api->CreateFramebuffer(scenePass, std::size(textures), textures, width, height);
 
+        {
+            DescriptorHandle handles = {};
+            handles.image   = sceneColorTexture;
+            handles.sampler = sceneSampler;
 
-        DescriptorHandle handles = {};
-        handles.image   = sceneColorTexture;
-        handles.sampler = sceneSampler;
+            DescriptorInfo info = {};
+            info.handles.push_back(handles);
+            info.binding = 0;
+            info.type = DESCRIPTOR_TYPE_IMAGE_SAMPLER;
 
-        DescriptorInfo info = {};
-        info.handles.push_back(handles);
-        info.binding = 0;
-        info.type = DESCRIPTOR_TYPE_IMAGE_SAMPLER;
-
-        api->UpdateDescriptorSet(blitSet, 1, &info);
+            blitSet = api->CreateDescriptorSet(1, &info, blitShader, 0);
+        }
     }
 
     void RenderingDevice::DRAW(Camera* camera)
@@ -574,10 +545,10 @@ namespace Silex
         const auto& viewportSize = camera->GetViewportSize();
 
         {
-            SceneData sceneData;
+            Test::SceneData sceneData;
             sceneData.projection = camera->GetProjectionMatrix();
             sceneData.view       = camera->GetViewMatrix();
-            std::memcpy(mappedSceneData, &sceneData, sizeof(SceneData));
+            std::memcpy(mappedSceneData, &sceneData, sizeof(Test::SceneData));
         }
 
         api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
@@ -671,7 +642,7 @@ namespace Silex
             if (genMipmap)
             {
                 // ミップマップ生成
-                _GenerateMipmaps(cmd, texture, width, height, TEXTURE_ASPECT_COLOR_BIT);
+                _GenerateMipmaps(cmd, texture, width, height, 1, 1, TEXTURE_ASPECT_COLOR_BIT);
 
                 // シェーダーリードに移行 (ミップマップ生成時のコピーでコピーソースに移行するため、コピーソース -> シェーダーリード)
                 info.oldLayout = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
@@ -698,7 +669,7 @@ namespace Silex
 
     TextureHandle* RenderingDevice::CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap)
     {
-        return _CreateTexture(TEXTURE_TYPE_2D_ARRAY, format, width, height, array, 1, genMipmap, 0);
+        return _CreateTexture(TEXTURE_TYPE_2D_ARRAY, format, width, height, 1, array, genMipmap, 0);
     }
 
     TextureHandle* RenderingDevice::CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap)
@@ -706,7 +677,13 @@ namespace Silex
         return _CreateTexture(TEXTURE_TYPE_CUBE, format, width, height, 1, 1, genMipmap, 0);
     }
 
-    void RenderingDevice::_GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, TextureAspectFlags aspect)
+    void RenderingDevice::DestroyTexture(TextureHandle* texture)
+    {
+        FrameData& frame = frameData[frameIndex];
+        frame.pendingResources.texture.push_back(texture);
+    }
+
+    void RenderingDevice::_GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, uint32 depth, uint32 array, TextureAspectFlags aspect)
     {
         auto mipmaps = RenderingUtility::CalculateMipmap(width, height);
 
@@ -714,18 +691,17 @@ namespace Silex
         for (uint32 mipLevel = 0; mipLevel < mipmaps.size() - 1; mipLevel++)
         {
             // バリア
-            TextureSubresourceRange range = {};
-            range.aspect        = aspect;
-            range.baseMipLevel  = mipLevel;
-            range.mipLevelCount = 1;
-
             TextureBarrierInfo info = {};
-            info.texture      = texture;
-            info.subresources = range;
-            info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
-            info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT | BARRIER_ACCESS_MEMORY_READ_BIT;
-            info.oldLayout    = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
-            info.newLayout    = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            info.texture                    = texture;
+            info.subresources.aspect        = aspect;
+            info.subresources.baseMipLevel  = mipLevel;
+            info.subresources.mipLevelCount = 1;
+            info.subresources.baseLayer     = 0;
+            info.subresources.layerCount    = 1;
+            info.srcAccess                  = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.dstAccess                  = BARRIER_ACCESS_MEMORY_WRITE_BIT | BARRIER_ACCESS_MEMORY_READ_BIT;
+            info.oldLayout                  = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            info.newLayout                  = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
             api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
 
@@ -733,23 +709,27 @@ namespace Silex
             Extent srcoffset = mipmaps[mipLevel + 0];
             Extent dstoffset = mipmaps[mipLevel + 1];
 
+            // NOTE:
+            // srcImageがVK_IMAGE_TYPE_1DまたはVK_IMAGE_TYPE_2D型の場合、pRegionsの各要素について、srcOffsets[0].zは0、srcOffsets[1].zは1でなければなりません。
+            // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdBlitImage.html#VUID-vkCmdBlitImage-srcImage-00247
+
             TextureBlitRegion region = {};
-            region.srcOffset[0] = { 0, 0, 1 };
+            region.srcOffset[0] = { 0, 0, 0 };
+            region.dstOffset[0] = { 0, 0, 0 };
             region.srcOffset[1] = srcoffset;
-            region.dstOffset[0] = { 0, 0, 1 };
             region.dstOffset[1] = dstoffset;
 
             region.srcSubresources.aspect     = aspect;
             region.srcSubresources.mipLevel   = mipLevel;
             region.srcSubresources.baseLayer  = 0;
-            region.srcSubresources.layerCount = UINT32_MAX;
+            region.srcSubresources.layerCount = array;
 
             region.dstSubresources.aspect     = aspect;
             region.dstSubresources.mipLevel   = mipLevel + 1;
             region.dstSubresources.baseLayer  = 0;
-            region.dstSubresources.layerCount = UINT32_MAX;
+            region.dstSubresources.layerCount = array;
 
-            api->BlitTexture(cmd, texture, TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL, texture, TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL, 1, &region, SAMPLER_FILTER_LINEAR);
+            api->BlitTexture(cmd, texture, TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL, texture, TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region, SAMPLER_FILTER_LINEAR);
         }
 
         //------------------------------------------------------------------------
@@ -760,7 +740,7 @@ namespace Silex
         // バリア
         TextureSubresourceRange range = {};
         range.aspect        = TEXTURE_ASPECT_COLOR_BIT;
-        range.baseMipLevel  = mipmaps.size();
+        range.baseMipLevel  = mipmaps.size() - 1;
         range.mipLevelCount = 1;
 
         TextureBarrierInfo info = {};
@@ -774,7 +754,7 @@ namespace Silex
         api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
     }
 
-    TextureHandle* RenderingDevice::_CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 array, uint32 depth, bool genMipmap, TextureUsageFlags additionalFlags)
+    TextureHandle* RenderingDevice::_CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 depth, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags)
     {
         uint32 usage = RenderingUtility::IsDepthFormat(format)? TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : TEXTURE_USAGE_COLOR_ATTACHMENT_BIT;
         auto mipmaps = RenderingUtility::CalculateMipmap(width, height);
@@ -846,7 +826,36 @@ namespace Silex
 
     void RenderingDevice::DestroyBuffer(Buffer* buffer)
     {
-        api->DestroyBuffer(buffer);
+        FrameData& frame = frameData[frameIndex];
+        frame.pendingResources.buffer.push_back(buffer);
+    }
+
+
+
+    FramebufferHandle* RenderingDevice::CreateFramebuffer()
+    {
+        SL_ASSERT(false);
+        return nullptr;
+    }
+
+    void RenderingDevice::DestroyFramebuffer(FramebufferHandle* framebuffer)
+    {
+        FrameData& frame = frameData[frameIndex];
+        frame.pendingResources.framebuffer.push_back(framebuffer);
+    }
+
+
+
+    DescriptorSet* RenderingDevice::CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex)
+    {
+        SL_ASSERT(false);
+        return nullptr;
+    }
+
+    void RenderingDevice::DestroyDescriptorSet(DescriptorSet* set)
+    {
+        FrameData& frame = frameData[frameIndex];
+        frame.pendingResources.descriptorset.push_back(set);
     }
 
 
@@ -884,6 +893,60 @@ namespace Silex
     }
 
 
+
+    void RenderingDevice::DestroyPendingResources(uint32 frame)
+    {
+        FrameData& f = frameData[frame];
+
+        for (Buffer* buffer : f.pendingResources.buffer)
+        {
+            api->DestroyBuffer(buffer);
+        }
+
+        f.pendingResources.buffer.clear();
+
+        for (TextureHandle* texture : f.pendingResources.texture)
+        {
+            api->DestroyTexture(texture);
+        }
+
+        f.pendingResources.texture.clear();
+
+        for (Sampler* sampler : f.pendingResources.sampler)
+        {
+            api->DestroySampler(sampler);
+        }
+
+        f.pendingResources.sampler.clear();
+
+        for (DescriptorSet* set : f.pendingResources.descriptorset)
+        {
+            api->DestroyDescriptorSet(set);
+        }
+
+        f.pendingResources.descriptorset.clear();
+
+        for (FramebufferHandle* framebuffer : f.pendingResources.framebuffer)
+        {
+            api->DestroyFramebuffer(framebuffer);
+        }
+
+        f.pendingResources.framebuffer.clear();
+
+        for (ShaderHandle* shader : f.pendingResources.shader)
+        {
+            api->DestroyShader(shader);
+        }
+
+        f.pendingResources.shader.clear();
+
+        for (Pipeline* pipeline : f.pendingResources.pipeline)
+        {
+            api->DestroyPipeline(pipeline);
+        }
+
+        f.pendingResources.pipeline.clear();
+    }
 
     const DeviceInfo& RenderingDevice::GetDeviceInfo() const
     {

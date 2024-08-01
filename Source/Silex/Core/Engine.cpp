@@ -70,6 +70,7 @@ namespace Silex
         return engine;
     }
 
+
     bool Engine::Initialize()
     {
         bool result = false;
@@ -152,6 +153,7 @@ namespace Silex
 
         if (!minimized)
         {
+            renderingDevice->Begin();
             imgui->BeginFrame();
 
             editor->Update(deltaTime);
@@ -162,15 +164,14 @@ namespace Silex
                 imgui->UpdateWidget();
             }
 
-            renderingDevice->Begin();
-
             renderingDevice->DRAW(editor->GetEditorCamera());
             imgui->EndFrame();
 
             renderingDevice->End();
 
-            imgui->UpdateViewport();
             renderingDevice->Present();
+            imgui->UpdateViewport();
+
 
 
             Input::Flush();

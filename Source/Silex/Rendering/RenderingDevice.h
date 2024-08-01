@@ -11,9 +11,17 @@ namespace Silex
     class RenderingContext;
     class Mesh;
 
-
-    // TODO: エディターの設定項目として扱える形にする
-    const uint32 swapchainBufferCount = 3;
+    // 削除待機リソース
+    struct PendingDestroyResourceQueue
+    {
+        std::vector<Buffer*>            buffer;
+        std::vector<TextureHandle*>     texture;
+        std::vector<Sampler*>           sampler;
+        std::vector<DescriptorSet*>     descriptorset;
+        std::vector<FramebufferHandle*> framebuffer;
+        std::vector<ShaderHandle*>      shader;
+        std::vector<Pipeline*>          pipeline;
+    };
 
     // フレームデータ
     struct FrameData
@@ -23,8 +31,11 @@ namespace Silex
         Semaphore*     presentSemaphore = nullptr;
         Semaphore*     renderSemaphore  = nullptr;
         Fence*         fence            = nullptr;
+        bool           waitingSignal    = false;
 
-        TaskQueue resourceQueue;
+        // 待機リソース
+        TaskQueue                   resourceQueue;
+        PendingDestroyResourceQueue pendingResources;
     };
 
     // 即時コマンドデータ
@@ -68,8 +79,12 @@ namespace Silex
         template<typename Func>
         void AddResourceFreeQueue(const char* taskName, Func&& fn)
         {
-            frameData[frameIndex].resourceQueue.Enqueue(taskName, Traits::Forward<Func>(fn));
+            uint32 index = (frameIndex + 1) % 2;
+            frameData[index].resourceQueue.Enqueue(taskName, Traits::Forward<Func>(fn));
         }
+
+        // 保留中のリソース削除
+        void DestroyPendingResources(uint32 frame);
 
     public:
 
@@ -83,11 +98,20 @@ namespace Silex
         TextureHandle* CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap);
         TextureHandle* CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap);
         TextureHandle* CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap);
+        void           DestroyTexture(TextureHandle* texture);
 
         // バッファ
         Buffer* CreateVertexBuffer(void* data, uint64 dataByte);
         Buffer* CreateIndexBuffer(void* data, uint64 dataByte);
         void    DestroyBuffer(Buffer* buffer);
+
+        // フレームバッファ
+        FramebufferHandle* CreateFramebuffer();
+        void               DestroyFramebuffer(FramebufferHandle* framebuffer);
+
+        // デスクリプターセット
+        DescriptorSet* CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex);
+        void           DestroyDescriptorSet(DescriptorSet* set);
 
         // スワップチェイン
         SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode);
@@ -97,8 +121,8 @@ namespace Silex
     
     private:
 
-        void           _GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, TextureAspectFlags aspect);
-        TextureHandle* _CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 array, uint32 depth, bool genMipmap, TextureUsageFlags additionalFlags);
+        void           _GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, uint32 depth, uint32 array, TextureAspectFlags aspect);
+        TextureHandle* _CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 depth, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags);
 
     public:
 
@@ -131,7 +155,6 @@ namespace Silex
 
         // テスクチャファイル
         TextureHandle* textureFile = nullptr;
-
 
         // Swapchain Blit パス
         RenderPass*        swapchainPass = nullptr;

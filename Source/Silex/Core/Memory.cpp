@@ -52,7 +52,7 @@ namespace Silex
         SL_LOG_WARN("*************************************************************************************************************");
         for (auto& [ptr, info] : allocationMap)
         {
-            SL_LOG_WARN(" {:>4} byte | {:<16} | {} [{}]", info.size, info.desc, info.file, info.line);
+            SL_LOG_WARN(" {:>4} byte | {:<20} | {} [{}]", info.size, info.desc, info.file, info.line);
         }
         SL_LOG_WARN("*************************************************************************************************************");
 #endif

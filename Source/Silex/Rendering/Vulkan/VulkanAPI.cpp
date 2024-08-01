@@ -505,7 +505,7 @@ namespace Silex
         VkFence vkfence = nullptr;
         VkFenceCreateInfo createInfo = {};
         createInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-        createInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+        createInfo.flags = 0;                                      //VK_FENCE_CREATE_SIGNALED_BIT;  // シグナル状態で生成
         createInfo.pNext = nullptr;
 
         VkResult result = vkCreateFence(device, &createInfo, nullptr, &vkfence);
@@ -840,6 +840,7 @@ namespace Silex
             {
                 VulkanFramebuffer* vkfb = (VulkanFramebuffer*)vkSwapchain->framebuffers[i];
                 vkDestroyFramebuffer(device, vkfb->framebuffer, nullptr);
+                sldelete(vkfb);
             }
 
             // イメージビュー破棄
@@ -1801,7 +1802,7 @@ namespace Silex
             blitRegions[i].dstSubresource.layerCount     = regions[i].dstSubresources.layerCount;
         }
 
-        vkCmdBlitImage(cmd->commandBuffer, srctex->image, (VkImageLayout)srcTextureLayout, dsttex->image, (VkImageLayout)srcTextureLayout, numRegion, blitRegions, (VkFilter)filter);
+        vkCmdBlitImage(cmd->commandBuffer, srctex->image, (VkImageLayout)srcTextureLayout, dsttex->image, (VkImageLayout)dstTextureLayout, numRegion, blitRegions, (VkFilter)filter);
     }
 
     void VulkanAPI::PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData)
@@ -2103,10 +2104,23 @@ namespace Silex
             //{
             //}
 
+#if 0
+            // デスクリプタが使用されていなければ更新できるようにする
+            VkDescriptorBindingFlags flags = VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT;
+
+            // デスクリプタが使用されていなければ更新できるようにするフラグを指定する構造体 (pNext に渡す)
+            VkDescriptorSetLayoutBindingFlagsCreateInfo flagsInfo = {};
+            flagsInfo.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO;
+            flagsInfo.pNext         = nullptr;
+            flagsInfo.bindingCount  = layoutBindings.size();
+            flagsInfo.pBindingFlags = &flags;
+#endif
+
             // デスクリプターセットレイアウト生成
             VkDescriptorSetLayoutCreateInfo descriptorsetLayoutCreateInfo = {};
             descriptorsetLayoutCreateInfo.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            descriptorsetLayoutCreateInfo.pNext        = nullptr;
+            descriptorsetLayoutCreateInfo.flags        = 0;
+            descriptorsetLayoutCreateInfo.pNext        = nullptr; // &flagsInfo;
             descriptorsetLayoutCreateInfo.bindingCount = layoutBindings.size();
             descriptorsetLayoutCreateInfo.pBindings    = layoutBindings.data();
 

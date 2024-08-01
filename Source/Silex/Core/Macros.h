@@ -2,7 +2,7 @@
 #pragma once
 
 // デバッグ
-#define SL_ENABLE_ALLOCATION_TRACKER 0
+#define SL_ENABLE_ALLOCATION_TRACKER 1
 #define SL_ENABLE_ASSERTS            1
 
 // レンダリング
