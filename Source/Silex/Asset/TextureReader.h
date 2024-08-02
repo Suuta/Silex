@@ -11,10 +11,9 @@ namespace Silex
         int32 width    = 0;
         int32 height   = 0;
         int32 channels = 0;
+        int64 byteSize = 0;
 
         void* pixels  = nullptr;
-
-        bool isHDR = false;
     };
 
     // 読み込んだテクスチャデータは、変数のスコープ内のみ有効

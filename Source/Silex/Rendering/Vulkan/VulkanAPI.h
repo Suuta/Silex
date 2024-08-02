@@ -103,8 +103,8 @@ namespace Silex
         //--------------------------------------------------
         // 入力レイアウト
         //--------------------------------------------------
-        InputLayout* CreateInputLayout(uint32 numBindings, InputBinding* bindings) override;
-        void DestroyInputLayout(InputLayout* layout) override;
+        VertexInput* CreateInputLayout(uint32 numBindings, InputLayout* layout) override;
+        void DestroyInputLayout(VertexInput* input) override;
 
         //--------------------------------------------------
         // レンダーパス
@@ -128,7 +128,7 @@ namespace Silex
         //--------------------------------------------------
         // パイプライン
         //--------------------------------------------------
-        Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, InputLayout* inputLayout, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) override;
+        Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, VertexInput* vertexInput, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) override;
         Pipeline* CreateComputePipeline(ShaderHandle* shader) override;
         void DestroyPipeline(Pipeline* pipeline) override;
 

@@ -2,6 +2,8 @@
 #pragma once
 
 #include "Rendering/RenderingCore.h"
+#include "Rendering/ShaderCompiler.h"
+
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_mem_alloc.h>
 
@@ -112,7 +114,7 @@ namespace Silex
     };
 
     // 頂点フォーマット
-    struct VulkanInputLayout : public InputLayout
+    struct VulkanVertexInput : public VertexInput
     {
         std::vector<VkVertexInputBindingDescription>   bindings;
         std::vector<VkVertexInputAttributeDescription> attributes;
@@ -126,6 +128,7 @@ namespace Silex
         std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos;
         std::vector<VkDescriptorSetLayout>           descriptorsetLayouts;
         VkPipelineLayout                             pipelineLayout;
+        ShaderReflectionData*                        reflection;
     };
 
     // プール検索キー

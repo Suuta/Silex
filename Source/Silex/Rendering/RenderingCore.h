@@ -30,7 +30,7 @@ namespace Silex
     SL_HANDLE(Pipeline);
     SL_HANDLE(Sampler);
     SL_HANDLE(DescriptorSet);
-    SL_HANDLE(InputLayout);
+    SL_HANDLE(VertexInput);
     SL_HANDLE(FramebufferHandle);
     SL_HANDLE(TextureHandle);
     SL_HANDLE(ShaderHandle);
@@ -699,6 +699,14 @@ namespace Silex
     //================================================
     // 頂点データ
     //================================================
+    enum VertexBufferFormat
+    {
+        VERTEX_BUFFER_FORMAT_R32          = RENDERING_FORMAT_R32_SFLOAT,
+        VERTEX_BUFFER_FORMAT_R32G32       = RENDERING_FORMAT_R32G32_SFLOAT,
+        VERTEX_BUFFER_FORMAT_R32G32B32    = RENDERING_FORMAT_R32G32B32_SFLOAT,
+        VERTEX_BUFFER_FORMAT_R32G32B32A32 = RENDERING_FORMAT_R32G32B32A32_SFLOAT,
+    };
+
     enum IndexBufferFormat
     {
         INDEX_BUFFER_FORMAT_UINT16,
@@ -713,23 +721,29 @@ namespace Silex
 
     struct InputAttribute
     {
-        uint32          location = 0;
-        uint32          offset   = 0;
-        RenderingFormat format   = RENDERING_FORMAT_MAX;
+        uint32             location = 0;
+        uint32             offset   = 0;
+        VertexBufferFormat format   = VERTEX_BUFFER_FORMAT_R32G32B32;
     };
 
-    struct InputBinding
+    struct InputLayout
     {
-        uint32          binding   = 0;
-        uint32          stride    = 0;
-        VertexFrequency frequency = VERTEX_FREQUENCY_VERTEX;
-
+        uint32                      binding   = 0;
+        uint32                      stride    = 0;
+        VertexFrequency             frequency = VERTEX_FREQUENCY_VERTEX;
         std::vector<InputAttribute> attributes;
 
-        void AddAttribute(uint32 location, uint32 size, RenderingFormat format)
+        void AddAttribute(uint32 location, VertexBufferFormat format)
         {
             attributes.push_back({location, stride, format});
-            stride += size;
+
+            switch (format)
+            {
+                case VERTEX_BUFFER_FORMAT_R32:          stride += 4;  break;
+                case VERTEX_BUFFER_FORMAT_R32G32:       stride += 8;  break;
+                case VERTEX_BUFFER_FORMAT_R32G32B32:    stride += 12; break;
+                case VERTEX_BUFFER_FORMAT_R32G32B32A32: stride += 16; break;
+            }
         }
     };
 
@@ -765,7 +779,28 @@ namespace Silex
     {
         DescriptorType                type    = DESCRIPTOR_TYPE_MAX;
         uint32                        binding = 0;
-        std::vector<DescriptorHandle> handles = {};
+        std::vector<DescriptorHandle> handles;
+    };
+
+    struct DescriptorSetInfo
+    {
+        std::vector<DescriptorInfo> infos;
+
+        void AddTexture(uint32 binding, DescriptorType type, TextureHandle* texture, Sampler* sampler)
+        {
+            DescriptorInfo& info = infos.emplace_back();
+            info.binding = binding;
+            info.type    = type;
+            info.handles.emplace_back(DescriptorHandle{ nullptr, texture, sampler });
+        }
+
+        void AddBuffer(uint32 binding, DescriptorType type, Buffer* buffer)
+        {
+            DescriptorInfo& info = infos.emplace_back();
+            info.binding = binding;
+            info.type    = type;
+            info.handles.emplace_back(DescriptorHandle{ buffer, nullptr, nullptr });
+        }
     };
 
     //================================================

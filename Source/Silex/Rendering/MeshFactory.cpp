@@ -170,7 +170,15 @@ namespace Silex
         // パイプラインの切り替えや、ダイナミックステートの使用を回避できる
         //===========================================================
         Mesh* mesh = slnew(Mesh);
-        mesh->Load("Assets/Models/monkey.fbx");
+        mesh->Load("Assets/Models/Sphere.fbx");
+
+        return mesh;
+    }
+
+    Mesh* MeshFactory::Monkey()
+    {
+        Mesh* mesh = slnew(Mesh);
+        mesh->Load("Assets/Models/Monkey.fbx");
 
         return mesh;
     }

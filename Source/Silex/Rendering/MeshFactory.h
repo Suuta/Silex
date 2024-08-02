@@ -12,5 +12,6 @@ namespace Silex
         //static Mesh* Quad();
         static Mesh* Cube();
         static Mesh* Sphere();
+        static Mesh* Monkey();
     };
 }

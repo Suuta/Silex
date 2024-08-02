@@ -98,10 +98,10 @@ namespace Silex
         virtual void DestroyFramebuffer(FramebufferHandle* framebuffer) = 0;
 
         //--------------------------------------------------
-        // 入力レイアウト
+        // 頂点入力
         //--------------------------------------------------
-        virtual InputLayout* CreateInputLayout(uint32 numBindings, InputBinding* bindings) = 0;
-        virtual void DestroyInputLayout(InputLayout* layout) = 0;
+        virtual VertexInput* CreateInputLayout(uint32 numBindings, InputLayout* layout) = 0;
+        virtual void DestroyInputLayout(VertexInput* layout) = 0;
 
         //--------------------------------------------------
         // レンダーパス
@@ -125,7 +125,7 @@ namespace Silex
         //--------------------------------------------------
         // パイプライン
         //--------------------------------------------------
-        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, InputLayout* inputLayout, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) = 0;
+        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, VertexInput* vertexInput, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) = 0;
         virtual Pipeline* CreateComputePipeline(ShaderHandle* shader) = 0;
         virtual void DestroyPipeline(Pipeline* pipeline) = 0;
 

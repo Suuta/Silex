@@ -247,6 +247,7 @@ namespace Silex
         //requestDeviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
         //requestDeviceExtensions.insert(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
         //requestDeviceExtensions.insert(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+        //requestDeviceExtensions.insert(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 
         // デバイス拡張機能のクエリ
         uint32 deviceExtensionCount = 0;
@@ -296,7 +297,6 @@ namespace Silex
         return deviceInfo;
     }
 
-    // D3D12は常に true
     bool VulkanContext::QueueHasPresent(Surface* surface, uint32 queueIndex) const
     {
         VkSurfaceKHR vkSurface = ((VulkanSurface*)surface)->surface;
@@ -307,6 +307,11 @@ namespace Silex
 
         return supported;
     }
+
+    //bool D3D12Context::QueueHasPresent(Surface* surface, uint32 queueIndex) const
+    //{
+    //    return true;
+    //}
 
     const std::vector<VkQueueFamilyProperties>& VulkanContext::GetQueueFamilyProperties() const
     {

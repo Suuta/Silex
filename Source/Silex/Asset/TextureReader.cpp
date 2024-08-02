@@ -28,6 +28,7 @@ namespace Silex
             SL_LOG_ERROR("{} が見つからなかったか、データが破損しています", path);
         }
 
+        reader->data.byteSize = reader->data.width * reader->data.height * reader->data.channels * (isHDR? sizeof(float) : sizeof(byte));
         return reader->data.pixels;
     }
 

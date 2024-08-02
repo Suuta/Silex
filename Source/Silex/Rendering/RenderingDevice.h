@@ -3,6 +3,7 @@
 
 #include "Core/TaskQueue.h"
 #include "Rendering/RenderingCore.h"
+#include "Rendering/ShaderCompiler.h"
 
 
 namespace Silex
@@ -26,15 +27,12 @@ namespace Silex
     // フレームデータ
     struct FrameData
     {
-        CommandPool*   commandPool      = nullptr;
-        CommandBuffer* commandBuffer    = nullptr;
-        Semaphore*     presentSemaphore = nullptr;
-        Semaphore*     renderSemaphore  = nullptr;
-        Fence*         fence            = nullptr;
-        bool           waitingSignal    = false;
-
-        // 待機リソース
-        TaskQueue                   resourceQueue;
+        CommandPool*                commandPool      = nullptr;
+        CommandBuffer*              commandBuffer    = nullptr;
+        Semaphore*                  presentSemaphore = nullptr;
+        Semaphore*                  renderSemaphore  = nullptr;
+        Fence*                      fence            = nullptr;
+        bool                        waitingSignal    = false;
         PendingDestroyResourceQueue pendingResources;
     };
 
@@ -75,15 +73,7 @@ namespace Silex
         FrameData&       GetFrameData();
         const FrameData& GetFrameData() const;
 
-        // リソース解放キュー
-        template<typename Func>
-        void AddResourceFreeQueue(const char* taskName, Func&& fn)
-        {
-            uint32 index = (frameIndex + 1) % 2;
-            frameData[index].resourceQueue.Enqueue(taskName, Traits::Forward<Func>(fn));
-        }
-
-        // 保留中のリソース削除
+        // 保留中リソース削除
         void DestroyPendingResources(uint32 frame);
 
     public:
@@ -101,16 +91,18 @@ namespace Silex
         void           DestroyTexture(TextureHandle* texture);
 
         // バッファ
+        Buffer* CreateUniformBuffer(void* data, uint64 dataByte);
+        Buffer* CreateStorageBuffer(void* data, uint64 dataByte);
         Buffer* CreateVertexBuffer(void* data, uint64 dataByte);
         Buffer* CreateIndexBuffer(void* data, uint64 dataByte);
         void    DestroyBuffer(Buffer* buffer);
 
         // フレームバッファ
-        FramebufferHandle* CreateFramebuffer();
+        FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height);
         void               DestroyFramebuffer(FramebufferHandle* framebuffer);
 
         // デスクリプターセット
-        DescriptorSet* CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex);
+        DescriptorSet* CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex, const DescriptorSetInfo& setInfo);
         void           DestroyDescriptorSet(DescriptorSet* set);
 
         // スワップチェイン
@@ -121,6 +113,10 @@ namespace Silex
     
     private:
 
+        // バッファヘルパー
+        Buffer* _CreateBuffer();
+
+        // テクスチャヘルパー
         void           _GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, uint32 depth, uint32 array, TextureAspectFlags aspect);
         TextureHandle* _CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 depth, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags);
 
@@ -133,34 +129,37 @@ namespace Silex
 
     private:
 
+        Buffer*            sceneUBO             = nullptr;
         void*              mappedSceneData      = nullptr;
-        Buffer*            ubo                  = nullptr;
+        Buffer*            gridUBO              = nullptr;
+        void*              mappedGridData       = nullptr;
 
         // Scene
         glm::ivec2         sceneFramebufferSize = {};
-        FramebufferHandle* sceneFramebuffer     = nullptr;
         TextureHandle*     sceneColorTexture    = nullptr;
         TextureHandle*     sceneDepthTexture    = nullptr;
         Sampler*           sceneSampler         = nullptr;
 
-        // Swapchain
+        FramebufferHandle* sceneFramebuffer     = nullptr;
         FramebufferHandle* swapchainFramebuffer = nullptr;
 
-        // Scene パス
         RenderPass*        scenePass     = nullptr;
+        RenderPass*        swapchainPass = nullptr;
+
         Pipeline*          pipeline      = nullptr;
         ShaderHandle*      shader        = nullptr;
         DescriptorSet*     descriptorSet = nullptr;
         DescriptorSet*     textureSet    = nullptr;
 
-        // テスクチャファイル
-        TextureHandle* textureFile = nullptr;
+        ShaderHandle*      gridShader    = nullptr;
+        Pipeline*          gridPipeline  = nullptr;
+        DescriptorSet*     gridSet       = nullptr;
 
-        // Swapchain Blit パス
-        RenderPass*        swapchainPass = nullptr;
-        Pipeline*          blitPipeline  = nullptr;
         ShaderHandle*      blitShader    = nullptr;
+        Pipeline*          blitPipeline  = nullptr;
         DescriptorSet*     blitSet       = nullptr;
+
+        // グリッド
 
 
         Buffer* vb = nullptr;
@@ -168,6 +167,8 @@ namespace Silex
 
         Mesh* cubeMesh   = nullptr;
         Mesh* sphereMesh = nullptr;
+
+        TextureHandle* textureFile = nullptr;
 
     private:
 

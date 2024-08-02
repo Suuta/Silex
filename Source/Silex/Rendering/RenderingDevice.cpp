@@ -7,7 +7,6 @@
 #include "Rendering/RenderingContext.h"
 #include "Rendering/RenderingAPI.h"
 #include "Rendering/RenderingUtility.h"
-#include "Rendering/ShaderCompiler.h"
 #include "Rendering/Camera.h"
 #include "Rendering/Mesh.h"
 #include "Rendering/Vulkan/VulkanStructures.h"
@@ -27,6 +26,13 @@ namespace Silex
             glm::mat4 world = glm::mat4(1.0f);
             glm::mat4 view;
             glm::mat4 projection;
+        };
+
+        struct GridData
+        {
+            glm::mat4 view;
+            glm::mat4 projection;
+            glm::vec3 pos;
         };
     }
 
@@ -59,46 +65,45 @@ namespace Silex
         sldelete(cubeMesh);
         sldelete(sphereMesh);
 
-        api->UnmapBuffer(ubo);
-        api->DestroyBuffer(ubo);
+        api->UnmapBuffer(sceneUBO);
+        api->DestroyBuffer(sceneUBO);
+        api->UnmapBuffer(gridUBO);
+        api->DestroyBuffer(gridUBO);
         api->DestroyBuffer(vb);
         api->DestroyBuffer(ib);
         api->DestroyTexture(sceneColorTexture);
         api->DestroyTexture(sceneDepthTexture);
         api->DestroyTexture(textureFile);
         api->DestroyShader(shader);
+        api->DestroyShader(gridShader);
         api->DestroyShader(blitShader);
-        api->DestroyDescriptorSet(blitSet);
         api->DestroyDescriptorSet(descriptorSet);
         api->DestroyDescriptorSet(textureSet);
+        api->DestroyDescriptorSet(gridSet);
+        api->DestroyDescriptorSet(blitSet);
         api->DestroyPipeline(pipeline);
+        api->DestroyPipeline(gridPipeline);
         api->DestroyPipeline(blitPipeline);
         api->DestroyRenderPass(scenePass);
         api->DestroyFramebuffer(sceneFramebuffer);
         api->DestroySampler(sceneSampler);
 
-
         for (uint32 i = 0; i < frameData.size(); i++)
         {
             DestroyPendingResources(i);
-        }
 
-        for (uint32 i = 0; i < frameData.size(); i++)
-        {
             api->DestroyCommandBuffer(frameData[i].commandBuffer);
             api->DestroyCommandPool(frameData[i].commandPool);
             api->DestroySemaphore(frameData[i].presentSemaphore);
             api->DestroySemaphore(frameData[i].renderSemaphore);
             api->DestroyFence(frameData[i].fence);
-
-            frameData[i].resourceQueue.Release();
         }
 
         api->DestroyCommandBuffer(immidiateContext.commandBuffer);
         api->DestroyCommandPool(immidiateContext.commandPool);
         api->DestroyFence(immidiateContext.fence);
-
         api->DestroyCommandQueue(graphicsQueue);
+
         context->DestroyRendringAPI(api);
 
         instance = nullptr;
@@ -141,9 +146,6 @@ namespace Silex
             // フェンス生成
             frameData[i].fence = api->CreateFence();
             SL_CHECK(!frameData[i].fence, false);
-
-            // リソース解放キュー
-            frameData[i].resourceQueue.Initialize();
         }
 
 
@@ -176,7 +178,6 @@ namespace Silex
         }
 
         // 削除キュー実行
-        //frame.resourceQueue.Execute();
         DestroyPendingResources(frameIndex);
 
 
@@ -273,17 +274,17 @@ namespace Silex
             sceneDepthTexture = CreateTexture2D(RENDERING_FORMAT_D24_UNORM_S8_UINT,   size.x, size.y, false);
 
             TextureHandle* textures[] = { sceneColorTexture , sceneDepthTexture };
-            sceneFramebuffer = api->CreateFramebuffer(scenePass, std::size(textures), textures, size.x, size.y);
+            sceneFramebuffer = CreateFramebuffer(scenePass, std::size(textures), textures, size.x, size.y);
         }
 
-        InputBinding binding;
-        binding.AddAttribute(0, 12, RENDERING_FORMAT_R32G32B32_SFLOAT);
-        binding.AddAttribute(1, 12, RENDERING_FORMAT_R32G32B32_SFLOAT);
-        binding.AddAttribute(2,  8, RENDERING_FORMAT_R32G32_SFLOAT);
-        binding.AddAttribute(3, 12, RENDERING_FORMAT_R32G32B32_SFLOAT);
-        binding.AddAttribute(4, 12, RENDERING_FORMAT_R32G32B32_SFLOAT);
+        InputLayout layout;
+        layout.AddAttribute(0, VERTEX_BUFFER_FORMAT_R32G32B32);
+        layout.AddAttribute(1, VERTEX_BUFFER_FORMAT_R32G32B32);
+        layout.AddAttribute(2, VERTEX_BUFFER_FORMAT_R32G32);
+        layout.AddAttribute(3, VERTEX_BUFFER_FORMAT_R32G32B32);
+        layout.AddAttribute(4, VERTEX_BUFFER_FORMAT_R32G32B32);
 
-        InputLayout* layout = api->CreateInputLayout(1, &binding);
+        VertexInput* input = api->CreateInputLayout(1, &layout);
 
         PipelineInputAssemblyState ia = {};
         PipelineRasterizationState rs = {};
@@ -295,9 +296,16 @@ namespace Silex
             ShaderCompiledData compiledData;
             ShaderCompiler::Get()->Compile("Assets/Shaders/Triangle.glsl", compiledData);
             shader   = api->CreateShader(compiledData);
-            pipeline = api->CreateGraphicsPipeline(shader, layout, ia, rs, ms, ds, bs, scenePass);
+            pipeline = api->CreateGraphicsPipeline(shader, input, ia, rs, ms, ds, bs, scenePass);
 
-            api->DestroyInputLayout(layout);
+            api->DestroyInputLayout(input);
+        }
+
+        {
+            ShaderCompiledData compiledData;
+            ShaderCompiler::Get()->Compile("Assets/Shaders/Grid.glsl", compiledData);
+            gridShader   = api->CreateShader(compiledData);
+            gridPipeline = api->CreateGraphicsPipeline(gridShader, nullptr, ia, rs, ms, ds, bs, scenePass);
         }
 
         {
@@ -306,6 +314,7 @@ namespace Silex
             blitShader   = api->CreateShader(compiledData);
             blitPipeline = api->CreateGraphicsPipeline(blitShader, nullptr, ia, rs, ms, ds, bs, swapchainPass);
         }
+
 
         Vertex data[] =
         {
@@ -327,55 +336,50 @@ namespace Silex
             sceneData.view       = glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
             sceneData.projection = glm::perspectiveFov(glm::radians(60.0f), (float)size.x, (float)size.y, 0.1f, 1000.0f);
         
-            ubo = api->CreateBuffer(sizeof(Test::SceneData), (BUFFER_USAGE_UNIFORM_BIT | BUFFER_USAGE_TRANSFER_DST_BIT), MEMORY_ALLOCATION_TYPE_CPU);
-            mappedSceneData = api->MapBuffer(ubo);
+            sceneUBO = api->CreateBuffer(sizeof(Test::SceneData), (BUFFER_USAGE_UNIFORM_BIT | BUFFER_USAGE_TRANSFER_DST_BIT), MEMORY_ALLOCATION_TYPE_CPU);
+            mappedSceneData = api->MapBuffer(sceneUBO);
             std::memcpy(mappedSceneData, &sceneData, sizeof(Test::SceneData));
         }
 
         {
-            DescriptorHandle handles = {};
-            handles.buffer = ubo;
+            Test::GridData gridData;
+            gridData.pos        = glm::vec3(0, 0, 0);
+            gridData.view       = glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+            gridData.projection = glm::perspectiveFov(glm::radians(60.0f), (float)size.x, (float)size.y, 0.1f, 1000.0f);
 
-            DescriptorInfo info = {};
-            info.handles.push_back(handles);
-            info.binding = 0;
-            info.type    = DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        
-            descriptorSet = api->CreateDescriptorSet(1, &info, shader, 0);
+            gridUBO = api->CreateBuffer(sizeof(Test::GridData), (BUFFER_USAGE_UNIFORM_BIT | BUFFER_USAGE_TRANSFER_DST_BIT), MEMORY_ALLOCATION_TYPE_CPU);
+            mappedGridData = api->MapBuffer(gridUBO);
+            std::memcpy(mappedGridData, &gridData, sizeof(Test::GridData));
         }
 
         {
             TextureReader reader;
-            byte* pixels    = reader.Read8bit("Assets/Textures/checkerboard.png");
-            int32 width     = reader.data.width;
-            int32 height    = reader.data.height;
-            uint64 dataSize = width * height * reader.data.channels * sizeof(byte);
+            byte* pixels   = reader.Read8bit("Assets/Textures/checkerboard.png");
+            int32 width    = reader.data.width;
+            int32 height   = reader.data.height;
+            int64 dataSize = reader.data.byteSize;
 
             textureFile = CreateTextureFromMemory(pixels, dataSize, width, height, true);
-
-            DescriptorHandle handles = {};
-            handles.image   = textureFile;
-            handles.sampler = sceneSampler;
-            
-            DescriptorInfo info = {};
-            info.handles.push_back(handles);
-            info.binding = 0;
-            info.type    = DESCRIPTOR_TYPE_IMAGE_SAMPLER;
-            
-            textureSet = api->CreateDescriptorSet(1, &info, shader, 1);
         }
 
         {
-            DescriptorHandle handles = {};
-            handles.image   = sceneColorTexture;
-            handles.sampler = sceneSampler;
+            DescriptorSetInfo uboinfo;
+            uboinfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, sceneUBO);
+            descriptorSet = CreateDescriptorSet(shader, 0, uboinfo);
 
-            DescriptorInfo info = {};
-            info.handles.push_back(handles);
-            info.binding = 0;
-            info.type    = DESCRIPTOR_TYPE_IMAGE_SAMPLER;
+            DescriptorSetInfo texinfo;
+            texinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, textureFile, sceneSampler);
+            textureSet = CreateDescriptorSet(shader, 1, texinfo);
 
-            blitSet = api->CreateDescriptorSet(1, &info, blitShader, 0);
+            DescriptorSetInfo gridinfo;
+            gridinfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gridUBO);
+            gridSet = CreateDescriptorSet(gridShader, 0, gridinfo);
+        }
+
+        {
+            DescriptorSetInfo blitinfo;
+            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, sceneColorTexture, sceneSampler);
+            blitSet = CreateDescriptorSet(blitShader, 0, blitinfo);
         }
 
         cubeMesh   = MeshFactory::Cube();
@@ -522,20 +526,12 @@ namespace Silex
         sceneDepthTexture = CreateTexture2D(RENDERING_FORMAT_D24_UNORM_S8_UINT,   width, height, false);
 
         TextureHandle* textures[] = { sceneColorTexture , sceneDepthTexture };
-        sceneFramebuffer = api->CreateFramebuffer(scenePass, std::size(textures), textures, width, height);
+        sceneFramebuffer = CreateFramebuffer(scenePass, std::size(textures), textures, width, height);
 
-        {
-            DescriptorHandle handles = {};
-            handles.image   = sceneColorTexture;
-            handles.sampler = sceneSampler;
+        DescriptorSetInfo setinfo;
+        setinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, sceneColorTexture, sceneSampler);
 
-            DescriptorInfo info = {};
-            info.handles.push_back(handles);
-            info.binding = 0;
-            info.type = DESCRIPTOR_TYPE_IMAGE_SAMPLER;
-
-            blitSet = api->CreateDescriptorSet(1, &info, blitShader, 0);
-        }
+        blitSet = CreateDescriptorSet(blitShader, 0, setinfo);
     }
 
     void RenderingDevice::DRAW(Camera* camera)
@@ -551,6 +547,14 @@ namespace Silex
             std::memcpy(mappedSceneData, &sceneData, sizeof(Test::SceneData));
         }
 
+        {
+            Test::GridData gridData;
+            gridData.projection = camera->GetProjectionMatrix();
+            gridData.view       = camera->GetViewMatrix();
+            gridData.pos        = camera->GetPosition();
+            std::memcpy(mappedGridData, &gridData, sizeof(Test::GridData));
+        }
+
         api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
         api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
 
@@ -562,23 +566,25 @@ namespace Silex
             RenderPassClearValue clearValue[] = { defaultClearColor, defaultClearDepthStencil };
             api->BeginRenderPass(frame.commandBuffer, scenePass, sceneFramebuffer, COMMAND_BUFFER_TYPE_PRIMARY, std::size(clearValue), clearValue);
             
-            uint64 offset = 0;
-            api->BindPipeline(frame.commandBuffer, pipeline);
-            api->BindDescriptorSet(frame.commandBuffer, descriptorSet, 0);
-            api->BindDescriptorSet(frame.commandBuffer, textureSet, 1);
+            {
+                api->BindPipeline(frame.commandBuffer, gridPipeline);
+                api->BindDescriptorSet(frame.commandBuffer, gridSet, 0);
+                api->Draw(frame.commandBuffer, 6, 1, 0, 0);
+            }
 
-#if 1
-            Buffer* cvb       = sphereMesh->GetMeshSource()->GetVertexBuffer();
-            Buffer* cib       = sphereMesh->GetMeshSource()->GetIndexBuffer();
-            uint32 indexCount = sphereMesh->GetMeshSource()->GetIndexCount();
-            api->BindVertexBuffers(frame.commandBuffer, 1, &cvb, &offset);
-            api->BindIndexBuffer(frame.commandBuffer, cib, INDEX_BUFFER_FORMAT_UINT32, 0);
-            api->DrawIndexed(frame.commandBuffer, indexCount, 1, 0, 0, 0);
-#else
-            api->BindVertexBuffers(frame.commandBuffer, 1, &vb, &offset);
-            api->BindIndexBuffer(frame.commandBuffer, ib, INDEX_BUFFER_FORMAT_UINT32, 0);
-            api->DrawIndexed(frame.commandBuffer, 6, 1, 0, 0, 0);
-#endif
+            {
+                uint64 offset = 0;
+                api->BindPipeline(frame.commandBuffer, pipeline);
+                api->BindDescriptorSet(frame.commandBuffer, descriptorSet, 0);
+                api->BindDescriptorSet(frame.commandBuffer, textureSet, 1);
+
+                Buffer* cvb       = sphereMesh->GetMeshSource()->GetVertexBuffer();
+                Buffer* cib       = sphereMesh->GetMeshSource()->GetIndexBuffer();
+                uint32 indexCount = sphereMesh->GetMeshSource()->GetIndexCount();
+                api->BindVertexBuffers(frame.commandBuffer, 1, &cvb, &offset);
+                api->BindIndexBuffer(frame.commandBuffer, cib, INDEX_BUFFER_FORMAT_UINT32, 0);
+                api->DrawIndexed(frame.commandBuffer, indexCount, 1, 0, 0, 0);
+            }
 
             api->EndRenderPass(frame.commandBuffer);
         }
@@ -683,6 +689,8 @@ namespace Silex
         frame.pendingResources.texture.push_back(texture);
     }
 
+
+
     void RenderingDevice::_GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, uint32 depth, uint32 array, TextureAspectFlags aspect)
     {
         auto mipmaps = RenderingUtility::CalculateMipmap(width, height);
@@ -778,6 +786,16 @@ namespace Silex
 
 
 
+    Buffer* RenderingDevice::CreateUniformBuffer(void* data, uint64 dataByte)
+    {
+        return nullptr;
+    }
+
+    Buffer* RenderingDevice::CreateStorageBuffer(void* data, uint64 dataByte)
+    {
+        return nullptr;
+    }
+
     Buffer* RenderingDevice::CreateVertexBuffer(void* data, uint64 dataByte)
     {
          Buffer* staging = api->CreateBuffer(dataByte, BUFFER_USAGE_VERTEX_BIT | BUFFER_USAGE_TRANSFER_SRC_BIT, MEMORY_ALLOCATION_TYPE_CPU);
@@ -830,12 +848,18 @@ namespace Silex
         frame.pendingResources.buffer.push_back(buffer);
     }
 
-
-
-    FramebufferHandle* RenderingDevice::CreateFramebuffer()
+    Buffer* RenderingDevice::_CreateBuffer()
     {
-        SL_ASSERT(false);
         return nullptr;
+    }
+
+
+    FramebufferHandle* RenderingDevice::CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height)
+    {
+        FramebufferHandle* framebuffer = api->CreateFramebuffer(renderpass, numTexture, textures, width, height);
+        SL_CHECK(!framebuffer, nullptr);
+
+        return framebuffer;
     }
 
     void RenderingDevice::DestroyFramebuffer(FramebufferHandle* framebuffer)
@@ -846,10 +870,14 @@ namespace Silex
 
 
 
-    DescriptorSet* RenderingDevice::CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex)
+    DescriptorSet* RenderingDevice::CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex, const DescriptorSetInfo& setInfo)
     {
-        SL_ASSERT(false);
-        return nullptr;
+        DescriptorSetInfo data = setInfo;
+
+        DescriptorSet* descriptorSet = api->CreateDescriptorSet(data.infos.size(), data.infos.data(), shader, setIndex);
+        SL_CHECK(!descriptorSet, nullptr);
+
+        return descriptorSet;
     }
 
     void RenderingDevice::DestroyDescriptorSet(DescriptorSet* set)

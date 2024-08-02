@@ -1379,15 +1379,15 @@ namespace Silex
     //==================================================================================
     // 頂点フォーマット
     //==================================================================================
-    InputLayout* VulkanAPI::CreateInputLayout(uint32 numBindings, InputBinding* bindings)
+    VertexInput* VulkanAPI:: CreateInputLayout(uint32 numBindings, InputLayout* layout)
     {
-        VulkanInputLayout* vklayout = slnew(VulkanInputLayout);
+        VulkanVertexInput* vklayout = slnew(VulkanVertexInput);
 
         uint32 attribeIndex = 0;
         uint32 attribeSize  = 0;
 
         for (uint32 i = 0; i < numBindings; i++)
-            attribeSize += bindings[i].attributes.size();
+            attribeSize += layout[i].attributes.size();
 
         vklayout->attributes.resize(attribeSize);
         vklayout->bindings.resize(numBindings);
@@ -1396,19 +1396,19 @@ namespace Silex
         for (uint32 i = 0; i < numBindings; i++)
         {
             vklayout->bindings[i]           = {};
-            vklayout->bindings[i].binding   = bindings[i].binding;
-            vklayout->bindings[i].stride    = bindings[i].stride;
-            vklayout->bindings[i].inputRate = bindings[i].frequency == VERTEX_FREQUENCY_INSTANCE ? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX;
+            vklayout->bindings[i].binding   = layout[i].binding;
+            vklayout->bindings[i].stride    = layout[i].stride;
+            vklayout->bindings[i].inputRate = layout[i].frequency == VERTEX_FREQUENCY_INSTANCE ? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX;
 
-            uint32 attributeSize = bindings[i].attributes.size();
+            uint32 attributeSize = layout[i].attributes.size();
 
             for (uint32 j = 0; j < attributeSize; j++)
             {
                 vklayout->attributes[attribeIndex + j]          = {};
-                vklayout->attributes[attribeIndex + j].binding  =           bindings[i].binding;
-                vklayout->attributes[attribeIndex + j].format   = (VkFormat)bindings[i].attributes[j].format;
-                vklayout->attributes[attribeIndex + j].location =           bindings[i].attributes[j].location;
-                vklayout->attributes[attribeIndex + j].offset   =           bindings[i].attributes[j].offset;
+                vklayout->attributes[attribeIndex + j].binding  =           layout[i].binding;
+                vklayout->attributes[attribeIndex + j].format   = (VkFormat)layout[i].attributes[j].format;
+                vklayout->attributes[attribeIndex + j].location =           layout[i].attributes[j].location;
+                vklayout->attributes[attribeIndex + j].offset   =           layout[i].attributes[j].offset;
             }
 
             attribeIndex += attributeSize;
@@ -1424,16 +1424,16 @@ namespace Silex
         return vklayout;
     }
 
-    void VulkanAPI::DestroyInputLayout(InputLayout* layout)
+    void VulkanAPI::DestroyInputLayout(VertexInput* input)
     {
-        if (layout)
+        if (input)
         {
-            VulkanInputLayout* vklayout = (VulkanInputLayout*)layout;
-            vklayout->bindings.clear();
-            vklayout->attributes.clear();
-            vklayout->createInfo = {};
+            VulkanVertexInput* vkinput = (VulkanVertexInput*)input;
+            vkinput->bindings.clear();
+            vkinput->attributes.clear();
+            vkinput->createInfo = {};
 
-            sldelete(vklayout);
+            sldelete(vkinput);
         }
     }
 
@@ -2178,12 +2178,16 @@ namespace Silex
             stageFlags |= (VkShaderStageFlagBits)stage;
         }
 
+        ShaderReflectionData* reflectionData = slnew(ShaderReflectionData);
+        *reflectionData = compiledData.reflection;
+
         // Vulkanデータ生成
         VulkanShader* vkshader = slnew(VulkanShader);
         vkshader->descriptorsetLayouts = layouts;
         vkshader->stageFlags           = stageFlags;
         vkshader->pipelineLayout       = vkpipelineLayout;
         vkshader->stageCreateInfos     = shaderStages;
+        vkshader->reflection           = reflectionData;
 
         return vkshader;
     }
@@ -2193,6 +2197,7 @@ namespace Silex
         if (shader)
         {
             VulkanShader* vkshader = (VulkanShader*)shader;
+            sldelete(vkshader->reflection);
 
             for (uint32 i = 0; i < vkshader->descriptorsetLayouts.size(); i++)
             {
@@ -2595,13 +2600,13 @@ namespace Silex
     //==================================================================================
     // パイプライン
     //==================================================================================
-    Pipeline* VulkanAPI::CreateGraphicsPipeline(ShaderHandle* shader, InputLayout* inputLayout, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass, PipelineDynamicStateFlags dynamicState)
+    Pipeline* VulkanAPI::CreateGraphicsPipeline(ShaderHandle* shader, VertexInput* vertexInput, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass, PipelineDynamicStateFlags dynamicState)
     {
         // ===== 頂点レイアウト =====
         VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-        if (inputLayout)
+        if (vertexInput)
         {
-            VulkanInputLayout* vkformat = (VulkanInputLayout*)inputLayout;
+            VulkanVertexInput* vkformat = (VulkanVertexInput*)vertexInput;
             vertexInputStateCreateInfo = vkformat->createInfo;
         }
 
