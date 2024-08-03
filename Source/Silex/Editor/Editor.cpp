@@ -56,7 +56,7 @@ namespace Silex
 
         if (Input::IsMouseButtonDown(Mouse::Right))
         {
-            //Input::SetCursorMode(CursorMode::Disable);
+            Input::SetCursorMode(CursorMode::Disable);
             bUsingEditorCamera = true;
 
             if (Input::IsKeyDown(Keys::W)) m_EditorCamera.Move(CameraMovementDir::Forward,  deltaTime);

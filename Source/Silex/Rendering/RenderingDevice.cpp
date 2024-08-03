@@ -32,7 +32,7 @@ namespace Silex
         {
             glm::mat4 view;
             glm::mat4 projection;
-            glm::vec3 pos;
+            glm::vec4 pos;
         };
     }
 
@@ -148,7 +148,6 @@ namespace Silex
             SL_CHECK(!frameData[i].fence, false);
         }
 
-
         // 即時コマンドデータ
         immidiateContext.commandPool = api->CreateCommandPool(graphicsQueueFamily);
         SL_CHECK(!immidiateContext.commandPool, false);
@@ -180,7 +179,6 @@ namespace Silex
         // 削除キュー実行
         DestroyPendingResources(frameIndex);
 
-
         // 描画先スワップチェインバッファを取得
         swapchainFramebuffer = api->GetCurrentBackBuffer(swapchain, frame.presentSemaphore);
         SL_CHECK(!swapchainFramebuffer, false);
@@ -188,7 +186,6 @@ namespace Silex
         // コマンドバッファ開始
         result = api->BeginCommandBuffer(frame.commandBuffer);
         SL_CHECK(!result, false);
-
 
         return true;
     }
@@ -286,13 +283,13 @@ namespace Silex
 
         VertexInput* input = api->CreateInputLayout(1, &layout);
 
-        PipelineInputAssemblyState ia = {};
-        PipelineRasterizationState rs = {};
-        PipelineMultisampleState   ms = {};
-        PipelineDepthStencilState  ds = {};
-        PipelineColorBlendState    bs = {false};
-
         {
+            PipelineInputAssemblyState ia = {};
+            PipelineRasterizationState rs = {};
+            PipelineMultisampleState   ms = {};
+            PipelineDepthStencilState  ds = {};
+            PipelineColorBlendState    bs = {false};
+
             ShaderCompiledData compiledData;
             ShaderCompiler::Get()->Compile("Assets/Shaders/Triangle.glsl", compiledData);
             shader   = api->CreateShader(compiledData);
@@ -302,6 +299,12 @@ namespace Silex
         }
 
         {
+            PipelineInputAssemblyState ia = {};
+            PipelineRasterizationState rs = {};
+            PipelineMultisampleState   ms = {};
+            PipelineDepthStencilState  ds = {};
+            PipelineColorBlendState    bs = {true};
+
             ShaderCompiledData compiledData;
             ShaderCompiler::Get()->Compile("Assets/Shaders/Grid.glsl", compiledData);
             gridShader   = api->CreateShader(compiledData);
@@ -309,6 +312,12 @@ namespace Silex
         }
 
         {
+            PipelineInputAssemblyState ia = {};
+            PipelineRasterizationState rs = {};
+            PipelineMultisampleState   ms = {};
+            PipelineDepthStencilState  ds = {};
+            PipelineColorBlendState    bs = { false };
+
             ShaderCompiledData compiledData;
             ShaderCompiler::Get()->Compile("Assets/Shaders/Blit.glsl", compiledData);
             blitShader   = api->CreateShader(compiledData);
@@ -343,7 +352,7 @@ namespace Silex
 
         {
             Test::GridData gridData;
-            gridData.pos        = glm::vec3(0, 0, 0);
+            gridData.pos        = glm::vec4(0, 0, 0, 1000.0f);
             gridData.view       = glm::lookAt(glm::vec3(0, 0, 5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
             gridData.projection = glm::perspectiveFov(glm::radians(60.0f), (float)size.x, (float)size.y, 0.1f, 1000.0f);
 
@@ -498,14 +507,14 @@ namespace Silex
         ImGui::End();
         ImGui::PopStyleVar();
 
-        ImGui::Begin("Viewport Info", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
-        ImGui::Separator();
+        ImGui::Begin("Info", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
+        //ImGui::Separator();
         ImGui::Text("FPS: %d", Engine::Get()->GetFrameRate());
-        ImGui::Separator();
-        ImGui::Text("ReginonMin:     %d, %d", (int)contentMin.x, (int)contentMin.y);
-        ImGui::Text("ReginonMax:     %d, %d", (int)contentMax.x, (int)contentMax.y);
-        ImGui::Text("viewportOffset: %d, %d", (int)viewportOffset.x, (int)viewportOffset.y);
-        ImGui::Text("Hover:          %s",     bHoveredViewport? "true" : "false");
+        //ImGui::Separator();
+        //ImGui::Text("ReginonMin:     %d, %d", (int)contentMin.x, (int)contentMin.y);
+        //ImGui::Text("ReginonMax:     %d, %d", (int)contentMax.x, (int)contentMax.y);
+        //ImGui::Text("viewportOffset: %d, %d", (int)viewportOffset.x, (int)viewportOffset.y);
+        //ImGui::Text("Hover:          %s",     bHoveredViewport? "true" : "false");
         ImGui::End();
 
         ImGui::PopStyleVar(2);
@@ -551,7 +560,7 @@ namespace Silex
             Test::GridData gridData;
             gridData.projection = camera->GetProjectionMatrix();
             gridData.view       = camera->GetViewMatrix();
-            gridData.pos        = camera->GetPosition();
+            gridData.pos        = glm::vec4(camera->GetPosition(), camera->GetFarPlane());
             std::memcpy(mappedGridData, &gridData, sizeof(Test::GridData));
         }
 
@@ -559,7 +568,7 @@ namespace Silex
         api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
 
         {
-            defaultClearColor.color          = {0.1f, 0.1f, 0.1f, 1.0f};
+            defaultClearColor.color          = {0.05f, 0.05f, 0.05f, 1.0f};
             defaultClearDepthStencil.depth   = 1.0f;
             defaultClearDepthStencil.stencil = 0;
 
