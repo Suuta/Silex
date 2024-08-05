@@ -54,9 +54,6 @@ namespace Silex
 
         void AddProfile(const char* name, float time)
         {
-            // if (!perFrameData.contains(name))
-            //     perFrameData[name] = 0.0f;
-
             perFrameData[name] = time;
         }
 

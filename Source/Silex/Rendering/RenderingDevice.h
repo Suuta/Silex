@@ -129,10 +129,12 @@ namespace Silex
 
     private:
 
-        Buffer*            sceneUBO             = nullptr;
-        void*              mappedSceneData      = nullptr;
-        Buffer*            gridUBO              = nullptr;
-        void*              mappedGridData       = nullptr;
+        Buffer*            sceneUBO        = nullptr;
+        void*              mappedSceneData = nullptr;
+        Buffer*            gridUBO         = nullptr;
+        void*              mappedGridData  = nullptr;
+        Buffer*            lightUBO        = nullptr;
+        void*              mappedLightData = nullptr;
 
         // Scene
         glm::ivec2         sceneFramebufferSize = {};
@@ -150,6 +152,7 @@ namespace Silex
         ShaderHandle*      shader        = nullptr;
         DescriptorSet*     descriptorSet = nullptr;
         DescriptorSet*     textureSet    = nullptr;
+        DescriptorSet*     lightSet      = nullptr;
 
         ShaderHandle*      gridShader    = nullptr;
         Pipeline*          gridPipeline  = nullptr;
@@ -159,14 +162,12 @@ namespace Silex
         Pipeline*          blitPipeline  = nullptr;
         DescriptorSet*     blitSet       = nullptr;
 
-        // グリッド
-
-
         Buffer* vb = nullptr;
         Buffer* ib = nullptr;
 
         Mesh* cubeMesh   = nullptr;
         Mesh* sphereMesh = nullptr;
+        Mesh* sponzaMesh = nullptr;
 
         TextureHandle* textureFile = nullptr;
 

@@ -81,17 +81,17 @@ namespace Silex
         SL_CHECK(!result, false);
 
         // レンダリングコンテキスト生成
-        renderingContext = RenderingContext::Create(mainWindow->GetPlatformHandle());
-        result = renderingContext->Initialize(true);
+        context = RenderingContext::Create(mainWindow->GetPlatformHandle());
+        result = context->Initialize(true);
         SL_CHECK(!result, false);
 
         // レンダリングデバイス生成 (描画APIを抽象化)
-        renderingDevice = slnew(RenderingDevice);
-        result = renderingDevice->Initialize(renderingContext);
+        device = slnew(RenderingDevice);
+        result = device->Initialize(context);
         SL_CHECK(!result, false);
 
         // ウィンドウコンテキスト生成
-        result = mainWindow->SetupWindowContext(renderingContext);
+        result = mainWindow->SetupWindowContext(context);
         SL_CHECK(!result, false);
 
         // コールバック登録
@@ -108,7 +108,7 @@ namespace Silex
 
         // エディターUI (ImGui)
         imgui = GUI::Create();
-        imgui->Init(renderingContext);
+        imgui->Init(context);
 
         // エディター
         editor = slnew(Editor);
@@ -118,7 +118,7 @@ namespace Silex
         mainWindow->Show();
 
 
-        renderingDevice->TEST();
+        device->TEST();
 
         return true;
     }
@@ -135,13 +135,13 @@ namespace Silex
         //Renderer::Get()->Shutdown();
 
         // ウィンドウコンテキスト破棄
-        mainWindow->CleanupWindowContext(renderingContext);
+        mainWindow->CleanupWindowContext(context);
 
         // レンダリングデバイス破棄
-        sldelete(renderingDevice);
+        sldelete(device);
 
         // レンダリングコンテキスト破棄
-        sldelete(renderingContext);
+        sldelete(context);
 
         // ウィンドウ破棄
         sldelete(mainWindow);
@@ -153,26 +153,22 @@ namespace Silex
 
         if (!minimized)
         {
-            renderingDevice->Begin();
+            device->Begin();
             imgui->BeginFrame();
 
             editor->Update(deltaTime);
             //editor->Render();
 
-            {
-                renderingDevice->DOCK_SPACE(editor->GetEditorCamera());
-                imgui->UpdateWidget();
-            }
+            device->DOCK_SPACE(editor->GetEditorCamera());
+            imgui->UpdateWidget();
 
-            renderingDevice->DRAW(editor->GetEditorCamera());
+            device->DRAW(editor->GetEditorCamera());
             imgui->EndFrame();
 
-            renderingDevice->End();
+            device->End();
 
-            renderingDevice->Present();
+            device->Present();
             imgui->UpdateViewport();
-
-
 
             Input::Flush();
         }

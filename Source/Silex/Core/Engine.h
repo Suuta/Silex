@@ -49,8 +49,8 @@ namespace Silex
     private:
 
         // レンダリング
-        RenderingDevice*  renderingDevice  = nullptr;
-        RenderingContext* renderingContext = nullptr;
+        RenderingDevice*  device  = nullptr;
+        RenderingContext* context = nullptr;
 
         // 
         Editor* editor     = nullptr;

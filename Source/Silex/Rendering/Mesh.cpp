@@ -84,7 +84,7 @@ namespace Silex
         uint32 flags = 0;
         flags |= aiProcess_OptimizeMeshes;
         flags |= aiProcess_Triangulate;
-        flags |= aiProcess_GenSmoothNormals;
+        flags |= aiProcess_GenSmoothNormals; // NOTE: すでに法線情報が存在する場合は無視される
         flags |= aiProcess_FlipUVs;
         flags |= aiProcess_GenUVCoords;
         flags |= aiProcess_CalcTangentSpace;

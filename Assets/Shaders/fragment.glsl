@@ -20,6 +20,11 @@ layout (location = 0) in  VertexOutput outv;
 layout (location = 0) out vec4         outFragColor;
 
 layout (set = 1, binding = 0) uniform sampler2D mainTexture;
+layout (set = 2, binding = 0) uniform SceneInfo
+{
+    vec4 light;
+    vec4 cameraPos;
+};
 
 
 FragmentOutput Fragment(VertexOutput vout);
@@ -37,8 +42,24 @@ void main()
     //if (checker <= 0.0)
         //discard;
 
-    if (fout.color.a <= 0.001)
+    // 環境光
+    vec3 ambient = fout.color.rgb * 0.05;
+
+    // 拡散反射光
+    vec3 N        = fout.normal;
+    vec3 L        = normalize(light.xyz);
+    vec3 diffuse  = max(dot(L, N), 0.0) * fout.color.rgb;
+
+    // 鏡面反射強度
+    vec3 V        = normalize(cameraPos.xyz - fout.pos.xyz);
+    vec3 H        = normalize(L + V);
+    vec3 specular = vec3(pow(max(dot(N, H), 0.0), 256.0)) * 0.3;
+
+    // 最終カラー
+    vec4 color = vec4(vec3(ambient + diffuse + specular), fout.color.a);
+
+    if (color.a <= 0.001)
         discard;
 
-    outFragColor = fout.color;
+    outFragColor = color;
 }

@@ -165,10 +165,6 @@ namespace Silex
         mesh->SetAssetType(AssetType::Mesh);
 #endif
 
-        //===========================================================
-        // Blender の UV球 は triangle_list で描画できたからこちら側を使用
-        // パイプラインの切り替えや、ダイナミックステートの使用を回避できる
-        //===========================================================
         Mesh* mesh = slnew(Mesh);
         mesh->Load("Assets/Models/Sphere.fbx");
 

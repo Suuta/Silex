@@ -339,11 +339,15 @@ vec3 BRDF()
 // フォンシェーディング
 vec3 BlinnPhong()
 {
+    //========================================================
     // 未使用（パラメータ統一のため）
     float irr    = texture(irradianceMap, vec3(1.0)).r;
     float pre    = textureLod(prefilterMap, vec3(1.0), 1.0).r;
     float brdf   = texture(brdfLUT, vec2(1.0)).r;
+
+    // コンパイル時、最適化で破棄される
     float NO_USE = irr + pre + brdf;
+    //========================================================
 
     vec3 ALBEDO    = texture(albedoMap,   fsi.TexCoords).rgb;
     vec3 WORLD_POS = texture(positionMap, fsi.TexCoords).rgb;

@@ -34,6 +34,12 @@ namespace Silex
             glm::mat4 projection;
             glm::vec4 pos;
         };
+
+        struct Light
+        {
+            glm::vec4 directionalLight;
+            glm::vec4 cameraPos;
+        };
     }
 
     //======================================
@@ -64,11 +70,14 @@ namespace Silex
 
         sldelete(cubeMesh);
         sldelete(sphereMesh);
+        sldelete(sponzaMesh);
 
         api->UnmapBuffer(sceneUBO);
         api->DestroyBuffer(sceneUBO);
         api->UnmapBuffer(gridUBO);
         api->DestroyBuffer(gridUBO);
+        api->UnmapBuffer(lightUBO);
+        api->DestroyBuffer(lightUBO);
         api->DestroyBuffer(vb);
         api->DestroyBuffer(ib);
         api->DestroyTexture(sceneColorTexture);
@@ -79,6 +88,7 @@ namespace Silex
         api->DestroyShader(blitShader);
         api->DestroyDescriptorSet(descriptorSet);
         api->DestroyDescriptorSet(textureSet);
+        api->DestroyDescriptorSet(lightSet);
         api->DestroyDescriptorSet(gridSet);
         api->DestroyDescriptorSet(blitSet);
         api->DestroyPipeline(pipeline);
@@ -362,8 +372,18 @@ namespace Silex
         }
 
         {
+            Test::Light lightData;
+            lightData.directionalLight = glm::vec4(1.0, 1.0, 0.0, 0.0);
+            lightData.cameraPos        = glm::vec4(0.0, 0.0, 0.0, 0.0);
+
+            lightUBO = api->CreateBuffer(sizeof(Test::Light), (BUFFER_USAGE_UNIFORM_BIT | BUFFER_USAGE_TRANSFER_DST_BIT), MEMORY_ALLOCATION_TYPE_CPU);
+            mappedLightData = api->MapBuffer(lightUBO);
+            std::memcpy(mappedLightData, &lightData, sizeof(Test::Light));
+        }
+
+        {
             TextureReader reader;
-            byte* pixels   = reader.Read8bit("Assets/Textures/checkerboard.png");
+            byte* pixels   = reader.Read8bit("Assets/Textures/gray.png");
             int32 width    = reader.data.width;
             int32 height   = reader.data.height;
             int64 dataSize = reader.data.byteSize;
@@ -380,6 +400,12 @@ namespace Silex
             texinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, textureFile, sceneSampler);
             textureSet = CreateDescriptorSet(shader, 1, texinfo);
 
+            DescriptorSetInfo lightinfo;
+            lightinfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lightUBO);
+            lightSet = CreateDescriptorSet(shader, 2, lightinfo);
+        }
+
+        {
             DescriptorSetInfo gridinfo;
             gridinfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gridUBO);
             gridSet = CreateDescriptorSet(gridShader, 0, gridinfo);
@@ -393,6 +419,9 @@ namespace Silex
 
         cubeMesh   = MeshFactory::Cube();
         sphereMesh = MeshFactory::Sphere();
+
+        sponzaMesh = slnew(Mesh);
+        sponzaMesh->Load("Assets/Models/Sponza/Sponza.fbx");
     }
 
     void RenderingDevice::DOCK_SPACE(Camera* camera)
@@ -564,11 +593,18 @@ namespace Silex
             std::memcpy(mappedGridData, &gridData, sizeof(Test::GridData));
         }
 
+        {
+            Test::Light lightData;
+            lightData.directionalLight = glm::vec4(1.0, 1.0, 0.0, 0.0);
+            lightData.cameraPos        = glm::vec4(camera->GetPosition(), 0.0);
+            std::memcpy(mappedLightData, &lightData, sizeof(Test::Light));
+        }
+
         api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
         api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
 
         {
-            defaultClearColor.color          = {0.05f, 0.05f, 0.05f, 1.0f};
+            defaultClearColor.color          = {0.0f, 0.0f, 0.0f, 1.0f};
             defaultClearDepthStencil.depth   = 1.0f;
             defaultClearDepthStencil.stencil = 0;
 
@@ -586,6 +622,7 @@ namespace Silex
                 api->BindPipeline(frame.commandBuffer, pipeline);
                 api->BindDescriptorSet(frame.commandBuffer, descriptorSet, 0);
                 api->BindDescriptorSet(frame.commandBuffer, textureSet, 1);
+                api->BindDescriptorSet(frame.commandBuffer, lightSet, 2);
 
                 Buffer* cvb       = sphereMesh->GetMeshSource()->GetVertexBuffer();
                 Buffer* cib       = sphereMesh->GetMeshSource()->GetIndexBuffer();
@@ -593,6 +630,20 @@ namespace Silex
                 api->BindVertexBuffers(frame.commandBuffer, 1, &cvb, &offset);
                 api->BindIndexBuffer(frame.commandBuffer, cib, INDEX_BUFFER_FORMAT_UINT32, 0);
                 api->DrawIndexed(frame.commandBuffer, indexCount, 1, 0, 0, 0);
+            }
+
+            if (true)
+            {
+                for (MeshSource* source : sponzaMesh->GetMeshSources())
+                {
+                    uint64 offset = 0;
+                    Buffer* vb        = source->GetVertexBuffer();
+                    Buffer* ib        = source->GetIndexBuffer();
+                    uint32 indexCount = source->GetIndexCount();
+                    api->BindVertexBuffers(frame.commandBuffer, 1, &vb, &offset);
+                    api->BindIndexBuffer(frame.commandBuffer, ib, INDEX_BUFFER_FORMAT_UINT32, 0);
+                    api->DrawIndexed(frame.commandBuffer, indexCount, 1, 0, 0, 0);
+                }
             }
 
             api->EndRenderPass(frame.commandBuffer);

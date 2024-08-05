@@ -238,12 +238,12 @@ namespace Silex
     }
 #endif
 
-    using setindex = uint32;
-    using binding  = uint32;
+    using _SetIndex = uint32;
+    using _Binding  = uint32;
 
     // ステージ間共有バッファ保存用変数  ※リフレクション時のバッファ複数回定義を防ぐ
-    static std::unordered_map<setindex, std::unordered_map<binding, ShaderBuffer>> ExistUniformBuffers;
-    static std::unordered_map<setindex, std::unordered_map<binding, ShaderBuffer>> ExistStorageBuffers;
+    static std::unordered_map<_SetIndex, std::unordered_map<_Binding, ShaderBuffer>> ExistUniformBuffers;
+    static std::unordered_map<_SetIndex, std::unordered_map<_Binding, ShaderBuffer>> ExistStorageBuffers;
     static ShaderReflectionData                                                    ReflectionData;
 
     static const char* ShaderCacheDirectory = "Assets/Shaders/Cache/";
@@ -344,16 +344,23 @@ namespace Silex
             // #pragma XXXX を取り除いたソースを追加
             shaderSources[ToShaderStage(type)] = source.substr(nextLinePos, pos - (nextLinePos == std::string::npos? source.size() - 1 : nextLinePos));
             
+
             // ステージ間の '{' '}' を取り除く
-            size_t startPos = shaderSources[ToShaderStage(type)].find('{');
+            // シェーダーステージ間を {} で囲うようにしていたが、シンタックスハイライトが有効にならないので採用しないようにする。
+            // そもそも、他のIDEでは全てエラーになってしまうので、Intellij IDEA (glsl拡張有効) に限っての話ですが... 
+            #if 0
+            {
+                size_t startPos = shaderSources[ToShaderStage(type)].find('{');
 
-            if (startPos != std::string::npos)
-                shaderSources[ToShaderStage(type)].erase(startPos, 1);
+                if (startPos != std::string::npos)
+                    shaderSources[ToShaderStage(type)].erase(startPos, 1);
 
-            size_t endPos = shaderSources[ToShaderStage(type)].rfind('}');
+                size_t endPos = shaderSources[ToShaderStage(type)].rfind('}');
 
-            if (endPos != std::string::npos)
-                shaderSources[ToShaderStage(type)].erase(endPos, 1);
+                if (endPos != std::string::npos)
+                    shaderSources[ToShaderStage(type)].erase(endPos, 1);
+            }
+            #endif
         }
 
         return shaderSources;
