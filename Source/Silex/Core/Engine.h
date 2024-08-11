@@ -49,12 +49,12 @@ namespace Silex
     private:
 
         // レンダリング
-        RenderingDevice*  device  = nullptr;
+        RHI*              rhi     = nullptr;
         RenderingContext* context = nullptr;
 
         // 
         Editor* editor     = nullptr;
-        GUI*    imgui      = nullptr;
+        GUI*    gui      = nullptr;
         Window* mainWindow = nullptr;
 
         // フラグ

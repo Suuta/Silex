@@ -7,7 +7,7 @@
 
 namespace Silex
 {
-    GLFramebuffer::GLFramebuffer(const RHI::FramebufferDesc& desc)
+    GLFramebuffer::GLFramebuffer(const rhi::FramebufferDesc& desc)
         : Desc(desc)
         , ID(0)
         , AttachmentTypeFlagBits(0)
@@ -16,7 +16,7 @@ namespace Silex
         , Height(desc.Height)
         , ClearColorValue(desc.ClearColor)
     { 
-        for (const RHI::FramebufferAttachmentDesc& attachment : Desc.AttachmentDescs)
+        for (const rhi::FramebufferAttachmentDesc& attachment : Desc.AttachmentDescs)
         {
             AttachmentDescs.emplace_back(attachment);
         }
@@ -210,13 +210,13 @@ namespace Silex
         glClearTexImage(Attachments[attachmentIndex], 0, format, type, glm::value_ptr(value));
     }
 
-    void GLFramebuffer::SetAttachmentTexture(uint32 attachmentIndex, uint32 textureID, RHI::AttachmentType type)
+    void GLFramebuffer::SetAttachmentTexture(uint32 attachmentIndex, uint32 textureID, rhi::AttachmentType type)
     {
         Attachments[attachmentIndex] = textureID;
         glNamedFramebufferTexture(ID, OpenGL::GLAttachmentType(type), Attachments[attachmentIndex], 0);
     }
 
-    void GLFramebuffer::AddAttachment(RHI::FramebufferAttachmentDesc desc, uint32 width, uint32 height, uint32 attachmentIndex)
+    void GLFramebuffer::AddAttachment(rhi::FramebufferAttachmentDesc desc, uint32 width, uint32 height, uint32 attachmentIndex)
     {
         uint32 internalFormat = OpenGL::GLInternalFormat(desc.Format);
         uint32 attachmentType = OpenGL::GLAttachmentType(desc.AttachmentType);
@@ -226,19 +226,19 @@ namespace Silex
         {
             default: break;
 
-            case RHI::TextureType::Texture2D:
+            case rhi::TextureType::Texture2D:
             {
                 glCreateTextures(GL_TEXTURE_2D, 1, &Attachments[attachmentIndex]);
                 glTextureStorage2D(Attachments[attachmentIndex], 1, internalFormat, width, height);
                 break;
             }
-            case RHI::TextureType::Texture2DArray:
+            case rhi::TextureType::Texture2DArray:
             {
                 glCreateTextures(GL_TEXTURE_2D_ARRAY, 1, &Attachments[attachmentIndex]);
                 glTextureStorage3D(Attachments[attachmentIndex], 1, internalFormat, width, height, desc.TextureArraySize);
                 break;
             }
-            case RHI::TextureType::TextureCube:
+            case rhi::TextureType::TextureCube:
             {
                 SL_ASSERT(false, "現在、TextureCube はフレームバッファに割り当てることができません");
                 break;
@@ -252,7 +252,7 @@ namespace Silex
         glTextureParameteri(Attachments[attachmentIndex], GL_TEXTURE_WRAP_S,     GL_CLAMP_TO_EDGE);
         glTextureParameteri(Attachments[attachmentIndex], GL_TEXTURE_WRAP_T,     GL_CLAMP_TO_EDGE);
 
-        if (desc.AttachmentType == RHI::AttachmentType::Depth)
+        if (desc.AttachmentType == rhi::AttachmentType::Depth)
         {
             glTextureParameteri(Attachments[attachmentIndex], GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
             glTextureParameteri(Attachments[attachmentIndex], GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
@@ -263,7 +263,7 @@ namespace Silex
         {
             default: break;
 
-            case RHI::AttachmentType::DepthStencil:
+            case rhi::AttachmentType::DepthStencil:
             {
                 glNamedFramebufferTexture(ID, attachmentType, Attachments[attachmentIndex], 0);
                 DepthAttachmentID = Attachments[attachmentIndex];
@@ -272,7 +272,7 @@ namespace Silex
 
                 break;
             }
-            case RHI::AttachmentType::Depth:
+            case rhi::AttachmentType::Depth:
             {
                 glNamedFramebufferTexture(ID, attachmentType, Attachments[attachmentIndex], 0);
                 DepthAttachmentID = Attachments[attachmentIndex];
@@ -281,7 +281,7 @@ namespace Silex
 
                 break;
             }
-            case RHI::AttachmentType::Color:
+            case rhi::AttachmentType::Color:
             {
                 glNamedFramebufferTexture(ID, GL_COLOR_ATTACHMENT0 + attachmentIndex, Attachments[attachmentIndex], 0);
 

@@ -76,13 +76,13 @@ namespace Silex
         //--------------------------------------------------
         virtual Buffer* CreateBuffer(uint64 size, BufferUsageFlags usage, MemoryAllocationType memoryType) = 0;
         virtual void DestroyBuffer(Buffer* buffer) = 0;
-        virtual byte* MapBuffer(Buffer* buffer) = 0;
+        virtual void* MapBuffer(Buffer* buffer) = 0;
         virtual void UnmapBuffer(Buffer* buffer) = 0;
 
         //--------------------------------------------------
         // テクスチャ
         //--------------------------------------------------
-        virtual TextureHandle* CreateTexture(const TextureFormat& format) = 0;
+        virtual TextureHandle* CreateTexture(const TextureInfo& format) = 0;
         virtual void DestroyTexture(TextureHandle* texture) = 0;
 
         //--------------------------------------------------
@@ -154,6 +154,7 @@ namespace Silex
         virtual void Draw(CommandBuffer* commandbuffer, uint32 vertexCount, uint32 instanceCount, uint32 baseVertex, uint32 firstInstance) = 0;
         virtual void DrawIndexed(CommandBuffer* commandbuffer, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance) = 0;
         virtual void BindVertexBuffers(CommandBuffer* commandbuffer, uint32 bindingCount, Buffer** buffers, uint64* offsets) = 0;
+        virtual void BindVertexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, uint64 offset) = 0;
         virtual void BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset) = 0;
 
         //--------------------------------------------------

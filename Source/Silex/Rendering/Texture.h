@@ -20,7 +20,7 @@ namespace Silex
         virtual ~Texture() = default;
 
         virtual void              Bind(uint32 slot = 0) const = 0;
-        virtual RHI::RenderFormat GetFormat()           const = 0;
+        virtual rhi::RenderFormat GetFormat()           const = 0;
         virtual uint32            GetWidth()            const = 0;
         virtual uint32            GetHeight()           const = 0;
         virtual uint32            GetID()               const = 0;
@@ -37,8 +37,8 @@ namespace Silex
 
     public:
 
-        static Texture2D*        Create(const RHI::TextureDesc& desc);
-        static Shared<Texture2D> Create(const RHI::TextureDesc& desc, const std::string& path);
+        static Texture2D*        Create(const rhi::TextureDesc& desc);
+        static Shared<Texture2D> Create(const rhi::TextureDesc& desc, const std::string& path);
     };
 
 
@@ -51,7 +51,7 @@ namespace Silex
 
     public:
 
-        static Texture2DArray* Create(const RHI::TextureDesc& desc, uint32 size);
+        static Texture2DArray* Create(const rhi::TextureDesc& desc, uint32 size);
     };
 
 
@@ -64,6 +64,6 @@ namespace Silex
 
     public:
 
-        static TextureCube* Create(const RHI::TextureDesc& desc, const std::string& filePath);
+        static TextureCube* Create(const rhi::TextureDesc& desc, const std::string& filePath);
     };
 }

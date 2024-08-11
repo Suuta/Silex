@@ -16,15 +16,15 @@ namespace Silex
 
     public:
 
-        GLTexture2D(const RHI::TextureDesc& desc);
-        GLTexture2D(const RHI::TextureDesc& desc, const std::string& filePath);
+        GLTexture2D(const rhi::TextureDesc& desc);
+        GLTexture2D(const rhi::TextureDesc& desc, const std::string& filePath);
         ~GLTexture2D();
 
     public:
 
         void Bind(uint32 slot = 0) const override;
 
-        RHI::RenderFormat GetFormat() const override { return Desc.Format; }
+        rhi::RenderFormat GetFormat() const override { return Desc.Format; }
         uint32            GetWidth()  const override { return Desc.Width;  }
         uint32            GetHeight() const override { return Desc.Height; }
         uint32            GetID()     const override { return ID;          }
@@ -32,7 +32,7 @@ namespace Silex
 
     private:
 
-        RHI::TextureDesc  Desc;
+        rhi::TextureDesc  Desc;
         uint32            ID;
     };
 
@@ -46,12 +46,12 @@ namespace Silex
 
     public:
 
-        GLTexture2DArray(const RHI::TextureDesc& desc, uint32 size);
+        GLTexture2DArray(const rhi::TextureDesc& desc, uint32 size);
         ~GLTexture2DArray();
 
         void Bind(uint32 slot = 0) const override;
 
-        RHI::RenderFormat GetFormat() const override { return Desc.Format; }
+        rhi::RenderFormat GetFormat() const override { return Desc.Format; }
         uint32            GetWidth()  const override { return Desc.Width;  }
         uint32            GetHeight() const override { return Desc.Height; }
         uint32            GetID()     const override { return ID;          }
@@ -59,7 +59,7 @@ namespace Silex
 
     private:
 
-        RHI::TextureDesc Desc;
+        rhi::TextureDesc Desc;
         uint32           ID;
         uint32           Size;
     };
@@ -73,12 +73,12 @@ namespace Silex
 
     public:
 
-        GLTextureCube(const RHI::TextureDesc& desc, const std::string& filePath);
+        GLTextureCube(const rhi::TextureDesc& desc, const std::string& filePath);
         ~GLTextureCube();
 
         void Bind(uint32 slot = 0) const override;
 
-        RHI::RenderFormat GetFormat() const override { return Desc.Format; }
+        rhi::RenderFormat GetFormat() const override { return Desc.Format; }
         uint32            GetWidth()  const override { return Desc.Width;  }
         uint32            GetHeight() const override { return Desc.Height; }
         uint32            GetID()     const override { return ID;          }
@@ -86,7 +86,7 @@ namespace Silex
 
     private:
 
-        RHI::TextureDesc Desc;
+        rhi::TextureDesc Desc;
         uint32           ID;
     };
 }

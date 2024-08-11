@@ -24,9 +24,9 @@ namespace Silex
     template<>
     Shared<Texture2D> AssetImporter::Import<Texture2D>(const std::string& filePath)
     {
-        RHI::TextureDesc desc = {};
-        desc.Filter    = RHI::TextureFilter::Linear;
-        desc.Wrap      = RHI::TextureWrap::Repeat;
+        rhi::TextureDesc desc = {};
+        desc.Filter    = rhi::TextureFilter::Linear;
+        desc.Wrap      = rhi::TextureWrap::Repeat;
         desc.GenMipmap = true;
         Shared<Texture2D> t = Texture2D::Create(desc, filePath);
 

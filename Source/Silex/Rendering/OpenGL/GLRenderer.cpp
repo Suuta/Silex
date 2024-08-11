@@ -128,12 +128,12 @@ namespace Silex
         glViewport(0, 0, width, height);
     }
 
-    void GLRenderer::SetStencilFunc(RHI::StrencilOp op, int32 ref, uint32 mask)
+    void GLRenderer::SetStencilFunc(rhi::StrencilOp op, int32 ref, uint32 mask)
     {
         glStencilFunc(OpenGL::GLStencilOp(op), ref, mask);
     }
 
-    void GLRenderer::SetCullFace(RHI::CullFace face)
+    void GLRenderer::SetCullFace(rhi::CullFace face)
     {
         glCullFace(OpenGL::GLCullFace(face));
     }
@@ -143,7 +143,7 @@ namespace Silex
         enable? glEnable(GL_BLEND) : glDisable(GL_BLEND);
     }
 
-    void GLRenderer::BlitFramebuffer(const Shared<Framebuffer>& src, const Shared<Framebuffer>& dest, RHI::AttachmentBuffer buffer)
+    void GLRenderer::BlitFramebuffer(const Shared<Framebuffer>& src, const Shared<Framebuffer>& dest, rhi::AttachmentBuffer buffer)
     {
         uint32 width  = src->GetWidth();
         uint32 height = src->GetHeight();
@@ -154,22 +154,22 @@ namespace Silex
         glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, OpenGL::GLBufferBit(buffer), GL_NEAREST);
     }
 
-    void GLRenderer::Draw(RHI::PrimitiveType type, uint64 numVertices)
+    void GLRenderer::Draw(rhi::PrimitiveType type, uint64 numVertices)
     {
         glDrawArrays(OpenGL::GLPrimitivepeType(type), 0, numVertices);
     }
 
-    void GLRenderer::DrawInstance(RHI::PrimitiveType type, uint64 numVertices, uint64 numInstance)
+    void GLRenderer::DrawInstance(rhi::PrimitiveType type, uint64 numVertices, uint64 numInstance)
     {
         glDrawArraysInstanced(OpenGL::GLPrimitivepeType(type), 0, numVertices, numInstance);
     }
 
-    void GLRenderer::DrawIndexed(RHI::PrimitiveType type, uint64 numIndices)
+    void GLRenderer::DrawIndexed(rhi::PrimitiveType type, uint64 numIndices)
     {
         glDrawElements(OpenGL::GLPrimitivepeType(type), numIndices, GL_UNSIGNED_INT, 0);
     }
 
-    void GLRenderer::DrawIndexedInstance(RHI::PrimitiveType type, uint64 numIndices, uint64 numInstance)
+    void GLRenderer::DrawIndexedInstance(rhi::PrimitiveType type, uint64 numIndices, uint64 numInstance)
     {
         glDrawElementsInstanced(OpenGL::GLPrimitivepeType(type), numIndices, GL_UNSIGNED_INT, 0, numInstance);
     }

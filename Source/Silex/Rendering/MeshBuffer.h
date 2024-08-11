@@ -10,7 +10,7 @@ namespace Silex
     struct VertexBufferElement
     {
         const char*         Name         = {};
-        RHI::ShaderDataType Type         = {};
+        rhi::ShaderDataType Type         = {};
         uint32              Size         = 0;
         uint32              Offset       = 0;
         uint32              LayoutIndex  = 0;
@@ -20,9 +20,9 @@ namespace Silex
     {
     public:
 
-        void Add(uint32 layoutIndex, const char* name, RHI::ShaderDataType type)
+        void Add(uint32 layoutIndex, const char* name, rhi::ShaderDataType type)
         {
-            uint64 size = RHI::ShaderDataTypeSize(type);
+            uint64 size = rhi::ShaderDataTypeSize(type);
             uint64 offset = 0;
 
             if (!Elements.empty())

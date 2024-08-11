@@ -3,7 +3,7 @@
 
 #include "Rendering/Mesh.h"
 #include "Rendering/Texture.h"
-#include "Rendering/RenderingDevice.h"
+#include "Rendering/RHI.h"
 #include "Asset/TextureReader.h"
 #include "Editor/SplashImage.h"
 
@@ -36,8 +36,8 @@ namespace Silex
         , hasIndex(!indices.empty())
         , materialIndex(materialIndex)
     {
-        vertexBuffer = RenderingDevice::Get()->CreateVertexBuffer(vertices.data(), sizeof(Vertex) * vertexCount);
-        indexBuffer  = RenderingDevice::Get()->CreateIndexBuffer(indices.data(), sizeof(uint32) * indexCount);
+        vertexBuffer = RHI::Get()->CreateVertexBuffer(vertices.data(), sizeof(Vertex) * vertexCount);
+        indexBuffer  = RHI::Get()->CreateIndexBuffer(indices.data(), sizeof(uint32) * indexCount);
     }
 
     MeshSource::MeshSource(uint64 numVertex, Vertex* vertices, uint64 numIndex, uint32* indices, uint32 materialIndex)
@@ -46,14 +46,14 @@ namespace Silex
         , hasIndex(indices != nullptr || numIndex == 0)
         , materialIndex(materialIndex)
     {
-        vertexBuffer = RenderingDevice::Get()->CreateVertexBuffer(vertices, sizeof(Vertex) * vertexCount);
-        indexBuffer  = RenderingDevice::Get()->CreateIndexBuffer(indices, sizeof(uint32) * indexCount);
+        vertexBuffer = RHI::Get()->CreateVertexBuffer(vertices, sizeof(Vertex) * vertexCount);
+        indexBuffer  = RHI::Get()->CreateIndexBuffer(indices, sizeof(uint32) * indexCount);
     }
 
     MeshSource::~MeshSource()
     {
-        if (vertexBuffer) RenderingDevice::Get()->DestroyBuffer(vertexBuffer);
-        if (indexBuffer) RenderingDevice::Get()->DestroyBuffer(indexBuffer);
+        if (vertexBuffer) RHI::Get()->DestroyBuffer(vertexBuffer);
+        if (indexBuffer) RHI::Get()->DestroyBuffer(indexBuffer);
     }
 
     void MeshSource::Bind() const
@@ -217,8 +217,9 @@ namespace Silex
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
         LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_DIFFUSE);           // ディフューズ
-      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_DIFFUSE_ROUGHNESS); // 
       //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_NORMALS);           // ノーマル
+
+      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_DIFFUSE_ROUGHNESS); // 
       //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_AMBIENT_OCCLUSION); // AO
       //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_SPECULAR);          // スペキュラ
       //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_EMISSIVE);          // 
@@ -241,8 +242,8 @@ namespace Silex
 
             // テクスチャファイルのディレクトリに変換
             std::filesystem::path modelFilePath = m_FilePath;
-            std::string parebtPath = modelFilePath.parent_path().string();
-            std::string path       = parebtPath + '/' + aspath;
+            std::string parentPath = modelFilePath.parent_path().string();
+            std::string path       = parentPath + '/' + aspath;
 
             MeshTexture& tex = textures[materialInddex];
             tex.Path   = path;

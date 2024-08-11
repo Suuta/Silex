@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Core/SharedPointer.h"
+#include "Rendering/RenderingCore.h"
 
 
 namespace Silex
@@ -35,10 +36,15 @@ namespace Silex
 
         virtual void Init(RenderingContext* context) = 0;
         virtual void BeginFrame()                    = 0;
+        virtual void Render()                        = 0;
         virtual void EndFrame()                      = 0;
 
-        void UpdateWidget();
-        void UpdateViewport();
+        void Update();
+        void ViewportPresent();
+
+    public:
+
+        static void Image(DescriptorSet* set, float width, float height);
 
     private:
 

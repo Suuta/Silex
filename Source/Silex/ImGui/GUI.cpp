@@ -92,12 +92,12 @@ namespace Silex
         }
     }
 
-    void GUI::UpdateWidget()
+    void GUI::Update()
     {
         ImGui::Render();
     }
 
-    void GUI::UpdateViewport()
+    void GUI::ViewportPresent()
     {
         if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {

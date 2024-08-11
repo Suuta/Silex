@@ -32,22 +32,22 @@ namespace Silex
     //========================================
     // テクスチャ
     //========================================
-    Texture2D* Texture2D::Create(const RHI::TextureDesc& desc)
+    Texture2D* Texture2D::Create(const rhi::TextureDesc& desc)
     {
         return slnew(GLTexture2D, desc);
     }
 
-    Shared<Texture2D> Texture2D::Create(const RHI::TextureDesc& desc, const std::string& path)
+    Shared<Texture2D> Texture2D::Create(const rhi::TextureDesc& desc, const std::string& path)
     {
         return CreateShared<GLTexture2D>(desc, path);
     }
 
-    Texture2DArray* Texture2DArray::Create(const RHI::TextureDesc& desc, uint32 size)
+    Texture2DArray* Texture2DArray::Create(const rhi::TextureDesc& desc, uint32 size)
     {
         return slnew(GLTexture2DArray, desc, size);
     }
 
-    TextureCube* TextureCube::Create(const RHI::TextureDesc& desc, const std::string& filePath)
+    TextureCube* TextureCube::Create(const rhi::TextureDesc& desc, const std::string& filePath)
     {
         return slnew(GLTextureCube, desc, filePath);
     }
@@ -81,7 +81,7 @@ namespace Silex
     //========================================
     // フレームバッファ
     //========================================
-    Shared<Framebuffer> Framebuffer::Create(const RHI::FramebufferDesc& desc)
+    Shared<Framebuffer> Framebuffer::Create(const rhi::FramebufferDesc& desc)
     {
         return CreateShared<GLFramebuffer>(desc);
     }

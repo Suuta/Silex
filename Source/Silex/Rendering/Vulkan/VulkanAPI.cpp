@@ -1175,7 +1175,7 @@ namespace Silex
         }
     }
 
-    byte* VulkanAPI::MapBuffer(Buffer* buffer)
+    void* VulkanAPI::MapBuffer(Buffer* buffer)
     {
         VulkanBuffer* vkbuffer = (VulkanBuffer*)buffer;
 
@@ -1183,7 +1183,7 @@ namespace Silex
         VkResult result = vmaMapMemory(allocator, vkbuffer->allocationHandle, &mappedPtr);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        return (byte*)mappedPtr;
+        return mappedPtr;
     }
 
     void VulkanAPI::UnmapBuffer(Buffer* buffer)
@@ -1196,7 +1196,7 @@ namespace Silex
     //==================================================================================
     // テクスチャ
     //==================================================================================
-    TextureHandle* VulkanAPI::CreateTexture(const TextureFormat& format)
+    TextureHandle* VulkanAPI::CreateTexture(const TextureInfo& format)
     {
         VkResult result;
 
@@ -1205,11 +1205,15 @@ namespace Silex
         bool isDepthStencil  = format.usageBits & TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
         auto sampleCountBits = _CheckSupportedSampleCounts(format.samples);
 
+        // キューブマップを生成する場合に指定する。
+        // また、キューブマップでは layer を 6にする必要がある (キューブ配列の場合 => 6 * 配列数)
+        uint32 flags = isCube? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
+
         // ==================== イメージ生成 ====================
         VkImageCreateInfo imageCreateInfo = {};
         imageCreateInfo.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        imageCreateInfo.flags         = isCube? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
-        imageCreateInfo.imageType     = (VkImageType)format.type;
+        imageCreateInfo.flags         = flags;
+        imageCreateInfo.imageType     = (VkImageType)format.dimension;
         imageCreateInfo.format        = (VkFormat)format.format;
         imageCreateInfo.mipLevels     = format.mipLevels;
         imageCreateInfo.arrayLayers   = format.array;
@@ -1236,17 +1240,19 @@ namespace Silex
 
         // ==================== ビュー生成 ====================
         VkImageViewCreateInfo viewCreateInfo = {};
-        viewCreateInfo.sType                       = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewCreateInfo.image                       = vkimage;
-        viewCreateInfo.viewType                    = (VkImageViewType)format.type;
-        viewCreateInfo.format                      = (VkFormat)format.format;
-        viewCreateInfo.components.r                = VK_COMPONENT_SWIZZLE_R;
-        viewCreateInfo.components.g                = VK_COMPONENT_SWIZZLE_G;
-        viewCreateInfo.components.b                = VK_COMPONENT_SWIZZLE_B;
-        viewCreateInfo.components.a                = VK_COMPONENT_SWIZZLE_A;
-        viewCreateInfo.subresourceRange.levelCount = imageCreateInfo.mipLevels;
-        viewCreateInfo.subresourceRange.layerCount = imageCreateInfo.arrayLayers;
-        viewCreateInfo.subresourceRange.aspectMask = isDepthStencil? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+        viewCreateInfo.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewCreateInfo.image                           = vkimage;
+        viewCreateInfo.viewType                        = (VkImageViewType)format.type;
+        viewCreateInfo.format                          = (VkFormat)format.format;
+        viewCreateInfo.components.r                    = VK_COMPONENT_SWIZZLE_R;
+        viewCreateInfo.components.g                    = VK_COMPONENT_SWIZZLE_G;
+        viewCreateInfo.components.b                    = VK_COMPONENT_SWIZZLE_B;
+        viewCreateInfo.components.a                    = VK_COMPONENT_SWIZZLE_A;
+        viewCreateInfo.subresourceRange.baseMipLevel   = 0;
+        viewCreateInfo.subresourceRange.levelCount     = imageCreateInfo.mipLevels;
+        viewCreateInfo.subresourceRange.baseArrayLayer = 0;
+        viewCreateInfo.subresourceRange.layerCount     = imageCreateInfo.arrayLayers;
+        viewCreateInfo.subresourceRange.aspectMask     = isDepthStencil? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 
         VkImageView vkview = nullptr;
         result = vkCreateImageView(device, &viewCreateInfo, nullptr, &vkview);
@@ -1263,6 +1269,7 @@ namespace Silex
         texture->allocationInfo   = allocationInfo;
         texture->image            = vkimage;
         texture->imageView        = vkview;
+        texture->info             = viewCreateInfo;
         texture->extent           = imageCreateInfo.extent;
 
         vmaGetAllocationInfo(allocator, texture->allocationHandle, &texture->allocationInfo);
@@ -1342,6 +1349,9 @@ namespace Silex
             views[i] = texes[i]->imageView;
         }
 
+        // アタッチメント間でレイヤー数は同じにする必要がある。
+        // なので、レイヤー数が同じであると仮定し、先頭テクスチャのレイヤーを指定する
+
         VkFramebufferCreateInfo createInfo = {};
         createInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         createInfo.renderPass      = ((VulkanRenderPass*)renderpass)->renderpass;
@@ -1349,7 +1359,7 @@ namespace Silex
         createInfo.pAttachments    = views;
         createInfo.width           = width;
         createInfo.height          = height;
-        createInfo.layers          = 1;
+        createInfo.layers          = texes[0]->info.subresourceRange.layerCount;
 
         VkFramebuffer vkfb = nullptr;
         VkResult result = vkCreateFramebuffer(device, &createInfo, nullptr, &vkfb);
@@ -1357,6 +1367,7 @@ namespace Silex
 
         VulkanFramebuffer* framebuffer = slnew(VulkanFramebuffer);
         framebuffer->framebuffer = vkfb;
+        framebuffer->layer       = createInfo.layers;
         framebuffer->rect.x      = 0;
         framebuffer->rect.y      = 0;
         framebuffer->rect.width  = width;
@@ -1944,6 +1955,15 @@ namespace Silex
 
         VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
         vkCmdBindVertexBuffers(cmd->commandBuffer, 0, bindingCount, vkbuffers, offsets);
+    }
+
+    void VulkanAPI::BindVertexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, uint64 offset)
+    {
+        uint64 offsets[]  = { offset };
+        VkBuffer vkbuffer = ((VulkanBuffer*)buffer)->buffer;
+
+        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        vkCmdBindVertexBuffers(cmd->commandBuffer, 0, 1, &vkbuffer, offsets);
     }
 
     void VulkanAPI::BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset)

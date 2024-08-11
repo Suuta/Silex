@@ -79,13 +79,13 @@ namespace Silex
         //--------------------------------------------------
         Buffer* CreateBuffer(uint64 size, BufferUsageFlags usage, MemoryAllocationType memoryType) override;
         void DestroyBuffer(Buffer* buffer) override;
-        byte* MapBuffer(Buffer* buffer) override;
+        void* MapBuffer(Buffer* buffer) override;
         void UnmapBuffer(Buffer* buffer) override;
 
         //--------------------------------------------------
         // テクスチャ
         //--------------------------------------------------
-        TextureHandle* CreateTexture(const TextureFormat& format) override;
+        TextureHandle* CreateTexture(const TextureInfo& format) override;
         void DestroyTexture(TextureHandle* texture) override;
 
         //--------------------------------------------------
@@ -157,6 +157,7 @@ namespace Silex
         void Draw(CommandBuffer* commandbuffer, uint32 vertexCount, uint32 instanceCount, uint32 baseVertex, uint32 firstInstance) override;
         void DrawIndexed(CommandBuffer* commandbuffer, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance) override;
         void BindVertexBuffers(CommandBuffer* commandbuffer, uint32 bindingCount, Buffer** buffers, uint64* offsets) override;
+        void BindVertexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, uint64 offset) override;
         void BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset) override;
 
         //--------------------------------------------------

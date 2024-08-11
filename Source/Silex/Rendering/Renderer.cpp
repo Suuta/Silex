@@ -94,17 +94,17 @@ namespace Silex
         //m_QuadMesh->GetFilePath() = "Quad";
 
         m_CubeMesh = Shared<Mesh>(MeshFactory::Cube());
-        m_CubeMesh->SetPrimitiveType(RHI::PrimitiveType::Triangle);
+        m_CubeMesh->SetPrimitiveType(rhi::PrimitiveType::Triangle);
         m_CubeMesh->GetFilePath() = "Cube";
 
         m_SphereMesh = Shared<Mesh>(MeshFactory::Sphere());
-        m_SphereMesh->SetPrimitiveType(RHI::PrimitiveType::TriangleStrip);
+        m_SphereMesh->SetPrimitiveType(rhi::PrimitiveType::TriangleStrip);
         m_SphereMesh->GetFilePath() = "Sphere";
 
         // テクスチャ
-        RHI::TextureDesc desc = {};
-        desc.Filter    = RHI::TextureFilter::Linear;
-        desc.Wrap      = RHI::TextureWrap::Repeat;
+        rhi::TextureDesc desc = {};
+        desc.Filter    = rhi::TextureFilter::Linear;
+        desc.Wrap      = rhi::TextureWrap::Repeat;
         desc.GenMipmap = true;
 
         m_DefaultTexture      = Texture2D::Create(desc, "Assets/Textures/default.png");
@@ -165,37 +165,37 @@ namespace Silex
         s_RendererPlatform->SetViewport(width, height);
     }
 
-    void Renderer::SetStencilFunc(RHI::StrencilOp op, int32 ref, uint32 mask)
+    void Renderer::SetStencilFunc(rhi::StrencilOp op, int32 ref, uint32 mask)
     {
         s_RendererPlatform->SetStencilFunc(op, ref, mask);
     }
 
-    void Renderer::SetCullFace(RHI::CullFace face)
+    void Renderer::SetCullFace(rhi::CullFace face)
     {
         s_RendererPlatform->SetCullFace(face);
     }
 
-    void Renderer::BlitFramebuffer(const Shared<Framebuffer>& src, const Shared<Framebuffer>& dest, RHI::AttachmentBuffer buffer)
+    void Renderer::BlitFramebuffer(const Shared<Framebuffer>& src, const Shared<Framebuffer>& dest, rhi::AttachmentBuffer buffer)
     {
         s_RendererPlatform->BlitFramebuffer(src, dest, buffer);
     }
 
-    void Renderer::Draw(RHI::PrimitiveType type, uint64 numVertices)
+    void Renderer::Draw(rhi::PrimitiveType type, uint64 numVertices)
     {
         s_RendererPlatform->Draw(type, numVertices);
     }
 
-    void Renderer::DrawIndexed(RHI::PrimitiveType type, uint64 numIndices)
+    void Renderer::DrawIndexed(rhi::PrimitiveType type, uint64 numIndices)
     {
         s_RendererPlatform->DrawIndexed(type, numIndices);
     }
 
-    void Renderer::DrawIndexedInstance(RHI::PrimitiveType type, uint64 numIndices, uint64 numInstance)
+    void Renderer::DrawIndexedInstance(rhi::PrimitiveType type, uint64 numIndices, uint64 numInstance)
     {
         s_RendererPlatform->DrawIndexedInstance(type, numIndices, numInstance);
     }
 
-    void Renderer::DrawInstance(RHI::PrimitiveType type, uint64 numVertices, uint64 numInstance)
+    void Renderer::DrawInstance(rhi::PrimitiveType type, uint64 numVertices, uint64 numInstance)
     {
         s_RendererPlatform->DrawInstance(type, numVertices, numInstance);
     }

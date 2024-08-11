@@ -19,8 +19,8 @@ namespace Silex
         };
 
         VertexBufferLayout vertex;
-        vertex.Add(0, "Position", RHI::ShaderDataType::Float3);
-        vertex.Add(1, "Texcoord", RHI::ShaderDataType::Float2);
+        vertex.Add(0, "Position", rhi::ShaderDataType::Float3);
+        vertex.Add(1, "Texcoord", rhi::ShaderDataType::Float2);
 
         VertexBufferLayout instance;
         //instance.Add(2, "Transform_0", RHI::ShaderDataType::Float4);
@@ -175,6 +175,14 @@ namespace Silex
     {
         Mesh* mesh = slnew(Mesh);
         mesh->Load("Assets/Models/Monkey.fbx");
+
+        return mesh;
+    }
+
+    Mesh* MeshFactory::Sponza()
+    {
+        Mesh* mesh = slnew(Mesh);
+        mesh->Load("Assets/Models/Sponza/Sponza.fbx");
 
         return mesh;
     }

@@ -33,19 +33,19 @@ namespace Silex
         virtual void SetShaderTexture(uint32 slot, uint32 id) = 0;
         virtual void SetViewport(uint32 width, uint32 height) = 0;
 
-        virtual void SetStencilFunc(RHI::StrencilOp op, int32 ref, uint32 mask) = 0;
-        virtual void SetCullFace(RHI::CullFace face) = 0;
+        virtual void SetStencilFunc(rhi::StrencilOp op, int32 ref, uint32 mask) = 0;
+        virtual void SetCullFace(rhi::CullFace face) = 0;
 
         virtual void EnableBlend(bool enable) = 0;
 
         virtual void SetDefaultFramebuffer() = 0;
-        virtual void BlitFramebuffer(const Shared<Framebuffer>& src, const Shared<Framebuffer>& dest, RHI::AttachmentBuffer buffer) = 0;
+        virtual void BlitFramebuffer(const Shared<Framebuffer>& src, const Shared<Framebuffer>& dest, rhi::AttachmentBuffer buffer) = 0;
 
-        virtual void Draw(RHI::PrimitiveType type, uint64 numVertices)                             = 0;
-        virtual void DrawInstance(RHI::PrimitiveType type, uint64 numVertices, uint64 numInstance) = 0;
+        virtual void Draw(rhi::PrimitiveType type, uint64 numVertices)                             = 0;
+        virtual void DrawInstance(rhi::PrimitiveType type, uint64 numVertices, uint64 numInstance) = 0;
 
-        virtual void DrawIndexed(RHI::PrimitiveType type, uint64 numIndices)                             = 0;
-        virtual void DrawIndexedInstance(RHI::PrimitiveType type, uint64 numIndices, uint64 numInstance) = 0;
+        virtual void DrawIndexed(rhi::PrimitiveType type, uint64 numIndices)                             = 0;
+        virtual void DrawIndexedInstance(rhi::PrimitiveType type, uint64 numIndices, uint64 numInstance) = 0;
     };
 
 
@@ -71,19 +71,19 @@ namespace Silex
         void SetShaderTexture(uint32 slot, uint32 id);
         void SetViewport(uint32 width, uint32 height);
 
-        void SetStencilFunc(RHI::StrencilOp op, int32 ref, uint32 mask);
-        void SetCullFace(RHI::CullFace face);
+        void SetStencilFunc(rhi::StrencilOp op, int32 ref, uint32 mask);
+        void SetCullFace(rhi::CullFace face);
 
         void EnableBlend(bool enable);
 
         void SetDefaultFramebuffer();
-        void BlitFramebuffer(const Shared<Framebuffer>& src, const Shared<Framebuffer>& dest, RHI::AttachmentBuffer buffer);
+        void BlitFramebuffer(const Shared<Framebuffer>& src, const Shared<Framebuffer>& dest, rhi::AttachmentBuffer buffer);
 
-        void Draw(RHI::PrimitiveType type, uint64 numVertices);
-        void DrawInstance(RHI::PrimitiveType type, uint64 numVertices, uint64 numInstance);
+        void Draw(rhi::PrimitiveType type, uint64 numVertices);
+        void DrawInstance(rhi::PrimitiveType type, uint64 numVertices, uint64 numInstance);
 
-        void DrawIndexed(RHI::PrimitiveType type, uint64 numIndices);
-        void DrawIndexedInstance(RHI::PrimitiveType type, uint64 numIndices, uint64 numInstance);
+        void DrawIndexed(rhi::PrimitiveType type, uint64 numIndices);
+        void DrawIndexedInstance(rhi::PrimitiveType type, uint64 numIndices, uint64 numInstance);
 
     public:
 
@@ -94,7 +94,7 @@ namespace Silex
     public:
 
         TaskQueue&             GetRenderTaskQueue()       { return m_TaskQueue;  }
-        const RHI::DeviceInfo& GetDeviceInfo()      const { return m_DeviceInfo; }
+        const rhi::DeviceInfo& GetDeviceInfo()      const { return m_DeviceInfo; }
 
         Shared<Mesh>& GetSphereMesh() { return  m_SphereMesh;}
         Shared<Mesh>& GetQuadMesh()   { return  m_QuadMesh;  }
@@ -107,7 +107,7 @@ namespace Silex
     private:
 
         TaskQueue       m_TaskQueue;
-        RHI::DeviceInfo m_DeviceInfo;
+        rhi::DeviceInfo m_DeviceInfo;
 
         Shared<Mesh>    m_SphereMesh;
         Shared<Mesh>    m_QuadMesh;

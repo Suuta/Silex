@@ -36,24 +36,10 @@ layout (location = 0) out vec4 piexl;
 
 layout (set = 0, binding = 0) uniform sampler2D inputAttachment;
 
-// ACES Filmic Tone Mapping
-// https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
-vec3 ACES_ToneMap(vec3 color)
-{
-    const float a = 2.51;
-    const float b = 0.03;
-    const float c = 2.43;
-    const float d = 0.59;
-    const float e = 0.14;
-
-    color = clamp((color * (a * color + b)) / (color * (c * color + d) + e), 0.0, 1.0);
-    return color;
-}
-
 
 // webgl-meincraft / FXAA shader
 // https://github.com/mitsuhiko/webgl-meincraft/blob/master/assets/shaders/fxaa.glsl
-vec3 FXAA(vec2 pixelSize)
+vec4 FXAA(vec2 pixelSize)
 {
     const float FXAA_REDUCE_MIN = 1.0 / 128.0;
     const float FXAA_REDUCE_MUL = 1.0 / 8.0;
@@ -99,27 +85,60 @@ vec3 FXAA(vec2 pixelSize)
     float lumaB = dot(rgbB, luma);
 
 
-    if((lumaB < minLuma) || (lumaB > maxLuma))
-    {
-        return rgbA;
-    }
-    else
-    {
-        return rgbB;
-    }
+    //if((lumaB < minLuma) || (lumaB > maxLuma))
+    //{
+    //    return rgbA;
+    //}
+    //else
+    //{
+    //    return rgbB;
+    //}
+
+    float boolX = step(lumaB, minLuma);
+    float boolY = step(maxLuma, lumaB);
+    float mask  = step(0.5, boolX + boolY);
+
+    return mix(vec4(rgbA, 1.0), vec4(rgbB, 1.0), mask);
+}
+
+// SEGA ACES Filmic トーンマップ
+// https://techblog.sega.jp/entry/ngs_hdr_techblog_202211
+vec3 SEGA_ACESFilmic_Luminance(vec3 color, float luminance)
+{
+    const float a = 3.0;
+    const float b = 0.03;
+    const float c = a / luminance;
+    const float d = 1.0;
+    const float e = 0.14;
+
+    return (color * (a * color + b)) / (color * (c * color + d) + e);
+}
+
+vec3 SEGA_ACESFilmic(vec3 color)
+{
+    const float a = 3.0;
+    const float b = 0.03;
+    const float c = 2.43;
+    const float d = 0.59;
+    const float e = 0.14;
+
+    return (color * (a * color + b)) / (color * (c * color + d) + e);
 }
 
 
 void main()
 {
-    vec4 color = texture(inputAttachment, uv);
-
-    // シーンフレームバッファ（RGBA16F）から スワップチェイン(BGRA8N) への 0.0 ~ 1.0 補間
-    color.rgb = ACES_ToneMap(color.rgb).rgb;
-
     // FXAA
     vec2 pixelSize = 1.0 / textureSize(inputAttachment, 0);
-    color.rgb = FXAA(pixelSize);
+    vec4 color = FXAA(pixelSize);
+
+
+    color.rgb = pow(color.rgb, vec3(2.2));
+
+    // シーンフレームバッファ（RGBA16F）から スワップチェイン(BGRA8N) への 0.0 ~ 1.0 補間
+    color.rgb = SEGA_ACESFilmic(color.rgb).rgb;
+
+    color.rgb = pow(color.rgb, vec3(1 / 2.2));
 
     piexl = color;
 }

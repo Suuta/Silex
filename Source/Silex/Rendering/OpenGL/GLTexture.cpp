@@ -8,7 +8,7 @@
 
 namespace Silex
 {
-    GLTexture2D::GLTexture2D(const RHI::TextureDesc& desc)
+    GLTexture2D::GLTexture2D(const rhi::TextureDesc& desc)
         : Desc(desc)
         , ID(0)
     {
@@ -29,7 +29,7 @@ namespace Silex
         glTextureStorage2D(ID, mipCount, internaFormat, Desc.Width, Desc.Height);
     }
 
-    GLTexture2D::GLTexture2D(const RHI::TextureDesc& desc, const std::string& filePath)
+    GLTexture2D::GLTexture2D(const rhi::TextureDesc& desc, const std::string& filePath)
         : Desc(desc)
         , ID(0)
     {
@@ -81,7 +81,7 @@ namespace Silex
         glTextureParameteri(ID, GL_TEXTURE_WRAP_T,     wrap);
 
         // データ割り当て
-        uint32 mipCount = RHI::CalculateMipLevels(width, height);
+        uint32 mipCount = rhi::CalculateMipLevels(width, height);
         uint32 mipLevel = 0;
         glTextureStorage2D(ID, mipCount, internalFormat, width, height);
         glTextureSubImage2D(ID, mipLevel, 0, 0, width, height, format, dataType, pixels);
@@ -91,13 +91,13 @@ namespace Silex
             glGenerateTextureMipmap(ID);
     }
 
-    GLTexture2DArray::GLTexture2DArray(const RHI::TextureDesc& desc, uint32 size)
+    GLTexture2DArray::GLTexture2DArray(const rhi::TextureDesc& desc, uint32 size)
         : Desc(desc)
         , ID(0)
     {
     }
 
-    GLTextureCube::GLTextureCube(const RHI::TextureDesc& desc, const std::string& filePath)
+    GLTextureCube::GLTextureCube(const rhi::TextureDesc& desc, const std::string& filePath)
         : Desc(desc)
         , ID(0)
     {

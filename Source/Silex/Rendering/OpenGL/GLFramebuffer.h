@@ -13,7 +13,7 @@ namespace Silex
 
     public:
 
-        GLFramebuffer(const RHI::FramebufferDesc& desc);
+        GLFramebuffer(const rhi::FramebufferDesc& desc);
         ~GLFramebuffer();
 
         void Bind()   const override;
@@ -26,7 +26,7 @@ namespace Silex
 
         void Resize(uint32 width, uint32 height)                                                      override;
         void BindAttachment(uint32 slot, uint32 attachmentIndex) const                                override;
-        void SetAttachmentTexture(uint32 attachmentIndex, uint32 textureID, RHI::AttachmentType type) override;
+        void SetAttachmentTexture(uint32 attachmentIndex, uint32 textureID, rhi::AttachmentType type) override;
 
         void ClearAttachment(uint32 attachmentIndex, glm::ivec4 value) override;
         void ClearAttachment(uint32 attachmentIndex, glm::vec4 value)  override;
@@ -44,7 +44,7 @@ namespace Silex
     private:
 
         void AddAttachment(
-            RHI::FramebufferAttachmentDesc desc,
+            rhi::FramebufferAttachmentDesc desc,
             uint32                         width,
             uint32                         height,
             uint32                         attachmentIndex = 0
@@ -52,11 +52,11 @@ namespace Silex
 
     private:
 
-        RHI::FramebufferDesc Desc;
+        rhi::FramebufferDesc Desc;
         uint32               ID;
 
         std::vector<uint32>                         Attachments;
-        std::vector<RHI::FramebufferAttachmentDesc> AttachmentDescs;
+        std::vector<rhi::FramebufferAttachmentDesc> AttachmentDescs;
 
         uint32 AttachmentTypeFlagBits;
         uint32 ColorAttachmentCount;

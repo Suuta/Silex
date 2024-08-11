@@ -6,9 +6,14 @@
 #define SL_ENABLE_ASSERTS            1
 
 // レンダリング
-#define SL_PLATFORM_OPENGL           0
-#define SL_PLATFORM_VULKAN           1
-#define SL_VULKNA_INVERT_Y_AXIS      1
+#define SL_RENDERER_OPENGL      0
+#define SL_RENDERER_VULKAN      1
+#define SL_RENDERER_D3D12       0
+#define SL_VULKNA_INVERT_Y_AXIS 1
+
+#if (SL_RENDERER_OPENGL + SL_RENDERER_VULKAN + SL_RENDERER_D3D12 != 1)
+#error There must be only one render API
+#endif
 
 // glm
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE

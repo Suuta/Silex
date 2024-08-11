@@ -18,6 +18,7 @@ namespace Silex
 
         void Init(RenderingContext* context) override;
         void BeginFrame()                    override;
+        void Render()                        override;
         void EndFrame()                      override;
 
     private:

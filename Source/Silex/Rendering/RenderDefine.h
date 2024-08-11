@@ -6,7 +6,7 @@
 
 namespace Silex
 {
-    namespace RHI
+    namespace rhi
     {
         //==================================================
         // 列挙型

@@ -64,6 +64,7 @@ namespace Silex
     {
         VkFramebuffer framebuffer = nullptr;
         Rect          rect        = {};
+        uint32        layer       = 0;
     };
 
     // スワップチェイン
@@ -99,9 +100,10 @@ namespace Silex
     // テクスチャ
     struct VulkanTexture : public TextureHandle
     {
-        VkImage     image     = nullptr;
-        VkImageView imageView = nullptr;
-        VkExtent3D  extent    = {};
+        VkImage               image     = nullptr;
+        VkImageView           imageView = nullptr;
+        VkExtent3D            extent    = {};
+        VkImageViewCreateInfo info      = {};
 
         VmaAllocation     allocationHandle = nullptr;
         VmaAllocationInfo allocationInfo   = {};

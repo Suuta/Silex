@@ -25,17 +25,17 @@ namespace Silex
 
         void SetShaderTexture(uint32 slot, uint32 id)                   override;
         void SetViewport(uint32 width, uint32 height)                   override;
-        void SetStencilFunc(RHI::StrencilOp op, int32 ref, uint32 mask) override;
-        void SetCullFace(RHI::CullFace face)                            override;
+        void SetStencilFunc(rhi::StrencilOp op, int32 ref, uint32 mask) override;
+        void SetCullFace(rhi::CullFace face)                            override;
         void EnableBlend(bool enable)                                   override;
 
-        void BlitFramebuffer(const Shared<Framebuffer>& src, const Shared<Framebuffer>& dest, RHI::AttachmentBuffer buffer) override;
+        void BlitFramebuffer(const Shared<Framebuffer>& src, const Shared<Framebuffer>& dest, rhi::AttachmentBuffer buffer) override;
 
-        void Draw(RHI::PrimitiveType type, uint64 numVertices)                                   override;
-        void DrawInstance(RHI::PrimitiveType type, uint64 numVertices, uint64 numInstance)       override;
+        void Draw(rhi::PrimitiveType type, uint64 numVertices)                                   override;
+        void DrawInstance(rhi::PrimitiveType type, uint64 numVertices, uint64 numInstance)       override;
 
-        void DrawIndexed(RHI::PrimitiveType type, uint64 numIndices)                             override;
-        void DrawIndexedInstance(RHI::PrimitiveType type, uint64 numIndices, uint64 numInstance) override;
+        void DrawIndexed(rhi::PrimitiveType type, uint64 numIndices)                             override;
+        void DrawIndexedInstance(rhi::PrimitiveType type, uint64 numIndices, uint64 numInstance) override;
 
     private:
 

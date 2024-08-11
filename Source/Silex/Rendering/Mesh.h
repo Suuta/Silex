@@ -93,8 +93,8 @@ namespace Silex
         void AddSource(MeshSource* source);
 
         // プリミティブ
-        void SetPrimitiveType(RHI::PrimitiveType type) { primitiveType = type; }
-        RHI::PrimitiveType GetPrimitiveType()          { return primitiveType; }
+        void SetPrimitiveType(rhi::PrimitiveType type) { primitiveType = type; }
+        rhi::PrimitiveType GetPrimitiveType()          { return primitiveType; }
 
         // サブメッシュ
         std::vector<MeshSource*>& GetMeshSources()  { return subMeshes;        }
@@ -118,7 +118,7 @@ namespace Silex
         std::vector<MeshSource*>                subMeshes;
         uint32                                  numMaterialSlot;
 
-        RHI::PrimitiveType primitiveType = RHI::PrimitiveType::Triangle;
+        rhi::PrimitiveType primitiveType = rhi::PrimitiveType::Triangle;
 
         friend class MeshSource;
     };

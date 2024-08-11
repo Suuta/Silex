@@ -16,8 +16,6 @@ namespace Silex
         void* pixels  = nullptr;
     };
 
-    // 読み込んだテクスチャデータは、変数のスコープ内のみ有効
-    // 自動で解放されるが、Unloadで明示的に解放もできる
     struct TextureReader
     {
         TextureReader();
@@ -29,6 +27,14 @@ namespace Silex
         void Unload(void* data);
 
         TextureSourceData data;
+    };
+
+    struct TextureWriter
+    {
+        TextureWriter();
+        ~TextureWriter();
+
+        bool WritePNG(const char* filePath, uint32 width, uint32 height, const void* data);
     };
 }
 

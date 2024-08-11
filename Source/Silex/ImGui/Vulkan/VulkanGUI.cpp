@@ -2,7 +2,7 @@
 #include "PCH.h"
 
 #include "Core/Engine.h"
-#include "Rendering/RenderingDevice.h"
+#include "Rendering/RHI.h"
 #include "Rendering/RenderingContext.h"
 #include "Rendering/Vulkan/VulkanStructures.h"
 #include "Rendering/Vulkan/VulkanContext.h"
@@ -132,7 +132,7 @@ namespace Silex
 
         GLFWwindow*         glfw      = Window::Get()->GetGLFWWindow();
         VulkanSwapChain*    swapchain = (VulkanSwapChain*)Window::Get()->GetSwapChain();
-        VulkanCommandQueue* queue     = (VulkanCommandQueue*)RenderingDevice::Get()->GetGraphicsCommandQueue();
+        VulkanCommandQueue* queue     = (VulkanCommandQueue*)RHI::Get()->GetGraphicsCommandQueue();
 
         Super::Init(vulkanContext);
 
@@ -172,10 +172,26 @@ namespace Silex
         ImGuizmo::BeginFrame();
     }
 
-    void VulkanGUI::EndFrame()
+    void VulkanGUI::Render()
     {
-        const FrameData& frame = RenderingDevice::Get()->GetFrameData();
+        const FrameData& frame = RHI::Get()->GetFrameData();
         VkCommandBuffer commandBuffer = ((VulkanCommandBuffer*)(frame.commandBuffer))->commandBuffer;
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
     }
+
+    void VulkanGUI::EndFrame()
+    {
+    }
+
+
+#if SL_RENDERER_VULKAN
+
+    void GUI::Image(DescriptorSet* set, float width, float height)
+    {
+        VulkanDescriptorSet* descriptorset = (VulkanDescriptorSet*)set;
+        ImGui::Image(descriptorset->descriptorSet, { width, height });
+    }
+
+#endif
+
 }

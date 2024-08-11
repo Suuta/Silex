@@ -10,7 +10,6 @@ namespace Silex
 {
     class RenderingAPI;
     class RenderingContext;
-    class Mesh;
 
     // 削除待機リソース
     struct PendingDestroyResourceQueue
@@ -44,22 +43,24 @@ namespace Silex
         Fence*         fence         = nullptr;
     };
 
-    class RenderingDevice : public Object
+    class RHI : public Object
     {
-        SL_CLASS(RenderingDevice, Object);
+        SL_CLASS(RHI, Object);
 
     public:
 
-        RenderingDevice();
-        ~RenderingDevice();
+        RHI();
+        ~RHI();
 
-        static RenderingDevice* Get();
+        // インスタンス
+        static RHI* Get();
 
-    public:
-
+        // 初期化
         bool Initialize(RenderingContext* renderingContext);
-        bool Begin();
-        bool End();
+
+        // フレーム同期
+        bool BeginFrame();
+        bool EndFrame();
 
         // レンダリング環境
         RenderingContext* GetContext() const;
@@ -76,25 +77,28 @@ namespace Silex
         // 保留中リソース削除
         void DestroyPendingResources(uint32 frame);
 
-    public:
-
         // デバイス情報
         const DeviceInfo& GetDeviceInfo() const;
 
+        //===========================================================
+        // API
+        //===========================================================
+
         // テクスチャ
-        TextureHandle* CreateTextureFromMemory(const byte* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
+        TextureHandle* CreateTextureFromMemory(const byte*  pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
+        TextureHandle* CreateTextureFromMemory(const float* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
 
         // レンダーテクスチャ
-        TextureHandle* CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap);
-        TextureHandle* CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap);
-        TextureHandle* CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap);
+        TextureHandle* CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap = false);
+        TextureHandle* CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap = false);
+        TextureHandle* CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap = false);
         void           DestroyTexture(TextureHandle* texture);
 
         // バッファ
-        Buffer* CreateUniformBuffer(void* data, uint64 dataByte);
-        Buffer* CreateStorageBuffer(void* data, uint64 dataByte);
-        Buffer* CreateVertexBuffer(void* data, uint64 dataByte);
-        Buffer* CreateIndexBuffer(void* data, uint64 dataByte);
+        Buffer* CreateUniformBuffer(void* data, uint64 size, void** outMappedAdress);
+        Buffer* CreateStorageBuffer(void* data, uint64 size, void** outMappedAdress);
+        Buffer* CreateVertexBuffer(void* data, uint64 size);
+        Buffer* CreateIndexBuffer(void* data, uint64 size);
         void    DestroyBuffer(Buffer* buffer);
 
         // フレームバッファ
@@ -113,22 +117,75 @@ namespace Silex
     
     private:
 
-        // バッファヘルパー
-        Buffer* _CreateBuffer();
+        //===========================================================
+        // ヘルパー
+        //===========================================================
 
-        // テクスチャヘルパー
+        Buffer*        _CreateAndMapBuffer(BufferUsageBits type, const void* data, uint64 dataSize, void** outMappedAdress);
+        Buffer*        _CreateAndSubmitBufferData(BufferUsageBits type, const void* data, uint64 dataSize);
+
+        TextureHandle* _CreateTexture(TextureDimension dimension, TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 depth, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags);
+        void           _SubmitTextureData(TextureHandle* texture, uint32 width, uint32 height, bool genMipmap, const void* pixelData, uint64 dataSize);
         void           _GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, uint32 depth, uint32 array, TextureAspectFlags aspect);
-        TextureHandle* _CreateTexture(TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 depth, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags);
 
+        //===========================================================
+        // メンバ
+        //===========================================================
+
+        ImmidiateCommandData     immidiateContext = {};
+        std::array<FrameData, 2> frameData        = {};
+        uint64                   frameIndex       = 0;
+
+        RenderingContext* context = nullptr;
+        RenderingAPI*     api     = nullptr;
+
+        QueueFamily   graphicsQueueFamily = RENDER_INVALID_ID;
+        CommandQueue* graphicsQueue       = nullptr;
+
+        RenderPassClearValue defaultClearColor        = {};
+        RenderPassClearValue defaultClearDepthStencil = {};
+
+        //===========================================================
+        // インスタンス
+        //===========================================================
+        static inline RHI* instance = nullptr;
+
+
+        //===========================================================
+        // テストコード
+        //===========================================================
     public:
 
         void TEST();
-        void DOCK_SPACE(class Camera* camera);
-        void DRAW(class Camera* camera);
+        void Update(class Camera* camera);
+        void Render(class Camera* camera, float dt);
         void RESIZE(uint32 width, uint32 height);
 
     private:
 
+        // キューブマップ変換
+        Pipeline*          equirectangularPipeline = nullptr;
+        FramebufferHandle* equirectangularFB       = nullptr;
+        RenderPass*        equirectangularPass     = nullptr;
+        ShaderHandle*      equirectangularShader   = nullptr;
+        DescriptorSet*     equirectangularSet      = nullptr;
+        Buffer*            equirectangularUBO      = nullptr;
+        void*              mappedEquirectanguler   = nullptr;
+        TextureHandle*     cubemap                 = nullptr;
+        Sampler*           cubemapSampler          = nullptr;
+
+        // スカイボックス
+        Pipeline*          skyPipeline = nullptr;
+        ShaderHandle*      skyShader   = nullptr;
+
+        // シーンBlit
+        DescriptorSet*     imageSet     = nullptr;
+        FramebufferHandle* imageFB      = nullptr;
+        TextureHandle*     imageTexture = nullptr;
+        RenderPass*        imagePass    = nullptr;
+
+
+        // シーンバッファ
         Buffer*            sceneUBO        = nullptr;
         void*              mappedSceneData = nullptr;
         Buffer*            gridUBO         = nullptr;
@@ -165,30 +222,12 @@ namespace Silex
         Buffer* vb = nullptr;
         Buffer* ib = nullptr;
 
-        Mesh* cubeMesh   = nullptr;
-        Mesh* sphereMesh = nullptr;
-        Mesh* sponzaMesh = nullptr;
+        //class Mesh* sphereMesh = nullptr;
+        class Mesh* cubeMesh   = nullptr;
+        class Mesh* sponzaMesh = nullptr;
 
         TextureHandle* textureFile = nullptr;
-
-    private:
-
-        ImmidiateCommandData     immidiateContext = {};
-        std::array<FrameData, 2> frameData        = {};
-        uint64                   frameIndex       = 0;
-
-        RenderingContext* context = nullptr;
-        RenderingAPI*     api     = nullptr;
-
-        QueueFamily   graphicsQueueFamily = RENDER_INVALID_ID;
-        CommandQueue* graphicsQueue       = nullptr;
-
-        RenderPassClearValue defaultClearColor        = {};
-        RenderPassClearValue defaultClearDepthStencil = {};
-
-    private:
-
-        static inline RenderingDevice* instance = nullptr;
+        TextureHandle* envTexture  = nullptr;
     };
 }
 

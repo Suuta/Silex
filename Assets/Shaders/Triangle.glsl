@@ -14,9 +14,8 @@ layout (location = 0) out vec3 outPos;
 layout (location = 1) out vec3 outNormal;
 layout (location = 2) out vec2 outTexCoord;
 
-//=================================
+
 // ユニフォーム
-//=================================
 layout (set = 0, binding = 0) uniform Transform
 {
     mat4 world;
@@ -29,7 +28,7 @@ void main()
     vec4 worldPos = world * vec4(inPos, 1.0);
 
     outPos      = worldPos.xyz;
-    outNormal   = inNormal;
+    outNormal   = mat3(transpose(inverse(world))) * inNormal;
     outTexCoord = inTexCoord;
 
     gl_Position = projection * view * worldPos;
@@ -48,7 +47,7 @@ layout (location = 2) in vec2 inTexCoord;
 
 layout (location = 0) out vec4 outFragColor;
 
-layout (set = 1, binding = 0) uniform sampler2D mainTexture;
+layout (set = 1, binding = 0) uniform samplerCube mainTexture;
 layout (set = 2, binding = 0) uniform SceneInfo
 {
     vec4 light;
@@ -66,7 +65,8 @@ void main()
     //float checker = fract(screenPos.x + screenPos.y);
 
     // アルベド
-    vec4 albedo = texture(mainTexture, inTexCoord);
+    //vec4 albedo = texture(mainTexture, inPos);
+    vec4 albedo = vec4(0.5);
 
     // ライトカラー
     //vec3 lightcolor = vec3(1.0);

@@ -1,8 +1,10 @@
 
 #pragma once
 #include "Core/Core.h"
+
+#include <vulkan/vulkan.h>
 #include <d3d12.h>
-#include <dxgi.h>
+#include <dxgi1_6.h>
 
 
 namespace Silex
@@ -360,7 +362,7 @@ namespace Silex
         QUEUE_FAMILY_COMPUTE_BIT  = SL_BIT(1),
         QUEUE_FAMILY_TRANSFER_BIT = SL_BIT(2),
     };
-    using QueueFamilyFlags = int32;
+    using QueueFamilyFlags = uint32;
 
     //================================================
     // コマンドバッファ
@@ -388,11 +390,20 @@ namespace Silex
         BUFFER_USAGE_VERTEX_BIT               = SL_BIT(7),
         BUFFER_USAGE_INDIRECT_BIT             = SL_BIT(8),
     };
-    using BufferUsageFlags = int32;
+    using BufferUsageFlags = uint32;
 
     //=================================================
     // テクスチャ
     //=================================================
+    enum TextureDimension
+    {
+        TEXTURE_DIMENSION_1D,
+        TEXTURE_DIMENSION_2D,
+        TEXTURE_DIMENSION_3D,
+
+        TEXTURE_DIMENSION_MAX,
+    };
+
     enum TextureType
     {
         TEXTURE_TYPE_1D,
@@ -448,7 +459,7 @@ namespace Silex
         TEXTURE_ASPECT_DEPTH_BIT   = SL_BIT(1),
         TEXTURE_ASPECT_STENCIL_BIT = SL_BIT(2),
     };
-    using TextureAspectFlags = int32;
+    using TextureAspectFlags = uint32;
 
     enum TextureUsageBits
     {
@@ -462,10 +473,10 @@ namespace Silex
         TEXTURE_USAGE_INPUT_ATTACHMENT_BIT         = SL_BIT(7),
         TEXTURE_USAGE_CPU_READ_BIT                 = SL_BIT(8),
     };
-    using TextureUsageFlags = int32;
+    using TextureUsageFlags = uint32;
 
 
-    struct TextureFormat
+    struct TextureInfo
     {
         RenderingFormat   format    = RENDERING_FORMAT_UNDEFINE;
         uint32            width     = 0;
@@ -473,6 +484,7 @@ namespace Silex
         uint32            depth     = 1;
         uint32            array     = 1;
         uint32            mipLevels = 1;
+        TextureDimension  dimension = TEXTURE_DIMENSION_2D;
         TextureType       type      = TEXTURE_TYPE_2D;
         TextureSamples    samples   = TEXTURE_SAMPLES_1;
         TextureUsageFlags usageBits = 0;
@@ -503,7 +515,7 @@ namespace Silex
     // ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ ↓ 
     //===========================================================================
 
-    // テクスチャバリアのサブリソース範囲指定
+    // ビュー・バリアのサブリソース範囲指定
     struct TextureSubresourceRange
     {
         TextureAspectFlags aspect        = TEXTURE_ASPECT_COLOR_BIT;
@@ -590,7 +602,7 @@ namespace Silex
         PIPELINE_STAGE_ALL_GRAPHICS_BIT                   = SL_BIT(15),
         PIPELINE_STAGE_ALL_COMMANDS_BIT                   = SL_BIT(16),
     };
-    using PipelineStageFlags = int32;
+    using PipelineStageFlags = uint32;
 
     enum BarrierAccessBits
     {
@@ -612,7 +624,7 @@ namespace Silex
         BARRIER_ACCESS_MEMORY_READ_BIT                    = SL_BIT(15),
         BARRIER_ACCESS_MEMORY_WRITE_BIT                   = SL_BIT(16),
     };
-    using BarrierAccessFlags = int32;
+    using BarrierAccessFlags = uint32;
 
     struct MemoryBarrierInfo
     {
@@ -817,7 +829,7 @@ namespace Silex
 
         SHADER_STAGE_ALL                        = RENDER_INVALID_ID,
     };
-    using ShaderStageFlags = int32;
+    using ShaderStageFlags = uint32;
 
     //================================================
     // パイプライン
@@ -965,23 +977,23 @@ namespace Silex
         bool            enableDepthTest  = true;
         bool            enableDepthWrite = true;
         bool            enableDepthRange = false;
-        CompareOperator depthCompareOp   = COMPARE_OP_LESS_OR_EQUAL;
+        CompareOperator depthCompareOp   = COMPARE_OP_LESS;
         float           depthRangeMin    = 0.0f;
         float           depthRangeMax    = 1.0f;
 
         // ステンシル
         struct StencilOperationState
         {
-            StencilOperation fail        = STENCIL_OP_ZERO;
             StencilOperation pass        = STENCIL_OP_ZERO;
-            StencilOperation depthFail   = STENCIL_OP_ZERO;
+            StencilOperation fail        = STENCIL_OP_KEEP;
+            StencilOperation depthFail   = STENCIL_OP_KEEP;
             CompareOperator  compare     = COMPARE_OP_ALWAYS;
-            uint32           compareMask = 0;
-            uint32           writeMask   = 0;
+            uint32           compareMask = 255;
+            uint32           writeMask   = 255;
             uint32           reference   = 0;
         };
 
-        bool                  enableStencil = true;
+        bool                  enableStencil = false;
         StencilOperationState frontOp       = {};
         StencilOperationState backOp        = {};
     };
@@ -994,9 +1006,8 @@ namespace Silex
 
         PipelineColorBlendState(bool enable)
         {
-            enable ? AddBlend() : AddDisabled();
+            enable? AddBlend() : AddDisabled();
         }
-
 
         bool           enableLogicOp = false;
         LogicOperation logicOp       = LOGIC_OP_CLEAR;
@@ -1023,7 +1034,7 @@ namespace Silex
 
         void AddBlend()
         {
-            Attachment ba;
+            Attachment ba = {};
             ba.enableBlend         = true;
             ba.srcColorBlendFactor = BLEND_FACTOR_SRC_ALPHA;
             ba.srcAlphaBlendFactor = BLEND_FACTOR_SRC_ALPHA;
@@ -1052,7 +1063,7 @@ namespace Silex
 
         DYNAMIC_STATE_MAX = 7,
     };
-    using PipelineDynamicStateFlags = int32;
+    using PipelineDynamicStateFlags = uint32;
 
     //================================================
     // コマンド

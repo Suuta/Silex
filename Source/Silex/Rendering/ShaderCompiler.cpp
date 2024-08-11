@@ -6,7 +6,7 @@
 // NOTE:
 // glslang + spirv_tool のコンパイルでは、静的ライブラリが複雑 + サイズが大きすぎる
 // 特に "SPIRV-Tools-optd.lib" が 300MB あり、100MB制限で github にアップできない
-// 共有ライブラリでビルドした shaderc に移行
+// ⇒ 共有ライブラリでビルドした shaderc に移行
 //==========================================================================
 #define SHADERC 1
 #if !SHADERC
@@ -141,6 +141,9 @@ namespace Silex
         // shaderc における GLSLコンパイラでは、エントリーポイントは "main" であると想定され
         // エントリーポイント指定は HLSL 専用の機能になっている
         //========================================================================
+        SL_ASSERT(false);
+
+
         switch (stage)
         {
             case Silex::SHADER_STAGE_VERTEX_BIT:                 return "vsmain";
@@ -244,7 +247,7 @@ namespace Silex
     // ステージ間共有バッファ保存用変数  ※リフレクション時のバッファ複数回定義を防ぐ
     static std::unordered_map<_SetIndex, std::unordered_map<_Binding, ShaderBuffer>> ExistUniformBuffers;
     static std::unordered_map<_SetIndex, std::unordered_map<_Binding, ShaderBuffer>> ExistStorageBuffers;
-    static ShaderReflectionData                                                    ReflectionData;
+    static ShaderReflectionData                                                      ReflectionData;
 
     static const char* ShaderCacheDirectory = "Assets/Shaders/Cache/";
 
@@ -382,13 +385,14 @@ namespace Silex
         const shaderc::SpvCompilationResult compileResult = compiler.CompileGlslToSpv(source, ToShaderC(stage), filepath.c_str(), options);
         if (compileResult.GetCompilationStatus() != shaderc_compilation_status_success)
         {
+            // エラーあり
             return compileResult.GetErrorMessage();
         }
 
         // SPIR-V は 4バイトアラインメント
         out_putSpirv = std::vector<uint32>(compileResult.begin(), compileResult.end());
 
-        // エラーメッセージ無し
+        // エラ-なし
         return {};
 #else
         glslang::InitializeProcess();
@@ -684,7 +688,7 @@ namespace Silex
 
             auto& pushConstantRange  = ReflectionData.pushConstantRanges.emplace_back();
             pushConstantRange.stage  = stage;
-            pushConstantRange.size   = bufferSize;  // bufferSize - bufferOffset;
+            pushConstantRange.size   = bufferSize;
             pushConstantRange.offset = bufferOffset;
 
             if (name.empty())

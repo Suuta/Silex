@@ -58,7 +58,7 @@ namespace Silex
         glm::vec3 WorldUp;
 
         float NearPlane = 0.1f;
-        float FarPlane  = 1000.0f;
+        float FarPlane  = 2000.0f;
         float Yaw;
         float Pitch;
 

@@ -41,9 +41,21 @@ namespace Silex
         ImGuizmo::BeginFrame();
     }
 
-    void GLEditorUI::EndFrame()
+    void GLEditorUI::Render()
     {
-        ImGui::Render();
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     }
+
+    void GLEditorUI::EndFrame()
+    {
+    }
+
+
+#if SL_RENDERER_OPENGL
+    void Image(DescriptorSet* set, float width, float height)
+    {
+        SL_ASSERT(false, "OpenGL では 通常の ImGui::Image を使用してください");
+    }
+#endif
+
 }

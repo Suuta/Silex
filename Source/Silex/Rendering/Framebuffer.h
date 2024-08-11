@@ -25,7 +25,7 @@ namespace Silex
 
         virtual void Resize(uint32 width, uint32 height)                                                      = 0;
         virtual void BindAttachment(uint32 slot, uint32 attachmentIndex) const                                = 0;
-        virtual void SetAttachmentTexture(uint32 attachmentIndex, uint32 textureID, RHI::AttachmentType type) = 0;
+        virtual void SetAttachmentTexture(uint32 attachmentIndex, uint32 textureID, rhi::AttachmentType type) = 0;
 
         virtual void ClearAttachment(uint32 attachmentIndex, glm::ivec4 value) = 0; 
         virtual void ClearAttachment(uint32 attachmentIndex, glm::vec4 value)  = 0;
@@ -43,6 +43,6 @@ namespace Silex
 
     public:
 
-        static Shared<Framebuffer> Create(const RHI::FramebufferDesc& desc);
+        static Shared<Framebuffer> Create(const rhi::FramebufferDesc& desc);
     };
 }

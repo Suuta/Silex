@@ -5,8 +5,7 @@
 #include "Asset/Asset.h"
 #include "Editor/SplashImage.h"
 #include "Rendering/RenderingContext.h"
-#include "Rendering/RenderingDevice.h"
-#include "Rendering/OpenGL/GLEditorUI.h"
+#include "Rendering/RHI.h"
 
 
 namespace Silex
@@ -86,8 +85,8 @@ namespace Silex
         SL_CHECK(!result, false);
 
         // レンダリングデバイス生成 (描画APIを抽象化)
-        device = slnew(RenderingDevice);
-        result = device->Initialize(context);
+        rhi = slnew(RHI);
+        result = rhi->Initialize(context);
         SL_CHECK(!result, false);
 
         // ウィンドウコンテキスト生成
@@ -107,8 +106,8 @@ namespace Silex
         //AssetManager::Get()->Init();
 
         // エディターUI (ImGui)
-        imgui = GUI::Create();
-        imgui->Init(context);
+        gui = GUI::Create();
+        gui->Init(context);
 
         // エディター
         editor = slnew(Editor);
@@ -118,7 +117,7 @@ namespace Silex
         mainWindow->Show();
 
 
-        device->TEST();
+        rhi->TEST();
 
         return true;
     }
@@ -129,7 +128,7 @@ namespace Silex
         sldelete(editor);
 
         // ImGui 破棄
-        sldelete(imgui);
+        sldelete(gui);
 
         //AssetManager::Get()->Shutdown();
         //Renderer::Get()->Shutdown();
@@ -138,7 +137,7 @@ namespace Silex
         mainWindow->CleanupWindowContext(context);
 
         // レンダリングデバイス破棄
-        sldelete(device);
+        sldelete(rhi);
 
         // レンダリングコンテキスト破棄
         sldelete(context);
@@ -153,22 +152,26 @@ namespace Silex
 
         if (!minimized)
         {
-            device->Begin();
-            imgui->BeginFrame();
+            // wait
+            rhi->BeginFrame();
+            gui->BeginFrame();
 
+            // update
             editor->Update(deltaTime);
-            //editor->Render();
+            rhi->Update(editor->GetEditorCamera());
+            gui->Update();
 
-            device->DOCK_SPACE(editor->GetEditorCamera());
-            imgui->UpdateWidget();
+            // render
+            rhi->Render(editor->GetEditorCamera(), deltaTime);
+            gui->Render();
 
-            device->DRAW(editor->GetEditorCamera());
-            imgui->EndFrame();
+            // submit
+            rhi->EndFrame();
+            gui->EndFrame();
 
-            device->End();
-
-            device->Present();
-            imgui->UpdateViewport();
+            // present
+            rhi->Present();
+            gui->ViewportPresent();
 
             Input::Flush();
         }

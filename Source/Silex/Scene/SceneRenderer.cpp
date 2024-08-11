@@ -46,13 +46,13 @@ namespace Silex
         //============================================
         // glPolygonOffset(2.0f, 0.0f) 要調整
 
-        RHI::FramebufferAttachmentDesc shadowMapDesc = {};
-        shadowMapDesc.Format           = RHI::RenderFormat::D32F;
-        shadowMapDesc.AttachmentType   = RHI::AttachmentType::Depth;
-        shadowMapDesc.TextureType      = RHI::TextureType::Texture2DArray;
+        rhi::FramebufferAttachmentDesc shadowMapDesc = {};
+        shadowMapDesc.Format           = rhi::RenderFormat::D32F;
+        shadowMapDesc.AttachmentType   = rhi::AttachmentType::Depth;
+        shadowMapDesc.TextureType      = rhi::TextureType::Texture2DArray;
         shadowMapDesc.TextureArraySize = context->shadowCascadeLevels.size();
 
-        RHI::FramebufferDesc descFB = {};
+        rhi::FramebufferDesc descFB = {};
         descFB.Width                = 2048;
         descFB.Height               = 2048;
         descFB.ColorAttachmentCount = 0;
@@ -65,48 +65,48 @@ namespace Silex
         //============================================
 
         // アルベド
-        RHI::FramebufferAttachmentDesc albedoDesc   = {};
-        albedoDesc.Format           = RHI::RenderFormat::RGBA16F;
-        albedoDesc.AttachmentType   = RHI::AttachmentType::Color;
-        albedoDesc.TextureType      = RHI::TextureType::Texture2D;
+        rhi::FramebufferAttachmentDesc albedoDesc   = {};
+        albedoDesc.Format           = rhi::RenderFormat::RGBA16F;
+        albedoDesc.AttachmentType   = rhi::AttachmentType::Color;
+        albedoDesc.TextureType      = rhi::TextureType::Texture2D;
         albedoDesc.TextureArraySize = 1;
 
         // 法線
-        RHI::FramebufferAttachmentDesc normalDesc   = {};
-        normalDesc.Format           = RHI::RenderFormat::RGBA32F;
-        normalDesc.AttachmentType   = RHI::AttachmentType::Color;
-        normalDesc.TextureType      = RHI::TextureType::Texture2D;
+        rhi::FramebufferAttachmentDesc normalDesc   = {};
+        normalDesc.Format           = rhi::RenderFormat::RGBA32F;
+        normalDesc.AttachmentType   = rhi::AttachmentType::Color;
+        normalDesc.TextureType      = rhi::TextureType::Texture2D;
         normalDesc.TextureArraySize = 1;
 
         // 座標
-        RHI::FramebufferAttachmentDesc positionDesc = {};
-        positionDesc.Format           = RHI::RenderFormat::RGBA32F;
-        positionDesc.AttachmentType   = RHI::AttachmentType::Color;
-        positionDesc.TextureType      = RHI::TextureType::Texture2D;
+        rhi::FramebufferAttachmentDesc positionDesc = {};
+        positionDesc.Format           = rhi::RenderFormat::RGBA32F;
+        positionDesc.AttachmentType   = rhi::AttachmentType::Color;
+        positionDesc.TextureType      = rhi::TextureType::Texture2D;
         positionDesc.TextureArraySize = 1;
 
         // エミッション
-        RHI::FramebufferAttachmentDesc emissionDesc = {};
-        emissionDesc.Format           = RHI::RenderFormat::RGBA32F;
-        emissionDesc.AttachmentType   = RHI::AttachmentType::Color;
-        emissionDesc.TextureType      = RHI::TextureType::Texture2D;
+        rhi::FramebufferAttachmentDesc emissionDesc = {};
+        emissionDesc.Format           = rhi::RenderFormat::RGBA32F;
+        emissionDesc.AttachmentType   = rhi::AttachmentType::Color;
+        emissionDesc.TextureType      = rhi::TextureType::Texture2D;
         emissionDesc.TextureArraySize = 1;
 
         // マテリアルID + エンティティID
-        RHI::FramebufferAttachmentDesc idDesc = {};
-        idDesc.Format           = RHI::RenderFormat::RGBA32I;
-        idDesc.AttachmentType   = RHI::AttachmentType::Color;
-        idDesc.TextureType      = RHI::TextureType::Texture2D;
+        rhi::FramebufferAttachmentDesc idDesc = {};
+        idDesc.Format           = rhi::RenderFormat::RGBA32I;
+        idDesc.AttachmentType   = rhi::AttachmentType::Color;
+        idDesc.TextureType      = rhi::TextureType::Texture2D;
         idDesc.TextureArraySize = 1;
 
         // 深度バッファ
-        RHI::FramebufferAttachmentDesc depthDesc = {};
-        depthDesc.Format           = RHI::RenderFormat::D24S8;
-        depthDesc.AttachmentType   = RHI::AttachmentType::DepthStencil;
-        depthDesc.TextureType      = RHI::TextureType::Texture2D;
+        rhi::FramebufferAttachmentDesc depthDesc = {};
+        depthDesc.Format           = rhi::RenderFormat::D24S8;
+        depthDesc.AttachmentType   = rhi::AttachmentType::DepthStencil;
+        depthDesc.TextureType      = rhi::TextureType::Texture2D;
         depthDesc.TextureArraySize = 1;
 
-        RHI::FramebufferDesc GBufferFBDecs = {};
+        rhi::FramebufferDesc GBufferFBDecs = {};
         GBufferFBDecs.Width                = 1280;
         GBufferFBDecs.Height               = 720;
         GBufferFBDecs.ColorAttachmentCount = 5;
@@ -117,19 +117,19 @@ namespace Silex
         //============================================
         // デファードライティングバッファ
         //============================================
-        RHI::FramebufferAttachmentDesc mainColorDesc = {};
-        mainColorDesc.Format           = RHI::RenderFormat::RGBA16F;
-        mainColorDesc.AttachmentType   = RHI::AttachmentType::Color;
-        mainColorDesc.TextureType      = RHI::TextureType::Texture2D;
+        rhi::FramebufferAttachmentDesc mainColorDesc = {};
+        mainColorDesc.Format           = rhi::RenderFormat::RGBA16F;
+        mainColorDesc.AttachmentType   = rhi::AttachmentType::Color;
+        mainColorDesc.TextureType      = rhi::TextureType::Texture2D;
         mainColorDesc.TextureArraySize = 1;
 
-        RHI::FramebufferAttachmentDesc mainDepthDesc = {};
-        mainDepthDesc.Format           = RHI::RenderFormat::D24S8;
-        mainDepthDesc.AttachmentType   = RHI::AttachmentType::DepthStencil;
-        mainDepthDesc.TextureType      = RHI::TextureType::Texture2D;
+        rhi::FramebufferAttachmentDesc mainDepthDesc = {};
+        mainDepthDesc.Format           = rhi::RenderFormat::D24S8;
+        mainDepthDesc.AttachmentType   = rhi::AttachmentType::DepthStencil;
+        mainDepthDesc.TextureType      = rhi::TextureType::Texture2D;
         mainDepthDesc.TextureArraySize = 1;
 
-        RHI::FramebufferDesc mainFBDecs = {};
+        rhi::FramebufferDesc mainFBDecs = {};
         mainFBDecs.Width                = 1280;
         mainFBDecs.Height               = 720;
         mainFBDecs.ColorAttachmentCount = 1;
@@ -140,11 +140,11 @@ namespace Silex
         //============================================
         // ブルーム
         //============================================
-        RHI::TextureDesc bloomTextureDesc = {};
-        bloomTextureDesc.Format = RHI::RenderFormat::RGBA16F;
-        bloomTextureDesc.Type   = RHI::TextureType::Texture2D;
-        bloomTextureDesc.Filter = RHI::TextureFilter::Linear;
-        bloomTextureDesc.Wrap   = RHI::TextureWrap::ClampEdge;
+        rhi::TextureDesc bloomTextureDesc = {};
+        bloomTextureDesc.Format = rhi::RenderFormat::RGBA16F;
+        bloomTextureDesc.Type   = rhi::TextureType::Texture2D;
+        bloomTextureDesc.Filter = rhi::TextureFilter::Linear;
+        bloomTextureDesc.Wrap   = rhi::TextureWrap::ClampEdge;
         bloomTextureDesc.Size   = 1;
 
         context->bloomResolutions = CalculateBloomMipSize(1280, 720);
@@ -161,14 +161,14 @@ namespace Silex
         context->preDownSamplingTexture = Texture2D::Create(bloomTextureDesc);
 
 
-        RHI::FramebufferAttachmentDesc bloomSamplingDesc = {};
-        bloomSamplingDesc.Format           = RHI::RenderFormat::RGBA16F;
-        bloomSamplingDesc.AttachmentType   = RHI::AttachmentType::Color;
-        bloomSamplingDesc.TextureType      = RHI::TextureType::Texture2D;
+        rhi::FramebufferAttachmentDesc bloomSamplingDesc = {};
+        bloomSamplingDesc.Format           = rhi::RenderFormat::RGBA16F;
+        bloomSamplingDesc.AttachmentType   = rhi::AttachmentType::Color;
+        bloomSamplingDesc.TextureType      = rhi::TextureType::Texture2D;
         bloomSamplingDesc.TextureArraySize = 1;
 
         // 書き込み用FBであり、テクスチャは後でアタッチする為、最小サイズ(1 x 1)の仮テクスチャを生成している
-        RHI::FramebufferDesc bloomSamplingFB = {};
+        rhi::FramebufferDesc bloomSamplingFB = {};
         bloomSamplingFB.Width                  = 1;
         bloomSamplingFB.Height                 = 1;
         bloomSamplingFB.ColorAttachmentCount   = 1;
@@ -180,13 +180,13 @@ namespace Silex
         //============================================
         // ポストプロセスバッファ
         //============================================
-        RHI::FramebufferAttachmentDesc ppColorDesc = {};
-        ppColorDesc.Format           = RHI::RenderFormat::RGBA16F;
-        ppColorDesc.AttachmentType   = RHI::AttachmentType::Color;
-        ppColorDesc.TextureType      = RHI::TextureType::Texture2D;
+        rhi::FramebufferAttachmentDesc ppColorDesc = {};
+        ppColorDesc.Format           = rhi::RenderFormat::RGBA16F;
+        ppColorDesc.AttachmentType   = rhi::AttachmentType::Color;
+        ppColorDesc.TextureType      = rhi::TextureType::Texture2D;
         ppColorDesc.TextureArraySize = 1;
 
-        RHI::FramebufferDesc postProcessFB = {};
+        rhi::FramebufferDesc postProcessFB = {};
         postProcessFB.Width                = 1280;
         postProcessFB.Height               = 720;
         postProcessFB.ColorAttachmentCount = 1;
@@ -303,11 +303,11 @@ namespace Silex
             // ブルームサンプリングテクスチャ
             {
                 // テクスチャのリサイズ
-                RHI::TextureDesc bloomTextureDesc = {};
-                bloomTextureDesc.Format = RHI::RenderFormat::RGBA16F;
-                bloomTextureDesc.Type   = RHI::TextureType::Texture2D;
-                bloomTextureDesc.Filter = RHI::TextureFilter::Linear;
-                bloomTextureDesc.Wrap   = RHI::TextureWrap::ClampEdge;
+                rhi::TextureDesc bloomTextureDesc = {};
+                bloomTextureDesc.Format = rhi::RenderFormat::RGBA16F;
+                bloomTextureDesc.Type   = rhi::TextureType::Texture2D;
+                bloomTextureDesc.Filter = rhi::TextureFilter::Linear;
+                bloomTextureDesc.Wrap   = rhi::TextureWrap::ClampEdge;
                 bloomTextureDesc.Size   = 1;
 
                 context->bloomResolutions = CalculateBloomMipSize(width, height);
@@ -421,7 +421,7 @@ namespace Silex
         context->gBufferFB->Clear();
         context->gBufferFB->ClearAttachment(4, glm::ivec4(0, -1, 0, 0 )); // IDバッファクリア
 
-        Renderer::Get()->SetStencilFunc(RHI::StrencilOp::Always, 1, 0xFF);
+        Renderer::Get()->SetStencilFunc(rhi::StrencilOp::Always, 1, 0xFF);
         
         if (context->shouldRenderGeometry)
         {
@@ -540,10 +540,10 @@ namespace Silex
         context->deferredFB->Clear();
 
         // Gバッファの深度ステンシル -> デファードライティングにコピー
-        Renderer::Get()->BlitFramebuffer(context->gBufferFB, context->deferredFB, RHI::AttachmentBuffer::Stencil);
+        Renderer::Get()->BlitFramebuffer(context->gBufferFB, context->deferredFB, rhi::AttachmentBuffer::Stencil);
 
         // ステンシル値が1の場所に書き込み
-        Renderer::Get()->SetStencilFunc(RHI::StrencilOp::Equal, 1, 0xFF);
+        Renderer::Get()->SetStencilFunc(rhi::StrencilOp::Equal, 1, 0xFF);
 
         // ジオメトリ
         if (context->shouldRenderGeometry)
@@ -606,14 +606,14 @@ namespace Silex
     void SceneRenderer::SkyboxPass()
     {
         // ステンシル値が0の場所にのみ描画を許可
-        Renderer::Get()->SetStencilFunc(RHI::StrencilOp::Equal, 0, 0xFF);
+        Renderer::Get()->SetStencilFunc(rhi::StrencilOp::Equal, 0, 0xFF);
 
         // スカイボックスパス
         if (context->skyLight.renderSky)
         {
             SL_SCOPE_PROFILE("SkyboxPass");
 
-            Renderer::Get()->SetCullFace(RHI::CullFace::Front);
+            Renderer::Get()->SetCullFace(rhi::CullFace::Front);
 
             context->skyShader->Bind();
             context->skyShader->Set("view",           glm::mat4(glm::mat3(context->sceneCamera->GetViewMatrix())));
@@ -623,7 +623,7 @@ namespace Silex
             Renderer::Get()->SetShaderTexture(0, context->skyLight.sky ? context->skyLight.sky->GetCubeMap() : 0);
             Renderer::Get()->DrawCube();
 
-            Renderer::Get()->SetCullFace(RHI::CullFace::Back);
+            Renderer::Get()->SetCullFace(rhi::CullFace::Back);
         }
     }
 
@@ -642,8 +642,8 @@ namespace Silex
     {
         if (context->enablePostProcess)
         {
-            Renderer::Get()->BlitFramebuffer(context->deferredFB, context->temporaryFB, RHI::AttachmentBuffer::Color);
-            Renderer::Get()->BlitFramebuffer(context->deferredFB, context->finalPassFB, RHI::AttachmentBuffer::Color);
+            Renderer::Get()->BlitFramebuffer(context->deferredFB, context->temporaryFB, rhi::AttachmentBuffer::Color);
+            Renderer::Get()->BlitFramebuffer(context->deferredFB, context->finalPassFB, rhi::AttachmentBuffer::Color);
 
             SceneRenderOption option = context->option;
 
@@ -700,7 +700,7 @@ namespace Silex
         context->bloomFB->BindAttachment(1, 0);
 
         Renderer::Get()->DrawScreenQuad();
-        Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, RHI::AttachmentBuffer::Color);
+        Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, rhi::AttachmentBuffer::Color);
     }
 
     void SceneRenderer::BloomPreFiltering()
@@ -715,7 +715,7 @@ namespace Silex
         context->temporaryFB->BindAttachment(0, 0);
 
         // プリフィルタテクスチャをFBにバインド
-        context->bloomFB->SetAttachmentTexture(0, context->preDownSamplingTexture->GetID(), RHI::AttachmentType::Color);
+        context->bloomFB->SetAttachmentTexture(0, context->preDownSamplingTexture->GetID(), rhi::AttachmentType::Color);
 
         // 描画
         Renderer::Get()->SetViewport(context->viewportSize.x, context->viewportSize.y);
@@ -736,7 +736,7 @@ namespace Silex
             uint32 textureID = context->bloomTextures[i]->GetID();
 
             // 書き込み先テクスチャをフレームバッファにアタッチ
-            context->bloomFB->SetAttachmentTexture(0, textureID, RHI::AttachmentType::Color);
+            context->bloomFB->SetAttachmentTexture(0, textureID, rhi::AttachmentType::Color);
 
             //描画
             Renderer::Get()->SetViewport(resolution.x, resolution.y);
@@ -762,7 +762,7 @@ namespace Silex
             uint32 textureID = context->bloomTextures[i - 1]->GetID();
 
             // ダウンサンプリング先のテクスチャをアタッチ
-            context->bloomFB->SetAttachmentTexture(0, textureID, RHI::AttachmentType::Color);
+            context->bloomFB->SetAttachmentTexture(0, textureID, rhi::AttachmentType::Color);
 
             // 1個前のダウンサンプリングされたテクスチャをソースに
             Renderer::Get()->SetShaderTexture(0, context->bloomTextures[i]->GetID());
@@ -785,7 +785,7 @@ namespace Silex
         context->temporaryFB->BindAttachment(0, 0);
 
         Renderer::Get()->DrawScreenQuad();
-        Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, RHI::AttachmentBuffer::Color);
+        Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, rhi::AttachmentBuffer::Color);
     }
 
     //==================================
@@ -809,7 +809,7 @@ namespace Silex
         context->gBufferFB->BindAttachment(2, 2);
 
         Renderer::Get()->DrawScreenQuad();
-        Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, RHI::AttachmentBuffer::Color);
+        Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, rhi::AttachmentBuffer::Color);
     }
 
     //==================================
@@ -824,7 +824,7 @@ namespace Silex
         context->temporaryFB->BindAttachment(0, 0);
 
         Renderer::Get()->DrawScreenQuad();
-        Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, RHI::AttachmentBuffer::Color);
+        Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, rhi::AttachmentBuffer::Color);
     }
 
     //==================================
@@ -843,7 +843,7 @@ namespace Silex
         context->temporaryFB->BindAttachment(0, 0);
 
         Renderer::Get()->DrawScreenQuad();
-        Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, RHI::AttachmentBuffer::Color);
+        Renderer::Get()->BlitFramebuffer(context->finalPassFB, context->temporaryFB, rhi::AttachmentBuffer::Color);
     }
 
     uint32 SceneRenderer::GetFinalRenderPassID()
@@ -853,7 +853,7 @@ namespace Silex
 
     int32 SceneRenderer::ReadEntityIDFromPixcel(uint32 x, uint32 y)
     {
-#if SL_PLATFORM_OPENGL
+#if SL_RENDERER_OPENGL
         // OpenGL: UV座標 反転
         float height = context->viewportSize.y - y;
 #else
