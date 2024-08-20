@@ -85,23 +85,18 @@ vec4 FXAA(vec2 pixelSize)
     float lumaB = dot(rgbB, luma);
 
 
-    //if((lumaB < minLuma) || (lumaB > maxLuma))
-    //{
-    //    return rgbA;
-    //}
-    //else
-    //{
-    //    return rgbB;
-    //}
-
-    float boolX = step(lumaB, minLuma);
-    float boolY = step(maxLuma, lumaB);
-    float mask  = step(0.5, boolX + boolY);
-
-    return mix(vec4(rgbA, 1.0), vec4(rgbB, 1.0), mask);
+    if((lumaB < minLuma) || (lumaB > maxLuma))
+    {
+        return vec4(vec3(rgbA), 1.0);
+    }
+    else
+    {
+        return vec4(vec3(rgbB), 1.0);
+    }
 }
 
 // SEGA ACES Filmic トーンマップ
+// HDR: 最大輝度を指定する
 // https://techblog.sega.jp/entry/ngs_hdr_techblog_202211
 vec3 SEGA_ACESFilmic_Luminance(vec3 color, float luminance)
 {
@@ -114,6 +109,7 @@ vec3 SEGA_ACESFilmic_Luminance(vec3 color, float luminance)
     return (color * (a * color + b)) / (color * (c * color + d) + e);
 }
 
+// SDR
 vec3 SEGA_ACESFilmic(vec3 color)
 {
     const float a = 3.0;
@@ -133,11 +129,23 @@ void main()
     vec4 color = FXAA(pixelSize);
 
 
+    // 理解して実装する
+    //https://x.com/nagakagachi/status/1796410539574473190
+
+    //===========================================================================
+    // ガンマ(2.2) -> トーンマップ -> ガンマ(1 / 2.2)
+    // トーンマップ前のガンマは要らないはずだが、必要以上に明るくなるので、ガンマ補正の逆変換
+    // をしたら良い具合の色合いになった。本来はまだ前に補正するべきポストプロセス処理がある
+    // かもしれないが、現状はわからないので、これで妥協する...
+    //===========================================================================
+
+    // 本来不要なガンマ補正（トーンマップによる補正で本来の色味が無くなるのを防ぐために、ベースを暗くする）
     color.rgb = pow(color.rgb, vec3(2.2));
 
     // シーンフレームバッファ（RGBA16F）から スワップチェイン(BGRA8N) への 0.0 ~ 1.0 補間
     color.rgb = SEGA_ACESFilmic(color.rgb).rgb;
 
+    // 本来のガンマ補正（SDRモニター用）
     color.rgb = pow(color.rgb, vec3(1 / 2.2));
 
     piexl = color;

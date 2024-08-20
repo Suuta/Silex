@@ -24,15 +24,15 @@ namespace Silex
         //--------------------------------------------------
         // コマンドキュー
         //--------------------------------------------------
-        virtual CommandQueue* CreateCommandQueue(QueueFamily family, uint32 indexInFamily = 0) = 0;
+        virtual CommandQueue* CreateCommandQueue(QueueID id, uint32 indexInFamily = 0) = 0;
         virtual void DestroyCommandQueue(CommandQueue* queue) = 0;
-        virtual QueueFamily QueryQueueFamily(QueueFamilyFlags flag, Surface* surface = nullptr) const = 0;
+        virtual QueueID QueryQueueID(QueueFamilyFlags flag, Surface* surface = nullptr) const = 0;
         virtual bool SubmitQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* present, Semaphore* render) = 0;
 
         //--------------------------------------------------
         // コマンドプール
         //--------------------------------------------------
-        virtual CommandPool* CreateCommandPool(QueueFamily family, CommandBufferType type = COMMAND_BUFFER_TYPE_PRIMARY) = 0;
+        virtual CommandPool* CreateCommandPool(QueueID id, CommandBufferType type = COMMAND_BUFFER_TYPE_PRIMARY) = 0;
         virtual void DestroyCommandPool(CommandPool* pool) = 0;
 
         //--------------------------------------------------
@@ -98,15 +98,9 @@ namespace Silex
         virtual void DestroyFramebuffer(FramebufferHandle* framebuffer) = 0;
 
         //--------------------------------------------------
-        // 頂点入力
-        //--------------------------------------------------
-        virtual VertexInput* CreateInputLayout(uint32 numBindings, InputLayout* layout) = 0;
-        virtual void DestroyInputLayout(VertexInput* layout) = 0;
-
-        //--------------------------------------------------
         // レンダーパス
         //--------------------------------------------------
-        virtual RenderPass* CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies) = 0;
+        virtual RenderPass* CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies, uint32 numClearValue, RenderPassClearValue* clearValue) = 0;
         virtual void DestroyRenderPass(RenderPass* renderpass) = 0;
 
         //--------------------------------------------------
@@ -125,7 +119,7 @@ namespace Silex
         //--------------------------------------------------
         // パイプライン
         //--------------------------------------------------
-        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, VertexInput* vertexInput, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) = 0;
+        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, PipelineStateInfo* info, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) = 0;
         virtual Pipeline* CreateComputePipeline(ShaderHandle* shader) = 0;
         virtual void DestroyPipeline(Pipeline* pipeline) = 0;
 
@@ -143,7 +137,7 @@ namespace Silex
         virtual void BlitTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureBlitRegion* regions, SamplerFilter filter = SAMPLER_FILTER_LINEAR) = 0;
 
         virtual void PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData) = 0;
-        virtual void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType, uint32 numclearValues, RenderPassClearValue* clearvalues) = 0;
+        virtual void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType) = 0;
         virtual void EndRenderPass(CommandBuffer* commandbuffer) = 0;
         virtual void NextRenderSubpass(CommandBuffer* commandbuffer, CommandBufferType commandBufferType) = 0;
         virtual void SetViewport(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) = 0;

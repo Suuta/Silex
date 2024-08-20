@@ -11,6 +11,7 @@ namespace Silex
     class RenderingAPI;
     class RenderingContext;
 
+
     // 削除待機リソース
     struct PendingDestroyResourceQueue
     {
@@ -23,17 +24,19 @@ namespace Silex
         std::vector<Pipeline*>          pipeline;
     };
 
+
     // フレームデータ
     struct FrameData
     {
-        CommandPool*                commandPool      = nullptr;
-        CommandBuffer*              commandBuffer    = nullptr;
-        Semaphore*                  presentSemaphore = nullptr;
-        Semaphore*                  renderSemaphore  = nullptr;
-        Fence*                      fence            = nullptr;
-        bool                        waitingSignal    = false;
-        PendingDestroyResourceQueue pendingResources;
+        CommandPool*                 commandPool      = nullptr;
+        CommandBuffer*               commandBuffer    = nullptr;
+        Semaphore*                   presentSemaphore = nullptr;
+        Semaphore*                   renderSemaphore  = nullptr;
+        Fence*                       fence            = nullptr;
+        bool                         waitingSignal    = false;
+        PendingDestroyResourceQueue* pendingResources;
     };
+
 
     // 即時コマンドデータ
     struct ImmidiateCommandData
@@ -43,6 +46,47 @@ namespace Silex
         Fence*         fence         = nullptr;
     };
 
+
+    // Gバッファ
+    struct GBuffer
+    {
+        RenderPass*        pass        = nullptr;
+        FramebufferHandle* framebuffer = nullptr;
+        Pipeline*          pipeline    = nullptr;
+        ShaderHandle*      shader      = nullptr;
+
+        TextureHandle* albedo   = nullptr;
+        TextureHandle* normal   = nullptr;
+        TextureHandle* emission = nullptr;
+        TextureHandle* id       = nullptr;
+        TextureHandle* depth    = nullptr;
+
+        Buffer*        materialUBO     = nullptr;
+        void*          mappedMaterial  = nullptr;
+        Buffer*        transformUBO    = nullptr;
+        void*          mappedTransfrom = nullptr;
+
+        DescriptorSet* transformSet = nullptr;
+        DescriptorSet* materialSet  = nullptr;
+    };
+
+    struct LightingBuffer
+    {
+        RenderPass*        pass        = nullptr;
+        FramebufferHandle* framebuffer = nullptr;
+        TextureHandle*     color       = nullptr;
+
+        Pipeline*     pipeline = nullptr;
+        ShaderHandle* shader   = nullptr;
+
+        Buffer*        sceneUBO    = nullptr;
+        void*          mappedScene = nullptr;
+        DescriptorSet* sceneSet    = nullptr;
+        DescriptorSet* textureSet  = nullptr;
+    };
+
+
+    // レンダーAPI抽象化
     class RHI : public Object
     {
         SL_CLASS(RHI, Object);
@@ -62,20 +106,21 @@ namespace Silex
         bool BeginFrame();
         bool EndFrame();
 
+        //===========================================================
+        // Getter
+        //===========================================================
+
         // レンダリング環境
         RenderingContext* GetContext() const;
         RenderingAPI*     GetAPI()     const;
 
         // コマンドキュー
-        QueueFamily   GetGraphicsQueueFamily()  const;
+        QueueID       GetGraphicsQueueID()  const;
         CommandQueue* GetGraphicsCommandQueue() const;
 
         // フレームデータ
         FrameData&       GetFrameData();
         const FrameData& GetFrameData() const;
-
-        // 保留中リソース削除
-        void DestroyPendingResources(uint32 frame);
 
         // デバイス情報
         const DeviceInfo& GetDeviceInfo() const;
@@ -85,7 +130,7 @@ namespace Silex
         //===========================================================
 
         // テクスチャ
-        TextureHandle* CreateTextureFromMemory(const byte*  pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
+        TextureHandle* CreateTextureFromMemory(const uint8* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
         TextureHandle* CreateTextureFromMemory(const float* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
 
         // レンダーテクスチャ
@@ -106,7 +151,7 @@ namespace Silex
         void               DestroyFramebuffer(FramebufferHandle* framebuffer);
 
         // デスクリプターセット
-        DescriptorSet* CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex, const DescriptorSetInfo& setInfo);
+        DescriptorSet* CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex, DescriptorSetInfo& setInfo);
         void           DestroyDescriptorSet(DescriptorSet* set);
 
         // スワップチェイン
@@ -114,6 +159,8 @@ namespace Silex
         bool       ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode);
         void       DestoySwapChain(SwapChain* swapchain);
         bool       Present();
+        void       BeginSwapChainPass();
+        void       EndSwapChainPass();
     
     private:
 
@@ -128,6 +175,8 @@ namespace Silex
         void           _SubmitTextureData(TextureHandle* texture, uint32 width, uint32 height, bool genMipmap, const void* pixelData, uint64 dataSize);
         void           _GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, uint32 depth, uint32 array, TextureAspectFlags aspect);
 
+        void _DestroyPendingResources(uint32 frame);
+
         //===========================================================
         // メンバ
         //===========================================================
@@ -139,11 +188,8 @@ namespace Silex
         RenderingContext* context = nullptr;
         RenderingAPI*     api     = nullptr;
 
-        QueueFamily   graphicsQueueFamily = RENDER_INVALID_ID;
-        CommandQueue* graphicsQueue       = nullptr;
-
-        RenderPassClearValue defaultClearColor        = {};
-        RenderPassClearValue defaultClearDepthStencil = {};
+        QueueID       graphicsQueueID = RENDER_INVALID_ID;
+        CommandQueue* graphicsQueue   = nullptr;
 
         //===========================================================
         // インスタンス
@@ -160,6 +206,21 @@ namespace Silex
         void Update(class Camera* camera);
         void Render(class Camera* camera, float dt);
         void RESIZE(uint32 width, uint32 height);
+
+    private:
+
+        // Gバッファ
+        void PrepareGBuffer(uint32 width, uint32 height);
+        void ResizeGBuffer(uint32 width, uint32 height);
+        void CleanupGBuffer();
+        GBuffer gbuffer;
+
+        // ライティング
+        void PrepareLightingBuffer(uint32 width, uint32 height);
+        void ResizeLightingBuffer(uint32 width, uint32 height);
+        void CleanupLightingBuffer();
+        LightingBuffer lighting;
+
 
     private:
 
@@ -183,7 +244,6 @@ namespace Silex
         FramebufferHandle* imageFB      = nullptr;
         TextureHandle*     imageTexture = nullptr;
         RenderPass*        imagePass    = nullptr;
-
 
         // シーンバッファ
         Buffer*            sceneUBO        = nullptr;
@@ -221,10 +281,6 @@ namespace Silex
 
         Buffer* vb = nullptr;
         Buffer* ib = nullptr;
-
-        //class Mesh* sphereMesh = nullptr;
-        class Mesh* cubeMesh   = nullptr;
-        class Mesh* sponzaMesh = nullptr;
 
         TextureHandle* textureFile = nullptr;
         TextureHandle* envTexture  = nullptr;

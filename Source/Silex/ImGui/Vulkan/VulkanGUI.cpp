@@ -175,8 +175,10 @@ namespace Silex
     void VulkanGUI::Render()
     {
         const FrameData& frame = RHI::Get()->GetFrameData();
-        VkCommandBuffer commandBuffer = ((VulkanCommandBuffer*)(frame.commandBuffer))->commandBuffer;
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+
+        RHI::Get()->BeginSwapChainPass();
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), ((VulkanCommandBuffer*)(frame.commandBuffer))->commandBuffer);
+        RHI::Get()->EndSwapChainPass();
     }
 
     void VulkanGUI::EndFrame()

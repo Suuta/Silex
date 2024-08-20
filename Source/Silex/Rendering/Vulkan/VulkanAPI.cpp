@@ -285,14 +285,14 @@ namespace Silex
     //==================================================================================
     // コマンドキュー
     //==================================================================================
-    CommandQueue* VulkanAPI::CreateCommandQueue(QueueFamily family, uint32 indexInFamily)
+    CommandQueue* VulkanAPI::CreateCommandQueue(QueueID id, uint32 indexInFamily)
     {
         // queueIndex は キューファミリ内に複数キューが存在する場合のインデックスを指定する
         VkQueue vkQueue = nullptr;
-        vkGetDeviceQueue(device, family, indexInFamily, &vkQueue);
+        vkGetDeviceQueue(device, id, indexInFamily, &vkQueue);
 
         VulkanCommandQueue* queue = slnew(VulkanCommandQueue);
-        queue->family = family;
+        queue->family = id;
         queue->index  = indexInFamily;
         queue->queue  = vkQueue;
 
@@ -311,9 +311,9 @@ namespace Silex
         }
     }
 
-    QueueFamily VulkanAPI::QueryQueueFamily(QueueFamilyFlags queueFlag, Surface* surface) const
+    QueueID VulkanAPI::QueryQueueID(QueueFamilyFlags queueFlag, Surface* surface) const
     {
-        QueueFamily familyIndex = RENDER_INVALID_ID;
+        QueueID familyIndex = RENDER_INVALID_ID;
 
         const auto& queueFamilyProperties = context->GetQueueFamilyProperties();
         for (uint32 i = 0; i < queueFamilyProperties.size(); i++)
@@ -369,9 +369,9 @@ namespace Silex
     //==================================================================================
     // コマンドプール
     //==================================================================================
-    CommandPool* VulkanAPI::CreateCommandPool(QueueFamily family, CommandBufferType type)
+    CommandPool* VulkanAPI::CreateCommandPool(QueueID id, CommandBufferType type)
     {
-        uint32 familyIndex = family;
+        uint32 familyIndex = id;
 
         VkCommandPoolCreateInfo commandPoolInfo = {};
         commandPoolInfo.sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO; 
@@ -1269,8 +1269,10 @@ namespace Silex
         texture->allocationInfo   = allocationInfo;
         texture->image            = vkimage;
         texture->imageView        = vkview;
-        texture->info             = viewCreateInfo;
+        texture->imageType        = viewCreateInfo.viewType;
+        texture->format           = viewCreateInfo.format;
         texture->extent           = imageCreateInfo.extent;
+        texture->subresource      = viewCreateInfo.subresourceRange;
 
         vmaGetAllocationInfo(allocator, texture->allocationHandle, &texture->allocationInfo);
 
@@ -1349,8 +1351,10 @@ namespace Silex
             views[i] = texes[i]->imageView;
         }
 
+        //=================================================================
         // アタッチメント間でレイヤー数は同じにする必要がある。
         // なので、レイヤー数が同じであると仮定し、先頭テクスチャのレイヤーを指定する
+        //=================================================================
 
         VkFramebufferCreateInfo createInfo = {};
         createInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -1359,7 +1363,7 @@ namespace Silex
         createInfo.pAttachments    = views;
         createInfo.width           = width;
         createInfo.height          = height;
-        createInfo.layers          = texes[0]->info.subresourceRange.layerCount;
+        createInfo.layers          = texes[0]->subresource.layerCount; // アタッチメント間でレイヤー数が異なってはいけない
 
         VkFramebuffer vkfb = nullptr;
         VkResult result = vkCreateFramebuffer(device, &createInfo, nullptr, &vkfb);
@@ -1388,70 +1392,9 @@ namespace Silex
     }
 
     //==================================================================================
-    // 頂点フォーマット
-    //==================================================================================
-    VertexInput* VulkanAPI:: CreateInputLayout(uint32 numBindings, InputLayout* layout)
-    {
-        VulkanVertexInput* vklayout = slnew(VulkanVertexInput);
-
-        uint32 attribeIndex = 0;
-        uint32 attribeSize  = 0;
-
-        for (uint32 i = 0; i < numBindings; i++)
-            attribeSize += layout[i].attributes.size();
-
-        vklayout->attributes.resize(attribeSize);
-        vklayout->bindings.resize(numBindings);
-
-
-        for (uint32 i = 0; i < numBindings; i++)
-        {
-            vklayout->bindings[i]           = {};
-            vklayout->bindings[i].binding   = layout[i].binding;
-            vklayout->bindings[i].stride    = layout[i].stride;
-            vklayout->bindings[i].inputRate = layout[i].frequency == VERTEX_FREQUENCY_INSTANCE ? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX;
-
-            uint32 attributeSize = layout[i].attributes.size();
-
-            for (uint32 j = 0; j < attributeSize; j++)
-            {
-                vklayout->attributes[attribeIndex + j]          = {};
-                vklayout->attributes[attribeIndex + j].binding  =           layout[i].binding;
-                vklayout->attributes[attribeIndex + j].format   = (VkFormat)layout[i].attributes[j].format;
-                vklayout->attributes[attribeIndex + j].location =           layout[i].attributes[j].location;
-                vklayout->attributes[attribeIndex + j].offset   =           layout[i].attributes[j].offset;
-            }
-
-            attribeIndex += attributeSize;
-        }
-
-        vklayout->createInfo = {};
-        vklayout->createInfo.sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vklayout->createInfo.vertexBindingDescriptionCount   = vklayout->bindings.size();
-        vklayout->createInfo.pVertexBindingDescriptions      = vklayout->bindings.data();
-        vklayout->createInfo.vertexAttributeDescriptionCount = attribeSize;
-        vklayout->createInfo.pVertexAttributeDescriptions    = vklayout->attributes.data();
-
-        return vklayout;
-    }
-
-    void VulkanAPI::DestroyInputLayout(VertexInput* input)
-    {
-        if (input)
-        {
-            VulkanVertexInput* vkinput = (VulkanVertexInput*)input;
-            vkinput->bindings.clear();
-            vkinput->attributes.clear();
-            vkinput->createInfo = {};
-
-            sldelete(vkinput);
-        }
-    }
-
-    //==================================================================================
     // レンダーパス
     //==================================================================================
-    RenderPass* VulkanAPI::CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies)
+    RenderPass* VulkanAPI::CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies, uint32 numClearValue, RenderPassClearValue* clearValue)
     {
         // アタッチメント
         VkAttachmentDescription* vkAttachments = SL_STACK(VkAttachmentDescription, numAttachments);
@@ -1477,9 +1420,8 @@ namespace Silex
             VkAttachmentReference* inputAttachmentRefs = SL_STACK(VkAttachmentReference, numInputAttachmentRef);
             for (uint32 j = 0; j < numInputAttachmentRef; j++)
             {
-                *inputAttachmentRefs = {};
-                inputAttachmentRefs[i].attachment = subpasses[i].inputReferences[j].attachment;
-                inputAttachmentRefs[i].layout     = (VkImageLayout)subpasses[i].inputReferences[j].layout;
+                inputAttachmentRefs[j].attachment = subpasses[i].inputReferences[j].attachment;
+                inputAttachmentRefs[j].layout     = (VkImageLayout)subpasses[i].inputReferences[j].layout;
             }
 
             // カラーアタッチメント参照
@@ -1487,9 +1429,8 @@ namespace Silex
             VkAttachmentReference* colorAttachmentRefs = SL_STACK(VkAttachmentReference, numColorAttachmentRef);
             for (uint32 j = 0; j < numColorAttachmentRef; j++)
             {
-                *colorAttachmentRefs = {};
-                colorAttachmentRefs[i].attachment = subpasses[i].colorReferences[j].attachment;
-                colorAttachmentRefs[i].layout     = (VkImageLayout)subpasses[i].colorReferences[j].layout;
+                colorAttachmentRefs[j].attachment = subpasses[i].colorReferences[j].attachment;
+                colorAttachmentRefs[j].layout     = (VkImageLayout)subpasses[i].colorReferences[j].layout;
             }
 
             // マルチサンプル解決アタッチメント参照
@@ -1498,7 +1439,6 @@ namespace Silex
             {
                 resolveAttachmentRef = SL_STACK(VkAttachmentReference, 1);
 
-                *resolveAttachmentRef = {};
                 resolveAttachmentRef->attachment = subpasses[i].resolveReferences.attachment;
                 resolveAttachmentRef->layout     = (VkImageLayout)subpasses[i].resolveReferences.layout;
             }
@@ -1509,7 +1449,6 @@ namespace Silex
             {
                 depthstencilAttachmentRef = SL_STACK(VkAttachmentReference, 1);
 
-                *depthstencilAttachmentRef = {};
                 depthstencilAttachmentRef->attachment = subpasses[i].depthstencilReference.attachment;
                 depthstencilAttachmentRef->layout     = (VkImageLayout)subpasses[i].depthstencilReference.layout;
             }
@@ -1555,6 +1494,13 @@ namespace Silex
 
         VulkanRenderPass* renderpass = slnew(VulkanRenderPass);
         renderpass->renderpass = vkRenderPass;
+        renderpass->clearValue.resize(numClearValue);
+
+        for (uint32 i = 0; i < numClearValue; i++)
+        {
+            std::memcpy(&renderpass->clearValue[i], &clearValue[i], sizeof(VkClearValue));
+        }
+
 
         return renderpass;
     }
@@ -1824,7 +1770,7 @@ namespace Silex
         vkCmdPushConstants(cmd->commandBuffer, vkshader->pipelineLayout, vkshader->stageFlags, firstIndex * sizeof(uint32), numData * sizeof(uint32), data);
     }
 
-    void VulkanAPI::BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType, uint32 numclearValues, RenderPassClearValue* clearvalues)
+    void VulkanAPI::BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType)
     {
         VulkanFramebuffer* vkframebuffer = (VulkanFramebuffer*)framebuffer;
 
@@ -1836,8 +1782,8 @@ namespace Silex
         begineInfo.renderArea.offset.y      = vkframebuffer->rect.y;
         begineInfo.renderArea.extent.width  = vkframebuffer->rect.width;
         begineInfo.renderArea.extent.height = vkframebuffer->rect.height;
-        begineInfo.clearValueCount          = numclearValues;
-        begineInfo.pClearValues             = (VkClearValue*)clearvalues;
+        begineInfo.clearValueCount          = ((VulkanRenderPass*)(renderpass))->clearValue.size();
+        begineInfo.pClearValues             = (VkClearValue*)((VulkanRenderPass*)(renderpass))->clearValue.data();
 
         VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
         vkCmdBeginRenderPass(cmd->commandBuffer, &begineInfo, commandBufferType == COMMAND_BUFFER_TYPE_PRIMARY? VK_SUBPASS_CONTENTS_INLINE : VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
@@ -1863,7 +1809,7 @@ namespace Silex
         // https://www.saschawillems.de/blog/2019/03/29/flipping-the-vulkan-viewport/
         VkViewport viewport = {};
 
-#if SL_VULKNA_INVERT_Y_AXIS
+#if SL_RENDERER_INVERT_Y_AXIS
         viewport.x        =  (float)x;
         viewport.y        =  (float)height - y;
         viewport.width    =  (float)width;
@@ -2322,10 +2268,11 @@ namespace Silex
                     for (uint32 j = 0; j < numHandles; j++)
                     {
                         VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
+                        bool isDepth = texture->subresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT;
 
                         imageInfos[j] = {};
                         imageInfos[j].imageView   = texture->imageView;
-                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        imageInfos[j].imageLayout = isDepth? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     }
 
                     writes[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
@@ -2345,11 +2292,12 @@ namespace Silex
                     {
                         VulkanSampler* sampler = (VulkanSampler*)descriptor.handles[j].sampler;
                         VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
+                        bool isDepth = texture->subresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT;
 
                         imageInfos[j] = {};
                         imageInfos[j].sampler     = sampler->sampler;
                         imageInfos[j].imageView   = texture->imageView;
-                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        imageInfos[j].imageLayout = isDepth? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     }
 
                     writes[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -2620,26 +2568,64 @@ namespace Silex
     //==================================================================================
     // パイプライン
     //==================================================================================
-    Pipeline* VulkanAPI::CreateGraphicsPipeline(ShaderHandle* shader, VertexInput* vertexInput, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass, PipelineDynamicStateFlags dynamicState)
+    Pipeline* VulkanAPI::CreateGraphicsPipeline(ShaderHandle* shader, PipelineStateInfo* info, RenderPass* renderpass, uint32 renderSubpass, PipelineDynamicStateFlags dynamicState)
     {
         // ===== 頂点レイアウト =====
-        VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
-        if (vertexInput)
+        VkPipelineVertexInputStateCreateInfo           vertexInputStateCreateInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+        std::vector<VkVertexInputBindingDescription>   bindings;
+        std::vector<VkVertexInputAttributeDescription> attributes;
+
+        if (info->inputLayout.layouts)
         {
-            VulkanVertexInput* vkformat = (VulkanVertexInput*)vertexInput;
-            vertexInputStateCreateInfo = vkformat->createInfo;
+            InputLayout* layouts      = info->inputLayout.layouts;
+            uint32       numLayout    = info->inputLayout.numLayout;
+            uint32       attribeIndex = 0;
+            uint32       attribeSize  = 0;
+
+            for (uint32 i = 0; i < numLayout; i++)
+                attribeSize += layouts[i].attributes.size();
+
+            attributes.resize(attribeSize);
+            bindings.resize(numLayout);
+
+            for (uint32 i = 0; i < numLayout; i++)
+            {
+                bindings[i] = {};
+                bindings[i].binding   = layouts[i].binding;
+                bindings[i].stride    = layouts[i].stride;
+                bindings[i].inputRate = layouts[i].frequency == VERTEX_FREQUENCY_INSTANCE? VK_VERTEX_INPUT_RATE_INSTANCE : VK_VERTEX_INPUT_RATE_VERTEX;
+
+                uint32 attributeSize = layouts[i].attributes.size();
+
+                for (uint32 j = 0; j < attributeSize; j++)
+                {
+                    attributes[attribeIndex + j] = {};
+                    attributes[attribeIndex + j].binding  = layouts[i].binding;
+                    attributes[attribeIndex + j].format   = (VkFormat)layouts[i].attributes[j].format;
+                    attributes[attribeIndex + j].location = layouts[i].attributes[j].location;
+                    attributes[attribeIndex + j].offset   = layouts[i].attributes[j].offset;
+                }
+
+                attribeIndex += attributeSize;
+            }
+
+            vertexInputStateCreateInfo.vertexBindingDescriptionCount   = bindings.size();
+            vertexInputStateCreateInfo.pVertexBindingDescriptions      = bindings.data();
+            vertexInputStateCreateInfo.vertexAttributeDescriptionCount = attribeSize;
+            vertexInputStateCreateInfo.pVertexAttributeDescriptions    = attributes.data();
         }
+
 
         // ===== インプットアセンブリ =====
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo = {};
         inputAssemblyCreateInfo.sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-        inputAssemblyCreateInfo.topology               = (VkPrimitiveTopology)inputAssemblyState.topology;
-        inputAssemblyCreateInfo.primitiveRestartEnable = inputAssemblyState.primitiveRestartEnable;
+        inputAssemblyCreateInfo.topology               = (VkPrimitiveTopology)info->inputAssembly.topology;
+        inputAssemblyCreateInfo.primitiveRestartEnable = info->inputAssembly.primitiveRestartEnable;
 
         // ===== テッセレーション =====
         VkPipelineTessellationStateCreateInfo tessellationCreateInfo = {};
         tessellationCreateInfo.sType              = VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO;
-        tessellationCreateInfo.patchControlPoints = rasterizationState.patchControlPoints;
+        tessellationCreateInfo.patchControlPoints = info->rasterize.patchControlPoints;
 
         // ===== ビューポート =====
         VkPipelineViewportStateCreateInfo viewportStateCreateInfo = {};
@@ -2650,83 +2636,83 @@ namespace Silex
         // ===== ラスタライゼーション =====
         VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo = {};
         rasterizationStateCreateInfo.sType                   = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        rasterizationStateCreateInfo.depthClampEnable        = rasterizationState.enable_depth_clamp;
-        rasterizationStateCreateInfo.rasterizerDiscardEnable = rasterizationState.discard_primitives;
-        rasterizationStateCreateInfo.polygonMode             = rasterizationState.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
-        rasterizationStateCreateInfo.cullMode                = (PolygonCullMode)rasterizationState.cullMode;
-        rasterizationStateCreateInfo.frontFace               = (rasterizationState.frontFace == POLYGON_FRONT_FACE_CLOCKWISE ? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE);
-        rasterizationStateCreateInfo.depthBiasEnable         = rasterizationState.depthBiasEnabled;
-        rasterizationStateCreateInfo.depthBiasConstantFactor = rasterizationState.depthBiasConstantFactor;
-        rasterizationStateCreateInfo.depthBiasClamp          = rasterizationState.depthBiasClamp;
-        rasterizationStateCreateInfo.depthBiasSlopeFactor    = rasterizationState.depthBiasSlopeFactor;
-        rasterizationStateCreateInfo.lineWidth               = rasterizationState.lineWidth;
+        rasterizationStateCreateInfo.depthClampEnable        = info->rasterize.enableDepthClamp;
+        rasterizationStateCreateInfo.rasterizerDiscardEnable = info->rasterize.discardPrimitives;
+        rasterizationStateCreateInfo.polygonMode             = info->rasterize.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+        rasterizationStateCreateInfo.cullMode                = (PolygonCullMode)info->rasterize.cullMode;
+        rasterizationStateCreateInfo.frontFace               = (info->rasterize.frontFace == POLYGON_FRONT_FACE_CLOCKWISE? VK_FRONT_FACE_CLOCKWISE : VK_FRONT_FACE_COUNTER_CLOCKWISE);
+        rasterizationStateCreateInfo.depthBiasEnable         = info->rasterize.depthBiasEnabled;
+        rasterizationStateCreateInfo.depthBiasConstantFactor = info->rasterize.depthBiasConstantFactor;
+        rasterizationStateCreateInfo.depthBiasClamp          = info->rasterize.depthBiasClamp;
+        rasterizationStateCreateInfo.depthBiasSlopeFactor    = info->rasterize.depthBiasSlopeFactor;
+        rasterizationStateCreateInfo.lineWidth               = info->rasterize.lineWidth;
 
         // ===== マルチサンプリング =====
         VkPipelineMultisampleStateCreateInfo multisampleStateCreateInfo = {};
         multisampleStateCreateInfo.sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-        multisampleStateCreateInfo.rasterizationSamples  = _CheckSupportedSampleCounts(multisampleState.sampleCount);
-        multisampleStateCreateInfo.sampleShadingEnable   = multisampleState.enableSampleShading;
-        multisampleStateCreateInfo.minSampleShading      = multisampleState.minSampleShading;
-        multisampleStateCreateInfo.pSampleMask           = multisampleState.sampleMask.empty()? nullptr : multisampleState.sampleMask.data();
-        multisampleStateCreateInfo.alphaToCoverageEnable = multisampleState.enableAlphaToCoverage;
-        multisampleStateCreateInfo.alphaToOneEnable      = multisampleState.enableAlphaToOne;
+        multisampleStateCreateInfo.rasterizationSamples  = _CheckSupportedSampleCounts(info->multisample.sampleCount);
+        multisampleStateCreateInfo.sampleShadingEnable   = info->multisample.enableSampleShading;
+        multisampleStateCreateInfo.minSampleShading      = info->multisample.minSampleShading;
+        multisampleStateCreateInfo.pSampleMask           = info->multisample.sampleMask.empty()? nullptr : info->multisample.sampleMask.data();
+        multisampleStateCreateInfo.alphaToCoverageEnable = info->multisample.enableAlphaToCoverage;
+        multisampleStateCreateInfo.alphaToOneEnable      = info->multisample.enableAlphaToOne;
 
         // ===== デプス・ステンシル =====
         VkPipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo = {};
         depthStencilStateCreateInfo.sType                 = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-        depthStencilStateCreateInfo.depthTestEnable       = depthstencilState.enableDepthTest;
-        depthStencilStateCreateInfo.depthWriteEnable      = depthstencilState.enableDepthWrite;
-        depthStencilStateCreateInfo.depthCompareOp        = (VkCompareOp)depthstencilState.depthCompareOp;
-        depthStencilStateCreateInfo.depthBoundsTestEnable = depthstencilState.enableDepthRange;
-        depthStencilStateCreateInfo.stencilTestEnable     = depthstencilState.enableStencil;
-        depthStencilStateCreateInfo.front.failOp          = (VkStencilOp)depthstencilState.frontOp.fail;
-        depthStencilStateCreateInfo.front.passOp          = (VkStencilOp)depthstencilState.frontOp.pass;
-        depthStencilStateCreateInfo.front.depthFailOp     = (VkStencilOp)depthstencilState.frontOp.depthFail;
-        depthStencilStateCreateInfo.front.compareOp       = (VkCompareOp)depthstencilState.frontOp.compare;
-        depthStencilStateCreateInfo.front.compareMask     = depthstencilState.frontOp.compareMask;
-        depthStencilStateCreateInfo.front.writeMask       = depthstencilState.frontOp.writeMask;
-        depthStencilStateCreateInfo.front.reference       = depthstencilState.frontOp.reference;
-        depthStencilStateCreateInfo.back.failOp           = (VkStencilOp)depthstencilState.backOp.fail;
-        depthStencilStateCreateInfo.back.passOp           = (VkStencilOp)depthstencilState.backOp.pass;
-        depthStencilStateCreateInfo.back.depthFailOp      = (VkStencilOp)depthstencilState.backOp.depthFail;
-        depthStencilStateCreateInfo.back.compareOp        = (VkCompareOp)depthstencilState.backOp.compare;
-        depthStencilStateCreateInfo.back.compareMask      = depthstencilState.backOp.compareMask;
-        depthStencilStateCreateInfo.back.writeMask        = depthstencilState.backOp.writeMask;
-        depthStencilStateCreateInfo.back.reference        = depthstencilState.backOp.reference;
-        depthStencilStateCreateInfo.minDepthBounds        = depthstencilState.depthRangeMin;
-        depthStencilStateCreateInfo.maxDepthBounds        = depthstencilState.depthRangeMax;
+        depthStencilStateCreateInfo.depthTestEnable       = info->depthStencil.enableDepthTest;
+        depthStencilStateCreateInfo.depthWriteEnable      = info->depthStencil.enableDepthWrite;
+        depthStencilStateCreateInfo.depthCompareOp        = (VkCompareOp)info->depthStencil.depthCompareOp;
+        depthStencilStateCreateInfo.depthBoundsTestEnable = info->depthStencil.enableDepthRange;
+        depthStencilStateCreateInfo.stencilTestEnable     = info->depthStencil.enableStencil;
+        depthStencilStateCreateInfo.front.failOp          = (VkStencilOp)info->depthStencil.frontOp.fail;
+        depthStencilStateCreateInfo.front.passOp          = (VkStencilOp)info->depthStencil.frontOp.pass;
+        depthStencilStateCreateInfo.front.depthFailOp     = (VkStencilOp)info->depthStencil.frontOp.depthFail;
+        depthStencilStateCreateInfo.front.compareOp       = (VkCompareOp)info->depthStencil.frontOp.compare;
+        depthStencilStateCreateInfo.front.compareMask     = info->depthStencil.frontOp.compareMask;
+        depthStencilStateCreateInfo.front.writeMask       = info->depthStencil.frontOp.writeMask;
+        depthStencilStateCreateInfo.front.reference       = info->depthStencil.frontOp.reference;
+        depthStencilStateCreateInfo.back.failOp           = (VkStencilOp)info->depthStencil.backOp.fail;
+        depthStencilStateCreateInfo.back.passOp           = (VkStencilOp)info->depthStencil.backOp.pass;
+        depthStencilStateCreateInfo.back.depthFailOp      = (VkStencilOp)info->depthStencil.backOp.depthFail;
+        depthStencilStateCreateInfo.back.compareOp        = (VkCompareOp)info->depthStencil.backOp.compare;
+        depthStencilStateCreateInfo.back.compareMask      = info->depthStencil.backOp.compareMask;
+        depthStencilStateCreateInfo.back.writeMask        = info->depthStencil.backOp.writeMask;
+        depthStencilStateCreateInfo.back.reference        = info->depthStencil.backOp.reference;
+        depthStencilStateCreateInfo.minDepthBounds        = info->depthStencil.depthRangeMin;
+        depthStencilStateCreateInfo.maxDepthBounds        = info->depthStencil.depthRangeMax;
 
         // ===== ブレンドステート =====
-        uint32 numColorAttachments = blendState.attachments.size();
+        uint32 numColorAttachments = info->blend.attachments.size();
 
         VkPipelineColorBlendAttachmentState* attachmentStates = SL_STACK(VkPipelineColorBlendAttachmentState, numColorAttachments);
         for (uint32 i = 0; i < numColorAttachments; i++)
         {
             attachmentStates[i] = {};
-            attachmentStates[i].blendEnable         = blendState.attachments[i].enableBlend;
-            attachmentStates[i].srcColorBlendFactor = (VkBlendFactor)blendState.attachments[i].srcColorBlendFactor;
-            attachmentStates[i].dstColorBlendFactor = (VkBlendFactor)blendState.attachments[i].dstColorBlendFactor;
-            attachmentStates[i].colorBlendOp        = (VkBlendOp)blendState.attachments[i].colorBlendOp;
-            attachmentStates[i].srcAlphaBlendFactor = (VkBlendFactor)blendState.attachments[i].srcAlphaBlendFactor;
-            attachmentStates[i].dstAlphaBlendFactor = (VkBlendFactor)blendState.attachments[i].dstAlphaBlendFactor;
-            attachmentStates[i].alphaBlendOp        = (VkBlendOp)blendState.attachments[i].alphaBlendOp;
+            attachmentStates[i].blendEnable         = info->blend.attachments[i].enableBlend;
+            attachmentStates[i].srcColorBlendFactor = (VkBlendFactor)info->blend.attachments[i].srcColorBlendFactor;
+            attachmentStates[i].dstColorBlendFactor = (VkBlendFactor)info->blend.attachments[i].dstColorBlendFactor;
+            attachmentStates[i].colorBlendOp        = (VkBlendOp)    info->blend.attachments[i].colorBlendOp;
+            attachmentStates[i].srcAlphaBlendFactor = (VkBlendFactor)info->blend.attachments[i].srcAlphaBlendFactor;
+            attachmentStates[i].dstAlphaBlendFactor = (VkBlendFactor)info->blend.attachments[i].dstAlphaBlendFactor;
+            attachmentStates[i].alphaBlendOp        = (VkBlendOp)    info->blend.attachments[i].alphaBlendOp;
 
-            if (blendState.attachments[i].write_r) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
-            if (blendState.attachments[i].write_g) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
-            if (blendState.attachments[i].write_b) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
-            if (blendState.attachments[i].write_a) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
+            if (info->blend.attachments[i].write_r) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_R_BIT;
+            if (info->blend.attachments[i].write_g) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_G_BIT;
+            if (info->blend.attachments[i].write_b) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_B_BIT;
+            if (info->blend.attachments[i].write_a) attachmentStates[i].colorWriteMask |= VK_COLOR_COMPONENT_A_BIT;
         }
 
         VkPipelineColorBlendStateCreateInfo colorBlendStateCreateInfo = {};
         colorBlendStateCreateInfo.sType             = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-        colorBlendStateCreateInfo.logicOpEnable     = blendState.enableLogicOp;
-        colorBlendStateCreateInfo.logicOp           = (VkLogicOp)blendState.logicOp;
+        colorBlendStateCreateInfo.logicOpEnable     = info->blend.enableLogicOp;
+        colorBlendStateCreateInfo.logicOp           = (VkLogicOp)info->blend.logicOp;
         colorBlendStateCreateInfo.attachmentCount   = numColorAttachments;
         colorBlendStateCreateInfo.pAttachments      = attachmentStates;
-        colorBlendStateCreateInfo.blendConstants[0] = blendState.blendConstant.r;
-        colorBlendStateCreateInfo.blendConstants[1] = blendState.blendConstant.g;
-        colorBlendStateCreateInfo.blendConstants[2] = blendState.blendConstant.b;
-        colorBlendStateCreateInfo.blendConstants[3] = blendState.blendConstant.a;
+        colorBlendStateCreateInfo.blendConstants[0] = info->blend.blendConstant.r;
+        colorBlendStateCreateInfo.blendConstants[1] = info->blend.blendConstant.g;
+        colorBlendStateCreateInfo.blendConstants[2] = info->blend.blendConstant.b;
+        colorBlendStateCreateInfo.blendConstants[3] = info->blend.blendConstant.a;
 
 
         // ===== ダイナミックステート =====

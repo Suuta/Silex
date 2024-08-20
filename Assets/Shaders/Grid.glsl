@@ -103,8 +103,8 @@ void main()
     gl_FragDepth      = depth;
 
     float cameraY = nearFarHeight.z;
-    float lod_0   = max(0.0, 1.0 - cameraY /  40.0);
-    float lod_1   = max(0.0, 1.0 - cameraY / 160.0);
+    float lod_0   = max(0.0, 1.0 - abs(cameraY) /  40.0);
+    float lod_1   = max(0.0, 1.0 - abs(cameraY) / 160.0);
 
 
     // t > 0 の場合は不透明度 = 1、それ以外の場合は不透明度 = 0

@@ -18,7 +18,7 @@ namespace Silex
     //================================================
     // ハンドル
     //================================================
-    using QueueFamily = uint32;
+    using QueueID = uint32;
 
     SL_HANDLE(Surface);
     SL_HANDLE(CommandQueue);
@@ -32,7 +32,6 @@ namespace Silex
     SL_HANDLE(Pipeline);
     SL_HANDLE(Sampler);
     SL_HANDLE(DescriptorSet);
-    SL_HANDLE(VertexInput);
     SL_HANDLE(FramebufferHandle);
     SL_HANDLE(TextureHandle);
     SL_HANDLE(ShaderHandle);
@@ -709,58 +708,6 @@ namespace Silex
     };
 
     //================================================
-    // 頂点データ
-    //================================================
-    enum VertexBufferFormat
-    {
-        VERTEX_BUFFER_FORMAT_R32          = RENDERING_FORMAT_R32_SFLOAT,
-        VERTEX_BUFFER_FORMAT_R32G32       = RENDERING_FORMAT_R32G32_SFLOAT,
-        VERTEX_BUFFER_FORMAT_R32G32B32    = RENDERING_FORMAT_R32G32B32_SFLOAT,
-        VERTEX_BUFFER_FORMAT_R32G32B32A32 = RENDERING_FORMAT_R32G32B32A32_SFLOAT,
-    };
-
-    enum IndexBufferFormat
-    {
-        INDEX_BUFFER_FORMAT_UINT16,
-        INDEX_BUFFER_FORMAT_UINT32,
-    };
-
-    enum VertexFrequency
-    {
-        VERTEX_FREQUENCY_VERTEX,
-        VERTEX_FREQUENCY_INSTANCE,
-    };
-
-    struct InputAttribute
-    {
-        uint32             location = 0;
-        uint32             offset   = 0;
-        VertexBufferFormat format   = VERTEX_BUFFER_FORMAT_R32G32B32;
-    };
-
-    struct InputLayout
-    {
-        uint32                      binding   = 0;
-        uint32                      stride    = 0;
-        VertexFrequency             frequency = VERTEX_FREQUENCY_VERTEX;
-        std::vector<InputAttribute> attributes;
-
-        void AddAttribute(uint32 location, VertexBufferFormat format)
-        {
-            attributes.push_back({location, stride, format});
-
-            switch (format)
-            {
-                case VERTEX_BUFFER_FORMAT_R32:          stride += 4;  break;
-                case VERTEX_BUFFER_FORMAT_R32G32:       stride += 8;  break;
-                case VERTEX_BUFFER_FORMAT_R32G32B32:    stride += 12; break;
-                case VERTEX_BUFFER_FORMAT_R32G32B32A32: stride += 16; break;
-            }
-        }
-    };
-
-
-    //================================================
     // デスクリプタ
     //================================================
     enum DescriptorType
@@ -939,6 +886,65 @@ namespace Silex
 
         BLEND_OP_MAX
     };
+    enum VertexBufferFormat
+    {
+        VERTEX_BUFFER_FORMAT_R32 = RENDERING_FORMAT_R32_SFLOAT,
+        VERTEX_BUFFER_FORMAT_R32G32 = RENDERING_FORMAT_R32G32_SFLOAT,
+        VERTEX_BUFFER_FORMAT_R32G32B32 = RENDERING_FORMAT_R32G32B32_SFLOAT,
+        VERTEX_BUFFER_FORMAT_R32G32B32A32 = RENDERING_FORMAT_R32G32B32A32_SFLOAT,
+    };
+
+    enum IndexBufferFormat
+    {
+        INDEX_BUFFER_FORMAT_UINT16,
+        INDEX_BUFFER_FORMAT_UINT32,
+    };
+
+    enum VertexFrequency
+    {
+        VERTEX_FREQUENCY_VERTEX,
+        VERTEX_FREQUENCY_INSTANCE,
+    };
+
+    struct InputAttribute
+    {
+        uint32             location = 0;
+        uint32             offset   = 0;
+        VertexBufferFormat format   = VERTEX_BUFFER_FORMAT_R32G32B32;
+    };
+
+    struct InputLayout
+    {
+        uint32                      binding   = 0;
+        uint32                      stride    = 0;
+        VertexFrequency             frequency = VERTEX_FREQUENCY_VERTEX;
+        std::vector<InputAttribute> attributes;
+
+        void Binding(uint32 bindIndex, VertexFrequency rate = VERTEX_FREQUENCY_VERTEX)
+        {
+            binding   = bindIndex;
+            frequency = rate;
+        }
+
+        void Attribute(uint32 location, VertexBufferFormat format)
+        {
+            attributes.push_back({ location, stride, format });
+
+            switch (format)
+            {
+                case VERTEX_BUFFER_FORMAT_R32:          stride += 4;  break;
+                case VERTEX_BUFFER_FORMAT_R32G32:       stride += 8;  break;
+                case VERTEX_BUFFER_FORMAT_R32G32B32:    stride += 12; break;
+                case VERTEX_BUFFER_FORMAT_R32G32B32A32: stride += 16; break;
+            }
+        }
+    };
+
+    struct PipelineInputLayout
+    {
+        uint32       numLayout;
+        InputLayout* layouts = nullptr;
+    };
 
     struct PipelineInputAssemblyState
     {
@@ -948,8 +954,8 @@ namespace Silex
 
     struct PipelineRasterizationState
     {
-        bool             enable_depth_clamp      = false;
-        bool             discard_primitives      = false;
+        bool             enableDepthClamp        = false;
+        bool             discardPrimitives       = false;
         bool             wireframe               = false;
         PolygonCullMode  cullMode                = POLYGON_CULL_BACK;
         PolygonFrontFace frontFace               = POLYGON_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -1000,17 +1006,9 @@ namespace Silex
 
     struct PipelineColorBlendState
     {
-        PipelineColorBlendState()
-        {
-        }
+        uint32 numAttachment = 1;
+        bool   enableBlend   = false;
 
-        PipelineColorBlendState(bool enable)
-        {
-            enable? AddBlend() : AddDisabled();
-        }
-
-        bool           enableLogicOp = false;
-        LogicOperation logicOp       = LOGIC_OP_CLEAR;
 
         struct Attachment
         {
@@ -1027,12 +1025,17 @@ namespace Silex
             bool           write_a             = true;
         };
 
-        void AddDisabled()
+        void BlendAttachments(uint32 numAttachment)
         {
-            attachments.push_back(Attachment());
+            attachments.resize(numAttachment);
         }
 
-        void AddBlend()
+        void Disable(uint32 index)
+        {
+            attachments[index] = Attachment();
+        }
+
+        void Enable(uint32 index)
         {
             Attachment ba = {};
             ba.enableBlend         = true;
@@ -1041,9 +1044,11 @@ namespace Silex
             ba.dstColorBlendFactor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
             ba.dstAlphaBlendFactor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 
-            attachments.push_back(ba);
+            attachments[index] = ba;
         }
 
+        bool                    enableLogicOp = false;
+        LogicOperation          logicOp       = LOGIC_OP_CLEAR;
         std::vector<Attachment> attachments   = {};
         glm::vec4               blendConstant = {};
     };
@@ -1065,13 +1070,150 @@ namespace Silex
     };
     using PipelineDynamicStateFlags = uint32;
 
+
+    struct PipelineStateInfo
+    {
+        PipelineInputLayout        inputLayout   = {};
+        PipelineInputAssemblyState inputAssembly = {};
+        PipelineRasterizationState rasterize     = {};
+        PipelineMultisampleState   multisample   = {};
+        PipelineDepthStencilState  depthStencil  = {};
+        PipelineColorBlendState    blend         = {};
+        PipelineDynamicStateBits   dynamic       = {};
+    };
+
+    class PipelineStateInfoBuilder
+    {
+    public:
+
+        PipelineStateInfo Value()
+        {
+            return info;
+        }
+
+        PipelineStateInfoBuilder& InputAssembly(PrimitiveTopology topology)
+        {
+            info.inputAssembly.topology = topology;
+            return *this;
+        }
+
+        PipelineStateInfoBuilder& InputLayout(uint32 numLayout, InputLayout* input)
+        {
+            info.inputLayout.layouts   = input;
+            info.inputLayout.numLayout = numLayout;
+            return *this;
+        }
+
+        PipelineStateInfoBuilder& Rasterizer(PolygonCullMode mode, PolygonFrontFace face, bool wireframe = false, float lineWidth = 1.0)
+        {
+            info.rasterize.cullMode  = mode;
+            info.rasterize.frontFace = face;
+            info.rasterize.wireframe = wireframe;
+            info.rasterize.lineWidth = lineWidth;
+            return *this;
+        }
+
+        PipelineStateInfoBuilder& Multisample()
+        {
+            return *this;
+        }
+
+        PipelineStateInfoBuilder& Depth(bool test, bool write, CompareOperator comp = COMPARE_OP_LESS)
+        {
+            info.depthStencil.enableDepthTest  = test;
+            info.depthStencil.enableDepthWrite = write;
+            info.depthStencil.depthCompareOp   = comp;
+            return *this;
+        }
+
+        PipelineStateInfoBuilder& Stencil(bool enable, uint32 value = 0, CompareOperator comp = COMPARE_OP_ALWAYS, StencilOperation pass = STENCIL_OP_REPLACE, StencilOperation fail = STENCIL_OP_KEEP)
+        {
+            info.depthStencil.enableStencil     = enable;
+            info.depthStencil.frontOp.reference = value;
+            info.depthStencil.frontOp.compare   = comp;
+            info.depthStencil.frontOp.pass      = pass;
+            info.depthStencil.frontOp.fail      = fail;
+            info.depthStencil.backOp.compare    = comp;
+            info.depthStencil.backOp.pass       = pass;
+            info.depthStencil.backOp.fail       = fail;
+            return *this;
+        }
+
+        PipelineStateInfoBuilder& Blend(bool enable, uint32 numColorAttachment)
+        {
+            info.blend.attachments.resize(numColorAttachment);
+
+            for (uint32 i = 0; i < numColorAttachment; i++)
+            {
+                if (enable)
+                {
+                    PipelineColorBlendState::Attachment ba = {};
+                    ba.enableBlend         = true;
+                    ba.srcColorBlendFactor = BLEND_FACTOR_SRC_ALPHA;
+                    ba.srcAlphaBlendFactor = BLEND_FACTOR_SRC_ALPHA;
+                    ba.dstColorBlendFactor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+                    ba.dstAlphaBlendFactor = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+
+                    info.blend.attachments[i] = ba;
+                }
+                else
+                {
+                    info.blend.attachments[i] = {};
+                }
+            }
+
+            return *this;
+        }
+
+    private:
+
+        PipelineStateInfo info;
+    };
+
+
     //================================================
     // コマンド
     //================================================
     union RenderPassClearValue
     {
-        glm::vec4 color;
-        struct 
+        void SetFloat(float r, float g, float b, float a)
+        {
+            color._float[0] = r;
+            color._float[1] = g;
+            color._float[2] = b;
+            color._float[3] = a;
+        }
+
+        void SetInt(int32 r, int32 g, int32 b, int32 a)
+        {
+            color._int[0] = r;
+            color._int[1] = g;
+            color._int[2] = b;
+            color._int[3] = a;
+        }
+
+        void SetUint(uint32 r, uint32 g, uint32 b, uint32 a)
+        {
+            color._uint[0] = r;
+            color._uint[1] = g;
+            color._uint[2] = b;
+            color._uint[3] = a;
+        }
+
+        void SetDepthStencil(float depthVal, uint32 stencilVal)
+        {
+            depth   = depthVal;
+            stencil = stencilVal;
+        }
+
+        union
+        {
+            float  _float[4];
+            int32  _int[4];
+            uint32 _uint[4];
+        } color;
+
+        struct
         {
             float  depth;
             uint32 stencil;

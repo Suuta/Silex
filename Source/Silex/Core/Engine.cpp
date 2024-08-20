@@ -81,7 +81,7 @@ namespace Silex
 
         // レンダリングコンテキスト生成
         context = RenderingContext::Create(mainWindow->GetPlatformHandle());
-        result = context->Initialize(true);
+        result = context->Initialize(SL_RENDERER_VALIDATION);
         SL_CHECK(!result, false);
 
         // レンダリングデバイス生成 (描画APIを抽象化)

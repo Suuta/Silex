@@ -4,7 +4,6 @@
 #include "ImGui/GUI.h"
 #include "Rendering/RenderingContext.h"
 
-#include <glfw/glfw3.h>
 #include <imgui/imgui.h>
 #include <imguizmo/ImGuizmo.h>
 
@@ -30,11 +29,11 @@ namespace Silex
         io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
         io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-        io.FontDefault = io.Fonts->AddFontFromFileTTF("Assets/Fonts/VL-Gothic-Regular.ttf", 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
+        const char* fontpath = "Assets/Fonts/VL-Gothic-Regular.ttf";
 
-
+        io.FontDefault                  = io.Fonts->AddFontFromFileTTF(fontpath, 18.0f, nullptr, io.Fonts->GetGlyphRangesJapanese());
+        io.IniFilename                  = "Assets/Editor/imgui.ini";
         io.ConfigViewportsNoTaskBarIcon = true;
-
 
         {
             ImGuiStyle& style = ImGui::GetStyle();

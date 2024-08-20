@@ -30,15 +30,15 @@ namespace Silex
         //--------------------------------------------------
         // コマンドキュー
         //--------------------------------------------------
-        CommandQueue* CreateCommandQueue(QueueFamily family, uint32 indexInFamily = 0) override;
+        CommandQueue* CreateCommandQueue(QueueID id, uint32 indexInFamily = 0) override;
         void DestroyCommandQueue(CommandQueue* queue) override;
-        QueueFamily QueryQueueFamily(QueueFamilyFlags queueFlag, Surface* surface = nullptr) const override;
+        QueueID QueryQueueID(QueueFamilyFlags queueFlag, Surface* surface = nullptr) const override;
         bool SubmitQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* present, Semaphore* render) override;
 
         //--------------------------------------------------
         // コマンドプール
         //--------------------------------------------------
-        CommandPool* CreateCommandPool(QueueFamily family, CommandBufferType type = COMMAND_BUFFER_TYPE_PRIMARY) override;
+        CommandPool* CreateCommandPool(QueueID id, CommandBufferType type = COMMAND_BUFFER_TYPE_PRIMARY) override;
         void DestroyCommandPool(CommandPool* pool) override;
 
         //--------------------------------------------------
@@ -101,15 +101,9 @@ namespace Silex
         void DestroyFramebuffer(FramebufferHandle* framebuffer) override;
 
         //--------------------------------------------------
-        // 入力レイアウト
-        //--------------------------------------------------
-        VertexInput* CreateInputLayout(uint32 numBindings, InputLayout* layout) override;
-        void DestroyInputLayout(VertexInput* input) override;
-
-        //--------------------------------------------------
         // レンダーパス
         //--------------------------------------------------
-        RenderPass* CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies) override;
+        RenderPass* CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies, uint32 numClearValue, RenderPassClearValue* clearValue) override;
         void DestroyRenderPass(RenderPass* renderpass) override;
         
         //--------------------------------------------------
@@ -128,7 +122,7 @@ namespace Silex
         //--------------------------------------------------
         // パイプライン
         //--------------------------------------------------
-        Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, VertexInput* vertexInput, PipelineInputAssemblyState inputAssemblyState, PipelineRasterizationState rasterizationState, PipelineMultisampleState multisampleState, PipelineDepthStencilState depthstencilState, PipelineColorBlendState blendState, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) override;
+        Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, PipelineStateInfo* info, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) override;
         Pipeline* CreateComputePipeline(ShaderHandle* shader) override;
         void DestroyPipeline(Pipeline* pipeline) override;
 
@@ -146,7 +140,7 @@ namespace Silex
         void BlitTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureBlitRegion* regions, SamplerFilter filter = SAMPLER_FILTER_LINEAR) override;
 
         void PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData) override;
-        void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType, uint32 numclearValues, RenderPassClearValue* clearvalues) override;
+        void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType) override;
         void EndRenderPass(CommandBuffer* commandbuffer) override;
         void NextRenderSubpass(CommandBuffer* commandbuffer, CommandBufferType commandBufferType) override;
         void SetViewport(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) override;

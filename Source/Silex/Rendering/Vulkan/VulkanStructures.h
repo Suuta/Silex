@@ -56,7 +56,8 @@ namespace Silex
     // レンダーパス
     struct VulkanRenderPass : public RenderPass
     {
-        VkRenderPass renderpass = nullptr;
+        VkRenderPass              renderpass = nullptr;
+        std::vector<VkClearValue> clearValue = {};
     };
 
     // フレームバッファ
@@ -100,10 +101,12 @@ namespace Silex
     // テクスチャ
     struct VulkanTexture : public TextureHandle
     {
-        VkImage               image     = nullptr;
-        VkImageView           imageView = nullptr;
-        VkExtent3D            extent    = {};
-        VkImageViewCreateInfo info      = {};
+        VkImage                 image       = nullptr;
+        VkImageView             imageView   = nullptr;
+        VkImageViewType         imageType   = {};
+        VkFormat                format      = {};
+        VkExtent3D              extent      = {};
+        VkImageSubresourceRange subresource = {};
 
         VmaAllocation     allocationHandle = nullptr;
         VmaAllocationInfo allocationInfo   = {};
@@ -113,14 +116,6 @@ namespace Silex
     struct VulkanSampler : public Sampler
     {
         VkSampler sampler = nullptr;
-    };
-
-    // 頂点フォーマット
-    struct VulkanVertexInput : public VertexInput
-    {
-        std::vector<VkVertexInputBindingDescription>   bindings;
-        std::vector<VkVertexInputAttributeDescription> attributes;
-        VkPipelineVertexInputStateCreateInfo           createInfo = {};
     };
 
     // シェーダー
