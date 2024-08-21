@@ -81,8 +81,23 @@ namespace Silex
 
         Buffer*        sceneUBO    = nullptr;
         void*          mappedScene = nullptr;
-        DescriptorSet* sceneSet    = nullptr;
-        DescriptorSet* textureSet  = nullptr;
+        DescriptorSet* set         = nullptr;
+    };
+
+    struct EnvironmentBuffer
+    {
+        RenderPass*        pass        = nullptr;
+        FramebufferHandle* framebuffer = nullptr;
+        Pipeline*          pipeline    = nullptr;
+        ShaderHandle*      shader      = nullptr;
+        Buffer*            ubo         = nullptr;
+        void*              mapped      = nullptr;
+        DescriptorSet*     set         = nullptr;
+    };
+
+    struct CompositBuffer
+    {
+
     };
 
 
@@ -221,6 +236,12 @@ namespace Silex
         void CleanupLightingBuffer();
         LightingBuffer lighting;
 
+        // 環境マップ
+        void PrepareEnvironmentBuffer(uint32 width, uint32 height);
+        void ResizeEnvironmentBuffer(uint32 width, uint32 height);
+        void CleanupEnvironmentBuffer();
+        EnvironmentBuffer environment;
+
 
     private:
 
@@ -232,18 +253,25 @@ namespace Silex
         DescriptorSet*     equirectangularSet      = nullptr;
         Buffer*            equirectangularUBO      = nullptr;
         void*              mappedEquirectanguler   = nullptr;
-        TextureHandle*     cubemap                 = nullptr;
         Sampler*           cubemapSampler          = nullptr;
 
         // スカイボックス
         Pipeline*          skyPipeline = nullptr;
         ShaderHandle*      skyShader   = nullptr;
+        TextureHandle*     cubemap     = nullptr;
+
 
         // シーンBlit
-        DescriptorSet*     imageSet     = nullptr;
-        FramebufferHandle* imageFB      = nullptr;
-        TextureHandle*     imageTexture = nullptr;
-        RenderPass*        imagePass    = nullptr;
+        FramebufferHandle* compositFB       = nullptr;
+        TextureHandle*     compositTexture  = nullptr;
+        RenderPass*        compositPass     = nullptr;
+        ShaderHandle*      compositShader   = nullptr;
+        Pipeline*          compositPipeline = nullptr;
+        DescriptorSet*     compositSet      = nullptr;
+
+        // ImGui::Image
+        DescriptorSet*     imageSet        = nullptr;
+
 
         // シーンバッファ
         Buffer*            sceneUBO        = nullptr;
@@ -275,9 +303,6 @@ namespace Silex
         Pipeline*          gridPipeline  = nullptr;
         DescriptorSet*     gridSet       = nullptr;
 
-        ShaderHandle*      blitShader    = nullptr;
-        Pipeline*          blitPipeline  = nullptr;
-        DescriptorSet*     blitSet       = nullptr;
 
         Buffer* vb = nullptr;
         Buffer* ib = nullptr;

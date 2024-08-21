@@ -6,6 +6,7 @@
 
 layout (location = 0) out vec2 outUV;
 
+
 void main()
 {
     // 三角形でフルスクリーン描画
@@ -41,16 +42,27 @@ layout(location = 0) out vec4 outColor;
 layout(set = 0, binding = 0) uniform sampler2D sceneColor;
 layout(set = 0, binding = 1) uniform sampler2D sceneNormal;
 layout(set = 0, binding = 2) uniform sampler2D sceneEmission;
-//layout(set = 0, binding = 3) uniform sampler2D sceneDepth;
-
-layout(set = 1, binding = 0) uniform Scene
+layout(set = 0, binding = 3) uniform sampler2D sceneDepth;
+layout(set = 0, binding = 4) uniform Scene
 {
     vec4 lightDir;
     vec4 lightColor;
     vec4 cameraPosition;
-
+    mat4 invViewProjection;
 } u_scene;
 
+
+vec3 ConstructWorldPosition(vec2 texcoord, float depthFromDepthBuffer)
+{
+    // テクスチャ座標 と 深度値を使って NDC座標系[xy: -1~1 z: 0~1] に変換  ※openGL のみ z: -1~1
+    vec4 clipSpace = vec4(texcoord * 2.0 - vec2(1.0), depthFromDepthBuffer, 1.0);
+
+    // ワールドに変換
+    vec4 position = u_scene.invViewProjection * clipSpace;
+
+    // 透視除算
+    return vec3(position.xyz / position.w);
+}
 
 vec3 BlinnPhong()
 {
@@ -64,20 +76,18 @@ vec3 BlinnPhong()
     //float NO_USE = irr + pre + brdf;
     //========================================================
     vec3  ALBEDO   = texture(sceneColor,    inTexCoord).rgb;
-    vec3  N        = texture(sceneNormal,   inTexCoord).rgb;
+    vec3  NORMAL   = texture(sceneNormal,   inTexCoord).rgb;
     vec3  EMISSION = texture(sceneEmission, inTexCoord).rgb;
-    //float DEPTH    = texture(sceneDepth,    inTexCoord).r;
+    float DEPTH    = texture(sceneDepth,    inTexCoord).r;
 
-    // TODO: 深度値から復元
-    vec3 WORLD = vec3(0.0);
+    // 深度値から復元
+    vec3 WORLD = ConstructWorldPosition(inTexCoord, DEPTH);
 
-    // TODO: ノーマルを -1~1に戻す
-    vec3 nN = vec3(N);
+    // ノーマルを -1~1に戻す
+    vec3 N = vec3(NORMAL * 2.0) - vec3(1.0);
 
-
-    // 環境光 (PBRシェーダー側では輝度を10倍した値を1.0として扱っているため)
-    //vec3 ambient = (lightColor / 10.0) * (iblIntencity / 10.0);
-    vec3 ambient = u_scene.lightColor.rgb;
+    // 環境ベースカラー
+    vec3 ambient = u_scene.lightColor.rgb * 0.01;
 
     // 拡散反射光
     vec3  L        = normalize(u_scene.lightDir.xyz);

@@ -137,7 +137,7 @@ namespace Silex
         virtual void BlitTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureBlitRegion* regions, SamplerFilter filter = SAMPLER_FILTER_LINEAR) = 0;
 
         virtual void PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData) = 0;
-        virtual void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType) = 0;
+        virtual void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType = COMMAND_BUFFER_TYPE_PRIMARY) = 0;
         virtual void EndRenderPass(CommandBuffer* commandbuffer) = 0;
         virtual void NextRenderSubpass(CommandBuffer* commandbuffer, CommandBufferType commandBufferType) = 0;
         virtual void SetViewport(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) = 0;

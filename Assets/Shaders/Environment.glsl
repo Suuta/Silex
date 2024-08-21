@@ -14,11 +14,9 @@ layout (location = 0) out vec3 outPosAsUV;
 
 layout(set = 0, binding = 0) uniform Transform
 {
-    mat4 world;
     mat4 view;
     mat4 projection;
 };
-
 
 void main()
 {
@@ -39,12 +37,7 @@ void main()
 layout(location = 0)  in vec3 inPosAsUV;
 layout(location = 0) out vec4 outColor;
 
-layout (set = 1, binding = 0) uniform samplerCube environmentMap;
-layout (set = 2, binding = 0) uniform SceneInfo
-{
-    vec4 light;
-    vec4 cameraPos;
-};
+layout (set = 0, binding = 1) uniform samplerCube environmentMap;
 
 void main()
 {

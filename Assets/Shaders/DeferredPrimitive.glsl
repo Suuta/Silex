@@ -49,16 +49,16 @@ layout (location = 1) in vec2     inTexCoord;
 layout (location = 2) in flat int inID;
 layout (location = 3) in mat3     inNormalMatrix;
 
-layout (location = 0) out vec4  outAlbedo;   // アルベド + ラフネス
-layout (location = 1) out vec4  outNormal;   // 法線    + ラフネス
-layout (location = 2) out vec3  outEmission; // エミッション
-layout (location = 3) out ivec2 outID;       // エンティティID + マテリアルID
+layout (location = 0) out vec4 outAlbedo;   // アルベド + ラフネス
+layout (location = 1) out vec4 outNormal;   // 法線    + ラフネス
+layout (location = 2) out vec3 outEmission; // エミッション
+layout (location = 3) out int  outID;       // エンティティID + マテリアルID
 
 //               |     R     |     G     |     B     |     A     |
 // [0]: RGBA8U   |               Color               | Roughness |
 // [1]: RGBA8U   |               Normal              | Metallic  |
 // [2]: RG11B10F |              Emission             |
-// [3]: RG32I    |   Entity  | Material  |
+// [3]: RG32I    |   Entity  |
 
 //------------------------------------------------------------------
 // マテリアル
@@ -135,6 +135,5 @@ void main()
     // RT[3]
     //----------------------------------------------------------------------------
 
-    outID.r = inID; // エンティティID
-    outID.g = 0;    // シェーディングID
+    outID = inID; // エンティティID
 }
