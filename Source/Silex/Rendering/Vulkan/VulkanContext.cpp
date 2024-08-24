@@ -243,11 +243,12 @@ namespace Silex
 
         // 要求デバイス拡張
         requestDeviceExtensions.insert(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-        //requestDeviceExtensions.insert(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
-        //requestDeviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
-        //requestDeviceExtensions.insert(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
-        //requestDeviceExtensions.insert(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
-        //requestDeviceExtensions.insert(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
+        //requestDeviceExtensions.insert(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);   // レンダーパス
+        //requestDeviceExtensions.insert(VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME); // GPUアドレス取得
+        //requestDeviceExtensions.insert(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);   // デスクリプター配列にインデックス参照
+        //requestDeviceExtensions.insert(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);     // 動的レンダリング（レンダーパス不要）
+        //requestDeviceExtensions.insert(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);       // デスクリプターの更新タイミング
+        //requestDeviceExtensions.insert(VK_KHR_IMAGELESS_FRAMEBUFFER_EXTENSION_NAME); // レンダーパス開始時にイメージの指定を延期
 
         // デバイス拡張機能のクエリ
         uint32 deviceExtensionCount = 0;

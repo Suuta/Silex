@@ -71,6 +71,11 @@ namespace Silex
             glm::mat4 view;
             glm::mat4 projection;
         };
+
+        struct CompositUBO
+        {
+            float exposure;
+        };
     }
 
     //======================================
@@ -330,7 +335,7 @@ namespace Silex
             equirectangularShader = api->CreateShader(compiledData);
 
             // キューブマップ
-            cubemap = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, 1024, 1024);
+            cubemap = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, 1024, 1024, false);
 
             // キューブマップ UBO
             Test::EquirectangularData data;
@@ -359,7 +364,7 @@ namespace Silex
             info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, envTexture, cubemapSampler);
             equirectangularSet = CreateDescriptorSet(equirectangularShader, 0, info);
 
-            // フレームバッファ
+
             equirectangularFB = CreateFramebuffer(equirectangularPass, 1, &cubemap, 1024, 1024);
 
             // キューブマップ書き込み
@@ -370,15 +375,36 @@ namespace Silex
                 api->SetViewport(cmd, 0, 0, 1024, 1024);
                 api->SetScissor(cmd,  0, 0, 1024, 1024);
 
+                // layout: undef
                 api->BeginRenderPass(cmd, equirectangularPass, equirectangularFB, COMMAND_BUFFER_TYPE_PRIMARY);
-                api->BindPipeline(cmd, equirectangularPipeline);
-                api->BindDescriptorSet(cmd, equirectangularSet, 0);
 
-                api->BindVertexBuffer(cmd, ms->GetVertexBuffer(), 0);
-                api->BindIndexBuffer(cmd, ms->GetIndexBuffer(), INDEX_BUFFER_FORMAT_UINT32, 0);
+                {
+                    api->BindPipeline(cmd, equirectangularPipeline);
+                    api->BindDescriptorSet(cmd, equirectangularSet, 0);
+                    api->BindVertexBuffer(cmd, ms->GetVertexBuffer(), 0);
+                    api->BindIndexBuffer(cmd, ms->GetIndexBuffer(), INDEX_BUFFER_FORMAT_UINT32, 0);
+                    api->DrawIndexed(cmd, ms->GetIndexCount(), 1, 0, 0, 0);
+                }
 
-                api->DrawIndexed(cmd, ms->GetIndexCount(), 1, 0, 0, 0);
+                // layout: shader_read_only
                 api->EndRenderPass(cmd);
+
+#if 0
+                TextureBarrierInfo info = {};
+                info.texture      = cubemap;
+                info.subresources = {};
+                info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+                info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+                info.oldLayout    = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                info.newLayout    = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
+                api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+
+                _GenerateMipmaps(cmd, cubemap, 1024, 1024, 1, 6, TEXTURE_ASPECT_COLOR_BIT);
+
+                info.oldLayout = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+                info.newLayout = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+#endif
             });
         }
 
@@ -524,9 +550,9 @@ namespace Silex
         vb = CreateVertexBuffer(data, sizeof(data));
         ib = CreateIndexBuffer(indices, sizeof(indices));
 
-        sceneUBO = CreateUniformBuffer(nullptr, sizeof(Test::Transform), &mappedSceneData);
-        gridUBO  = CreateUniformBuffer(nullptr, sizeof(Test::GridData), &mappedGridData);
-        lightUBO = CreateUniformBuffer(nullptr, sizeof(Test::Light),  &mappedLightData);
+        sceneUBO    = CreateUniformBuffer(nullptr, sizeof(Test::Transform),   &mappedSceneData);
+        gridUBO     = CreateUniformBuffer(nullptr, sizeof(Test::GridData),    &mappedGridData);
+        lightUBO    = CreateUniformBuffer(nullptr, sizeof(Test::Light),       &mappedLightData);
 
         {
             DescriptorSetInfo uboinfo;
@@ -560,7 +586,7 @@ namespace Silex
 
         {
             DescriptorSetInfo blitinfo;
-            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.color, sceneSampler);
+            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  lighting.color, sceneSampler);
             compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
         }
 
@@ -1206,53 +1232,6 @@ namespace Silex
             api->EndRenderPass(frame.commandBuffer);
         }
 
-        if (0)
-        {
-            api->BeginRenderPass(frame.commandBuffer, scenePass, sceneFramebuffer);
-
-            if (1) // ライティング
-            {
-                api->BindPipeline(frame.commandBuffer, pipeline);
-                api->BindDescriptorSet(frame.commandBuffer, descriptorSet, 0);
-                api->BindDescriptorSet(frame.commandBuffer, textureSet, 1);
-                api->BindDescriptorSet(frame.commandBuffer, lightSet, 2);
-
-                // スポンザ
-                for (MeshSource* source : sponzaMesh->GetMeshSources())
-                {
-                    Buffer* vb        = source->GetVertexBuffer();
-                    Buffer* ib        = source->GetIndexBuffer();
-                    uint32 indexCount = source->GetIndexCount();
-                    api->BindVertexBuffer(frame.commandBuffer, vb, 0);
-                    api->BindIndexBuffer(frame.commandBuffer, ib, INDEX_BUFFER_FORMAT_UINT32, 0);
-                    api->DrawIndexed(frame.commandBuffer, indexCount, 1, 0, 0, 0);
-                }
-            }
-
-            if (1) // スカイ
-            {
-                MeshSource* ms = cubeMesh->GetMeshSource();
-
-                api->BindPipeline(frame.commandBuffer, skyPipeline);
-                api->BindDescriptorSet(frame.commandBuffer, descriptorSet, 0);
-                api->BindDescriptorSet(frame.commandBuffer, textureSet, 1);
-
-                api->BindVertexBuffer(frame.commandBuffer, ms->GetVertexBuffer(), 0);
-                api->BindIndexBuffer(frame.commandBuffer, ms->GetIndexBuffer(), INDEX_BUFFER_FORMAT_UINT32, 0);
-
-                api->DrawIndexed(frame.commandBuffer, ms->GetIndexCount(), 1, 0, 0, 0);
-            }
-
-            if (1) // グリッド
-            {
-                api->BindPipeline(frame.commandBuffer, gridPipeline);
-                api->BindDescriptorSet(frame.commandBuffer, gridSet, 0);
-                api->Draw(frame.commandBuffer, 6, 1, 0, 0);
-            }
-
-            api->EndRenderPass(frame.commandBuffer);
-        }
-
         if (1) // コンポジットパス
         {
             api->BeginRenderPass(frame.commandBuffer, compositPass, compositFB);
@@ -1408,7 +1387,7 @@ namespace Silex
             info.subresources.baseMipLevel  = mipLevel;
             info.subresources.mipLevelCount = 1;
             info.subresources.baseLayer     = 0;
-            info.subresources.layerCount    = 1;
+            info.subresources.layerCount    = array;
             info.srcAccess                  = BARRIER_ACCESS_MEMORY_WRITE_BIT;
             info.dstAccess                  = BARRIER_ACCESS_MEMORY_WRITE_BIT | BARRIER_ACCESS_MEMORY_READ_BIT;
             info.oldLayout                  = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -1417,8 +1396,8 @@ namespace Silex
             api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
 
             // Blit
-            Extent srcoffset = mipmaps[mipLevel + 0];
-            Extent dstoffset = mipmaps[mipLevel + 1];
+            Extent srcExtent = mipmaps[mipLevel + 0];
+            Extent dstExtent = mipmaps[mipLevel + 1];
 
             // NOTE:
             // srcImageがVK_IMAGE_TYPE_1DまたはVK_IMAGE_TYPE_2D型の場合、pRegionsの各要素について、srcOffsets[0].zは0、srcOffsets[1].zは1でなければなりません。
@@ -1427,8 +1406,8 @@ namespace Silex
             TextureBlitRegion region = {};
             region.srcOffset[0] = { 0, 0, 0 };
             region.dstOffset[0] = { 0, 0, 0 };
-            region.srcOffset[1] = srcoffset;
-            region.dstOffset[1] = dstoffset;
+            region.srcOffset[1] = srcExtent;
+            region.dstOffset[1] = dstExtent;
 
             region.srcSubresources.aspect     = aspect;
             region.srcSubresources.mipLevel   = mipLevel;

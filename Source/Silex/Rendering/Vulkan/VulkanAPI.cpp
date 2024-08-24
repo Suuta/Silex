@@ -4,6 +4,7 @@
 #include "Rendering/ShaderCompiler.h"
 #include "Rendering/Vulkan/VulkanAPI.h"
 #include "Rendering/Vulkan/VulkanContext.h"
+#include "Rendering/RenderingUtility.h"
 #include "ImGui/Vulkan/VulkanGUI.h"
 
 
@@ -223,7 +224,18 @@ namespace Silex
         VkPhysicalDeviceBufferAddressFeaturesEXT   bufferAdressFeatures       = {};
 
 
-        // デバイス機能を取得
+        //==========================================================================
+        // デバイス機能
+        //--------------------------------------------------------------------------
+        // 拡張機能がコア機能に昇格しているバージョン移行であれば、Feature を有効にするだけで良い。
+        // pNextチェインを使って VkPhysicalDeviceVulkan "version" Features を渡すことで、
+        // 1.1以降の機能を指定する
+        // 
+        // 逆にコア機能に昇格していないバージョンで拡張機能を使用する場合は、Extension で有効にする
+        // 必要がある。また、VkPhysicalDevice "ExtensionName" Features を指定することで
+        // 追加の拡張機能オプションが指定できる
+        //==========================================================================
+
         VkPhysicalDeviceVulkan11Features features_11 = {};
         features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
         features_11.pNext = nullptr;
@@ -1152,7 +1164,6 @@ namespace Silex
 
         VulkanBuffer* buffer = slnew(VulkanBuffer);
         buffer->allocationHandle = allocation;
-        buffer->allocationSize   = allocationInfo.size;
         buffer->size             = size;
         buffer->buffer           = vkbuffer;
         buffer->view             = nullptr;
@@ -1266,15 +1277,32 @@ namespace Silex
 
         VulkanTexture* texture = slnew(VulkanTexture);
         texture->allocationHandle = allocation;
-        texture->allocationInfo   = allocationInfo;
         texture->image            = vkimage;
         texture->imageView        = vkview;
         texture->imageType        = viewCreateInfo.viewType;
         texture->format           = viewCreateInfo.format;
         texture->extent           = imageCreateInfo.extent;
         texture->subresource      = viewCreateInfo.subresourceRange;
+        texture->createFlags      = imageCreateInfo.flags;
 
-        vmaGetAllocationInfo(allocator, texture->allocationHandle, &texture->allocationInfo);
+
+        // ==================== ミップマップビュー生成 ====================
+        texture->mipView.resize(format.mipLevels);
+        for (uint32 i = 0; i < format.mipLevels; i++)
+        {
+            viewCreateInfo.subresourceRange.baseMipLevel = i;
+            viewCreateInfo.subresourceRange.levelCount   = 1;
+
+            VkImageView mipview = nullptr;
+            result = vkCreateImageView(device, &viewCreateInfo, nullptr, &mipview);
+            if (result != VK_SUCCESS)
+            {
+                SL_LOG_LOCATION_ERROR(VkResultToString(result));
+                return nullptr;
+            }
+
+            texture->mipView[i] = mipview;
+        }
 
         return texture;
     }
@@ -1285,6 +1313,10 @@ namespace Silex
         {
             VulkanTexture* vktexture = (VulkanTexture*)texture;
             vkDestroyImageView(device, vktexture->imageView, nullptr);
+
+            for (uint32 i = 0; i < vktexture->mipView.size(); i++)
+                vkDestroyImageView(device, vktexture->mipView[i], nullptr);
+
             vmaDestroyImage(allocator, vktexture->image, vktexture->allocationHandle);
 
             sldelete(vktexture);
@@ -1343,27 +1375,64 @@ namespace Silex
     //==================================================================================
     FramebufferHandle* VulkanAPI::CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height)
     {
-        VkImageView* views = SL_STACK(VkImageView, numTexture);
+        // VK_KHR_imageless_framebuffer (vulkan 1.2)
+        // フレームバッファのアタッチメントのイメージビューを生成時には指定せず、レンダーパス開始時まで遅延できる
+        //https://docs.vulkan.org/guide/latest/extensions/VK_KHR_imageless_framebuffer.html
+#if 0
+        VkFramebufferAttachmentsCreateInfo info = {};
+        bool textureHasMipmap = false;
 
-        VulkanTexture** texes = (VulkanTexture**)textures;
+        VulkanTexture** tex = (VulkanTexture**)textures;
         for (uint32 i = 0; i < numTexture; i++)
         {
-            views[i] = texes[i]->imageView;
+            views[i] = tex[i]->imageView;
+
+            // アタッチメント間でレイヤー数は同じにする必要がある
+            uint32 numLayer  = tex[i]->subresource.layerCount;
+            uint32 numMipmap = tex[i]->subresource.levelCount;
+
+            // ミップマップが存在する場合、VK_FRAMEBUFFER_CREATE_IMAGELESS_BIT の指定が必要となる
+            textureHasMipmap = numMipmap > 1;
+
+            if (textureHasMipmap)
+            {
+                VkFramebufferAttachmentImageInfo* attachments = SL_STACK(VkFramebufferAttachmentImageInfo, numMipmap);
+
+                auto mipLevels = RenderingUtility::CalculateMipmap(width, height);
+                for (uint32 j = 0; j < numMipmap; j++)
+                {
+                    attachments[j].sType        = VK_STRUCTURE_TYPE_FRAMEBUFFER_ATTACHMENT_IMAGE_INFO;
+                    attachments[j].flags        = tex[i]->createFlags;
+                    attachments[j].width        = mipLevels[j].width;
+                    attachments[j].height       = mipLevels[j].height;
+                    attachments[j].layerCount   = numLayer;
+                }
+            }
         }
 
-        //=================================================================
-        // アタッチメント間でレイヤー数は同じにする必要がある。
-        // なので、レイヤー数が同じであると仮定し、先頭テクスチャのレイヤーを指定する
-        //=================================================================
+        VkFramebufferCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        createInfo.flags = textureHasMipmap ? VK_FRAMEBUFFER_CREATE_IMAGELESS_BIT : 0;
+        createInfo.pNext = textureHasMipmap ? &info : nullptr;
+#endif
+
+        VkImageView*    views  = SL_STACK(VkImageView, numTexture);
+        VulkanTexture** texes  = (VulkanTexture**)textures;
+        uint32          layers = texes[0]->subresource.layerCount;
+
+        for (uint32 i = 0; i < numTexture; i++)
+            views[i] = texes[i]->imageView;
 
         VkFramebufferCreateInfo createInfo = {};
         createInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        createInfo.flags           = 0;
+        createInfo.pNext           = nullptr;
         createInfo.renderPass      = ((VulkanRenderPass*)renderpass)->renderpass;
         createInfo.attachmentCount = numTexture;
         createInfo.pAttachments    = views;
         createInfo.width           = width;
         createInfo.height          = height;
-        createInfo.layers          = texes[0]->subresource.layerCount; // アタッチメント間でレイヤー数が異なってはいけない
+        createInfo.layers          = layers;
 
         VkFramebuffer vkfb = nullptr;
         VkResult result = vkCreateFramebuffer(device, &createInfo, nullptr, &vkfb);

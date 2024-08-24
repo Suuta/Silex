@@ -122,6 +122,10 @@ vec3 ACESFilmic(vec3 color)
     return (color * (a * color + b)) / (color * (c * color + d) + e);
 }
 
+vec3 Ganmma(vec3 color, float ganmma)
+{
+    return pow(color, vec3(ganmma));
+}
 
 void main()
 {
@@ -129,11 +133,14 @@ void main()
     vec2 pixelSize = 1.0 / textureSize(inputAttachment, 0);
     vec4 color = FXAA(pixelSize);
 
-    // シーンフレームバッファ（RGBA16F）から スワップチェイン(BGRA8N) への 0.0 ~ 1.0 補間
+    // 露光？
+    //color.rgb = vec3(1.0) - exp(-color.rgb * 0.5);
+
+    // トーンマップ
     color.rgb = ACESFilmic(color.rgb).rgb;
 
-    // ガンマ補正（SDRモニター用）
-    //color.rgb = pow(color.rgb, vec3(1 / 2.2));
+    // ガンマ補正
+    color.rgb = Ganmma(color.rgb, 1 / 2.2);
 
     piexl = color;
 }

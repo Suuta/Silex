@@ -80,6 +80,12 @@ layout (set = 1, binding = 0) uniform Material
 //layout (set = 1, binding = 3) uniform sampler2D u_emission;
 
 
+vec3 Ganmma(vec3 color, float ganmma)
+{
+    return pow(color, vec3(ganmma));
+}
+
+
 void main()
 {
     //----------------------------------------------------------------------------
@@ -97,9 +103,9 @@ void main()
     // テクスチャ と 追加カラーを乗算
     albedomap.rgb *= albedo.rgb;
 
-    // ラフネス
-    float roughness = u_material.roughness;
-    outAlbedo = vec4(albedomap.rgb, roughness);
+    // カラー・ラフネス
+    outAlbedo.rgb = Ganmma(albedomap.rgb, 2.2);
+    outAlbedo.a   = u_material.roughness;
 
     //----------------------------------------------------------------------------
     // RT[1]
@@ -110,14 +116,13 @@ void main()
     //vec3 convertNormal = normalmap.rgb; // テクスチャは [0~1] の範囲内なので変換しない
     //vec3 normal        = convertNormal;
 
-    // ノーマル
+    // ノーマル・メタリック
     vec4 normalmap     = vec4(inNormal, 1.0);
     vec3 convertNormal = (normalmap.rgb * 0.5) + vec3(0.5);
     vec3 normal        = convertNormal;
 
-    // メタリック
-    float metallic = u_material.metallic;
-    outNormal = vec4(normal, metallic);
+    outNormal.rgb = normal;
+    outNormal.a   = u_material.metallic;
 
     //----------------------------------------------------------------------------
     // RT[2]
@@ -129,7 +134,7 @@ void main()
 
     // エミッション
     vec3 emission = u_material.emission;
-    outEmission = emission;
+    outEmission = Ganmma(emission, 2.2);
 
     //----------------------------------------------------------------------------
     // RT[3]

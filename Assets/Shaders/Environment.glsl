@@ -46,4 +46,5 @@ void main()
     vec3 envColor = texture(environmentMap, pos).rgb;
 
     outColor = vec4(envColor, 1.0);
+    outColor.rgb = pow(outColor.rgb, vec3(2.2));
 }

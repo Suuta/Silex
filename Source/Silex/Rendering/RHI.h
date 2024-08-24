@@ -216,13 +216,11 @@ namespace Silex
         // テストコード
         //===========================================================
     public:
-
         void TEST();
         void Update(class Camera* camera);
         void Render(class Camera* camera, float dt);
         void RESIZE(uint32 width, uint32 height);
 
-    private:
 
         // Gバッファ
         void PrepareGBuffer(uint32 width, uint32 height);
@@ -242,8 +240,6 @@ namespace Silex
         void CleanupEnvironmentBuffer();
         EnvironmentBuffer environment;
 
-
-    private:
 
         // キューブマップ変換
         Pipeline*          equirectangularPipeline = nullptr;

@@ -95,21 +95,22 @@ namespace Silex
         VkBufferView  view             = nullptr;
         uint64        size             = 0;
         VmaAllocation allocationHandle = nullptr;
-        uint64        allocationSize   = 0;
     };
 
     // テクスチャ
     struct VulkanTexture : public TextureHandle
     {
-        VkImage                 image       = nullptr;
-        VkImageView             imageView   = nullptr;
-        VkImageViewType         imageType   = {};
-        VkFormat                format      = {};
-        VkExtent3D              extent      = {};
-        VkImageSubresourceRange subresource = {};
+        VkImage                  image     = nullptr;
+        VkImageView              imageView = nullptr;
+        std::vector<VkImageView> mipView   = {};
+
+        VkImageViewType          imageType   = {};
+        VkFormat                 format      = {};
+        VkExtent3D               extent      = {};
+        VkImageSubresourceRange  subresource = {};
+        uint32                   createFlags = {};
 
         VmaAllocation     allocationHandle = nullptr;
-        VmaAllocationInfo allocationInfo   = {};
     };
 
     // サンプラー
