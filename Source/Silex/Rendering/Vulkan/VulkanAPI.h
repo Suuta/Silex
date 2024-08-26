@@ -68,7 +68,7 @@ namespace Silex
         SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) override;
         void DestroySwapChain(SwapChain* swapchain) override;
         bool ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) override;
-        FramebufferHandle* GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present) override;
+        std::pair<FramebufferHandle*, TextureHandle*> GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present) override;
         bool Present(CommandQueue* queue, SwapChain* swapchain, Semaphore* render) override;
 
         RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) override;
@@ -140,7 +140,7 @@ namespace Silex
         void BlitTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureBlitRegion* regions, SamplerFilter filter = SAMPLER_FILTER_LINEAR) override;
 
         void PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData) override;
-        void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, CommandBufferType commandBufferType = COMMAND_BUFFER_TYPE_PRIMARY) override;
+        void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, uint32 numTexture, TextureHandle** textures, CommandBufferType commandBufferType = COMMAND_BUFFER_TYPE_PRIMARY) override;
         void EndRenderPass(CommandBuffer* commandbuffer) override;
         void NextRenderSubpass(CommandBuffer* commandbuffer, CommandBufferType commandBufferType) override;
         void SetViewport(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) override;

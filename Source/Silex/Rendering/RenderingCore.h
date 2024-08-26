@@ -36,6 +36,11 @@ namespace Silex
     SL_HANDLE(TextureHandle);
     SL_HANDLE(ShaderHandle);
 
+    //TODO: TextureView を抽象化する(テクスチャのサブリソース指定がかなり面倒)
+    // SL_HANDLE(TextureView);
+
+
+
     //================================================
     // ビューポート
     //================================================
@@ -523,7 +528,6 @@ namespace Silex
         uint32             baseLayer     = 0;
         uint32             layerCount    = UINT32_MAX; // 
     };
-
 
     //================================================
     // サンプラー

@@ -282,9 +282,11 @@ namespace Silex
         TextureHandle*     sceneColorTexture    = nullptr;
         TextureHandle*     sceneDepthTexture    = nullptr;
         Sampler*           sceneSampler         = nullptr;
+        FramebufferHandle* sceneFramebuffer            = nullptr;
 
-        FramebufferHandle* sceneFramebuffer     = nullptr;
-        FramebufferHandle* swapchainFramebuffer = nullptr;
+        // swapchain
+        FramebufferHandle* currentSwapchainFramebuffer = nullptr;
+        TextureHandle*     currentSwapchainTexture     = nullptr;
 
         RenderPass*        scenePass     = nullptr;
         RenderPass*        swapchainPass = nullptr;

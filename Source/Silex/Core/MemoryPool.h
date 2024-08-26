@@ -42,8 +42,8 @@ namespace Silex
             Header* head = nullptr;
             void*   ptr  = nullptr;
 
-            uint32 blockByteSize;
-            uint32 numBlocks;
+            uint32 blockByteSize = 0;
+            uint32 numBlocks     = 0;
 
             void Create(const uint32 chunkSize, const uint32 poolSize);
             void Destroy();
@@ -65,4 +65,3 @@ namespace Silex
         friend class Allocator;
     };
 }
-

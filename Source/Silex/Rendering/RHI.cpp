@@ -249,8 +249,9 @@ namespace Silex
         _DestroyPendingResources(frameIndex);
 
         // 描画先スワップチェインバッファを取得
-        swapchainFramebuffer = api->GetCurrentBackBuffer(swapchain, frame.presentSemaphore);
-        SL_CHECK(!swapchainFramebuffer, false);
+        auto [fb, tex] = api->GetCurrentBackBuffer(swapchain, frame.presentSemaphore);
+        currentSwapchainFramebuffer = fb;
+        currentSwapchainTexture     = tex;
 
         // コマンドバッファ開始
         result = api->BeginCommandBuffer(frame.commandBuffer);
@@ -375,18 +376,13 @@ namespace Silex
                 api->SetViewport(cmd, 0, 0, 1024, 1024);
                 api->SetScissor(cmd,  0, 0, 1024, 1024);
 
-                // layout: undef
-                api->BeginRenderPass(cmd, equirectangularPass, equirectangularFB, COMMAND_BUFFER_TYPE_PRIMARY);
-
-                {
-                    api->BindPipeline(cmd, equirectangularPipeline);
-                    api->BindDescriptorSet(cmd, equirectangularSet, 0);
-                    api->BindVertexBuffer(cmd, ms->GetVertexBuffer(), 0);
-                    api->BindIndexBuffer(cmd, ms->GetIndexBuffer(), INDEX_BUFFER_FORMAT_UINT32, 0);
-                    api->DrawIndexed(cmd, ms->GetIndexCount(), 1, 0, 0, 0);
-                }
-
-                // layout: shader_read_only
+                // layer N
+                api->BeginRenderPass(cmd, equirectangularPass, equirectangularFB, 1, &cubemap);
+                api->BindPipeline(cmd, equirectangularPipeline);
+                api->BindDescriptorSet(cmd, equirectangularSet, 0);
+                api->BindVertexBuffer(cmd, ms->GetVertexBuffer(), 0);
+                api->BindIndexBuffer(cmd, ms->GetIndexBuffer(), INDEX_BUFFER_FORMAT_UINT32, 0);
+                api->DrawIndexed(cmd, ms->GetIndexCount(), 1, 0, 0, 0);
                 api->EndRenderPass(cmd);
 
 #if 0
@@ -438,7 +434,7 @@ namespace Silex
             subpass.colorReferences.push_back(colorRef);
             subpass.depthstencilReference = depthRef;
 
-            RenderPassClearValue clear[2];
+            RenderPassClearValue clear[2] = {};
             clear[0].SetFloat(0, 0, 0, 1);
             clear[1].SetDepthStencil(1, 0);
 
@@ -595,8 +591,6 @@ namespace Silex
             imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTexture, sceneSampler);
             imageSet = CreateDescriptorSet(compositShader, 0, imageinfo);
         }
-
-        int i = 0;
     }
 
     void RHI::PrepareGBuffer(uint32 width, uint32 height)
@@ -831,7 +825,7 @@ namespace Silex
             subpass.colorReferences.push_back(colorRef);
             subpass.depthstencilReference = depthRef;
 
-            RenderPassClearValue clear[2];
+            RenderPassClearValue clear[2] = {};
             clear[0].SetFloat(0, 0, 0, 1);
             clear[1].SetDepthStencil(1, 0);
 
@@ -1175,7 +1169,8 @@ namespace Silex
 
         if (1) // メッシュパス
         {
-            api->BeginRenderPass(frame.commandBuffer, gbuffer.pass, gbuffer.framebuffer);
+            TextureHandle* gb[] = {gbuffer.albedo, gbuffer.normal, gbuffer.emission, gbuffer.id, gbuffer.depth};
+            api->BeginRenderPass(frame.commandBuffer, gbuffer.pass, gbuffer.framebuffer, 5, gb);
             
             api->BindPipeline(frame.commandBuffer, gbuffer.pipeline);
             api->BindDescriptorSet(frame.commandBuffer, gbuffer.transformSet, 0);
@@ -1197,7 +1192,7 @@ namespace Silex
 
         if (1) // ライティングパス
         {
-            api->BeginRenderPass(frame.commandBuffer, lighting.pass, lighting.framebuffer);
+            api->BeginRenderPass(frame.commandBuffer, lighting.pass, lighting.framebuffer, 1, &lighting.color);
 
             api->BindPipeline(frame.commandBuffer, lighting.pipeline);
             api->BindDescriptorSet(frame.commandBuffer, lighting.set, 0);
@@ -1207,9 +1202,10 @@ namespace Silex
             api->EndRenderPass(frame.commandBuffer);
         }
 
-        if (1) // 仮 フォワードパス
+        if (1)
         {
-            api->BeginRenderPass(frame.commandBuffer, environment.pass, environment.framebuffer);
+            TextureHandle* textures[] = { lighting.color, gbuffer.depth };
+            api->BeginRenderPass(frame.commandBuffer, environment.pass, environment.framebuffer, 2, textures);
 
             if (1) // スカイ
             {
@@ -1234,7 +1230,7 @@ namespace Silex
 
         if (1) // コンポジットパス
         {
-            api->BeginRenderPass(frame.commandBuffer, compositPass, compositFB);
+            api->BeginRenderPass(frame.commandBuffer, compositPass, compositFB, 1, &compositTexture);
 
             api->BindPipeline(frame.commandBuffer, compositPipeline);
             api->BindDescriptorSet(frame.commandBuffer, compositSet, 0);
@@ -1572,7 +1568,7 @@ namespace Silex
     void RHI::BeginSwapChainPass()
     {
         FrameData& frame = frameData[frameIndex];
-        api->BeginRenderPass(frame.commandBuffer, swapchainPass, swapchainFramebuffer, COMMAND_BUFFER_TYPE_PRIMARY);
+        api->BeginRenderPass(frame.commandBuffer, swapchainPass, currentSwapchainFramebuffer, 1, &currentSwapchainTexture);
     }
 
     void RHI::EndSwapChainPass()

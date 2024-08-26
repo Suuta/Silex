@@ -65,7 +65,6 @@ namespace Silex
     {
         VkFramebuffer framebuffer = nullptr;
         Rect          rect        = {};
-        uint32        layer       = 0;
     };
 
     // スワップチェイン
@@ -82,8 +81,7 @@ namespace Silex
         VkSemaphore render  = nullptr;
 
         std::vector<FramebufferHandle*> framebuffers;
-        std::vector<VkImage>            images;
-        std::vector<VkImageView>        views;
+        std::vector<TextureHandle*>     textures;
 
         uint32 imageIndex = 0;
     };
@@ -100,12 +98,15 @@ namespace Silex
     // テクスチャ
     struct VulkanTexture : public TextureHandle
     {
-        VkImage                  image     = nullptr;
-        VkImageView              imageView = nullptr;
-        std::vector<VkImageView> mipView   = {};
+        VkImage image = nullptr;
+
+        VkImageView                           imageView; // 全体
+      //std::vector<VkImageView>              layerView; // layer[N]          : CSM
+      //std::vector<std::vector<VkImageView>> mipView;   // layer[N] + mip[N] : プリフィルターマップ
 
         VkImageViewType          imageType   = {};
         VkFormat                 format      = {};
+        VkImageUsageFlags        usageflags  = {};
         VkExtent3D               extent      = {};
         VkImageSubresourceRange  subresource = {};
         uint32                   createFlags = {};

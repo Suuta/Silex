@@ -71,6 +71,7 @@ namespace Silex
             glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, cubeMapResolution, cubeMapResolution, 0, GL_RGB, GL_FLOAT, nullptr);
         }
 
+        // ミップマップ有効
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -107,7 +108,7 @@ namespace Silex
             Renderer::Get()->DrawCube();
         }
 
-        // テクスチャに書き込んだ後にミップマップ生成
+        // ミップマップデータ生成
         glGenerateTextureMipmap(CubeMap);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);

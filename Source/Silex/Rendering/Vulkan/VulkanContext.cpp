@@ -52,10 +52,10 @@ namespace Silex
 
         switch (messageSeverity)
         {
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:  SL_LOG_TRACE("{}", message); break;
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:     SL_LOG_INFO("{}",  message); break;
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:  SL_LOG_WARN("{}",  message); break;
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:    SL_LOG_ERROR("{}", message); break;
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT: SL_LOG_TRACE("{}", message); break;
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:    SL_LOG_INFO("{}",  message); break;
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT: SL_LOG_WARN("{}",  message); break;
+            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:   SL_LOG_ERROR("{}", message); break;
 
             default: break;
         }
@@ -164,7 +164,7 @@ namespace Silex
 
         // 1.0 を除き、GPU側がサポートしている限りは、指定バージョンに関係なくGPUバージョンレベルの機能が利用可能
         // つまり、物理デバイスのバージョンではなく、開発の最低保証バージョンを指定した方が良い？
-        uint32 apiVersion = instanceVersion == VK_API_VERSION_1_0 ? VK_API_VERSION_1_0 : VK_API_VERSION_1_2;
+        uint32 apiVersion = instanceVersion == VK_API_VERSION_1_0? VK_API_VERSION_1_0 : VK_API_VERSION_1_2;
 
         // アプリ情報
         VkApplicationInfo appInfo = {};
