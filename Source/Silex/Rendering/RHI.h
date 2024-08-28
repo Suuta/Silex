@@ -17,6 +17,7 @@ namespace Silex
     {
         std::vector<Buffer*>            buffer;
         std::vector<TextureHandle*>     texture;
+        std::vector<TextureView*>       textureView;
         std::vector<Sampler*>           sampler;
         std::vector<DescriptorSet*>     descriptorset;
         std::vector<FramebufferHandle*> framebuffer;
@@ -61,6 +62,12 @@ namespace Silex
         TextureHandle* id       = nullptr;
         TextureHandle* depth    = nullptr;
 
+        TextureView* albedoView   = nullptr;
+        TextureView* normalView   = nullptr;
+        TextureView* emissionView = nullptr;
+        TextureView* idView       = nullptr;
+        TextureView* depthView    = nullptr;
+
         Buffer*        materialUBO     = nullptr;
         void*          mappedMaterial  = nullptr;
         Buffer*        transformUBO    = nullptr;
@@ -75,6 +82,7 @@ namespace Silex
         RenderPass*        pass        = nullptr;
         FramebufferHandle* framebuffer = nullptr;
         TextureHandle*     color       = nullptr;
+        TextureView*       view        = nullptr;
 
         Pipeline*     pipeline = nullptr;
         ShaderHandle* shader   = nullptr;
@@ -154,6 +162,10 @@ namespace Silex
         TextureHandle* CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap = false);
         void           DestroyTexture(TextureHandle* texture);
 
+        // テクスチャビュー
+        TextureView* CreateTextureView(TextureHandle* texture, TextureType type, TextureAspectFlags aspect, uint32 baseArrayLayer = 0, uint32 numArrayLayer = UINT32_MAX, uint32 baseMipLevel = 0, uint32 numMipLevel = UINT32_MAX);
+        void         DestroyTextureView(TextureView* view);
+
         // バッファ
         Buffer* CreateUniformBuffer(void* data, uint64 size, void** outMappedAdress);
         Buffer* CreateStorageBuffer(void* data, uint64 size, void** outMappedAdress);
@@ -216,11 +228,13 @@ namespace Silex
         // テストコード
         //===========================================================
     public:
+
         void TEST();
         void Update(class Camera* camera);
         void Render(class Camera* camera, float dt);
         void RESIZE(uint32 width, uint32 height);
 
+    public:
 
         // Gバッファ
         void PrepareGBuffer(uint32 width, uint32 height);
@@ -240,6 +254,7 @@ namespace Silex
         void CleanupEnvironmentBuffer();
         EnvironmentBuffer environment;
 
+    public:
 
         // キューブマップ変換
         Pipeline*          equirectangularPipeline = nullptr;
@@ -249,64 +264,44 @@ namespace Silex
         DescriptorSet*     equirectangularSet      = nullptr;
         Buffer*            equirectangularUBO      = nullptr;
         void*              mappedEquirectanguler   = nullptr;
-        Sampler*           cubemapSampler          = nullptr;
-
-        // スカイボックス
-        Pipeline*          skyPipeline = nullptr;
-        ShaderHandle*      skyShader   = nullptr;
-        TextureHandle*     cubemap     = nullptr;
-
 
         // シーンBlit
-        FramebufferHandle* compositFB       = nullptr;
-        TextureHandle*     compositTexture  = nullptr;
-        RenderPass*        compositPass     = nullptr;
-        ShaderHandle*      compositShader   = nullptr;
-        Pipeline*          compositPipeline = nullptr;
-        DescriptorSet*     compositSet      = nullptr;
+        FramebufferHandle* compositFB          = nullptr;
+        TextureHandle*     compositTexture     = nullptr;
+        TextureView*       compositTextureView = nullptr;
+        RenderPass*        compositPass        = nullptr;
+        ShaderHandle*      compositShader      = nullptr;
+        Pipeline*          compositPipeline    = nullptr;
+        DescriptorSet*     compositSet         = nullptr;
 
         // ImGui::Image
-        DescriptorSet*     imageSet        = nullptr;
-
-
-        // シーンバッファ
-        Buffer*            sceneUBO        = nullptr;
-        void*              mappedSceneData = nullptr;
-        Buffer*            gridUBO         = nullptr;
-        void*              mappedGridData  = nullptr;
-        Buffer*            lightUBO        = nullptr;
-        void*              mappedLightData = nullptr;
+        DescriptorSet* imageSet = nullptr;
 
         // Scene
-        glm::ivec2         sceneFramebufferSize = {};
-        TextureHandle*     sceneColorTexture    = nullptr;
-        TextureHandle*     sceneDepthTexture    = nullptr;
-        Sampler*           sceneSampler         = nullptr;
-        FramebufferHandle* sceneFramebuffer            = nullptr;
+        glm::ivec2 sceneFramebufferSize = {};
+        Sampler*   sampler              = nullptr;
 
         // swapchain
         FramebufferHandle* currentSwapchainFramebuffer = nullptr;
-        TextureHandle*     currentSwapchainTexture     = nullptr;
+        TextureView*       currentSwapchainView        = nullptr;
+        RenderPass*        swapchainPass               = nullptr;
 
-        RenderPass*        scenePass     = nullptr;
-        RenderPass*        swapchainPass = nullptr;
+        // グリッド
+        Buffer*        gridUBO         = nullptr;
+        void*          mappedGridData  = nullptr;
+        ShaderHandle*  gridShader    = nullptr;
+        Pipeline*      gridPipeline  = nullptr;
+        DescriptorSet* gridSet       = nullptr;
 
-        Pipeline*          pipeline      = nullptr;
-        ShaderHandle*      shader        = nullptr;
-        DescriptorSet*     descriptorSet = nullptr;
-        DescriptorSet*     textureSet    = nullptr;
-        DescriptorSet*     lightSet      = nullptr;
+        // テクスチャ
+        TextureHandle* defaultTexture     = nullptr;
+        TextureView*   defaultTextureView = nullptr;
 
-        ShaderHandle*      gridShader    = nullptr;
-        Pipeline*          gridPipeline  = nullptr;
-        DescriptorSet*     gridSet       = nullptr;
+        TextureHandle* envTexture     = nullptr;
+        TextureView*   envTextureView = nullptr;
 
-
-        Buffer* vb = nullptr;
-        Buffer* ib = nullptr;
-
-        TextureHandle* textureFile = nullptr;
-        TextureHandle* envTexture  = nullptr;
+        TextureHandle* cubemapTexture     = nullptr;
+        TextureView*   cubemapTextureView = nullptr;
     };
 }
 

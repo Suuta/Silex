@@ -80,7 +80,7 @@ namespace Silex
         // アイコン設定
         GLFWimage icon;
         TextureReader reader;
-        icon.pixels = reader.Read8bit("Assets/Editor/Logo.png");
+        icon.pixels = reader.Read("Assets/Editor/Logo.png");
         icon.width  = reader.data.width;
         icon.height = reader.data.height;
         glfwSetWindowIcon(window, 1, &icon);

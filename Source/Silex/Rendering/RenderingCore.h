@@ -33,11 +33,10 @@ namespace Silex
     SL_HANDLE(Sampler);
     SL_HANDLE(DescriptorSet);
     SL_HANDLE(FramebufferHandle);
+
     SL_HANDLE(TextureHandle);
     SL_HANDLE(ShaderHandle);
-
-    //TODO: TextureView を抽象化する(テクスチャのサブリソース指定がかなり面倒)
-    // SL_HANDLE(TextureView);
+    SL_HANDLE(TextureView);
 
 
 
@@ -444,17 +443,8 @@ namespace Silex
         TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL,
         TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL,
-        TEXTURE_LAYOUT_PREINITIALIZED,
 
-        //TEXTURE_LAYOUT_DEPTH_READ_ONLY_STENCIL_ATTACHMENT_OPTIMAL = 1000117000,
-        //TEXTURE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL = 1000117001,
-        //TEXTURE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL                   = 1000241000,
-        //TEXTURE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL                    = 1000241001,
-        //TEXTURE_LAYOUT_STENCIL_ATTACHMENT_OPTIMAL                 = 1000241002,
-        //TEXTURE_LAYOUT_STENCIL_READ_ONLY_OPTIMAL                  = 1000241003,
-        //TEXTURE_LAYOUT_READ_ONLY_OPTIMAL                          = 1000314000,
-        //TEXTURE_LAYOUT_ATTACHMENT_OPTIMAL                         = 1000314001,
-        TEXTURE_LAYOUT_PRESENT_SRC                                = 1000001002,
+        TEXTURE_LAYOUT_PRESENT_SRC = 1000001002,
     };
 
     enum TextureAspectBits
@@ -479,20 +469,6 @@ namespace Silex
     };
     using TextureUsageFlags = uint32;
 
-
-    struct TextureInfo
-    {
-        RenderingFormat   format    = RENDERING_FORMAT_UNDEFINE;
-        uint32            width     = 0;
-        uint32            height    = 0;
-        uint32            depth     = 1;
-        uint32            array     = 1;
-        uint32            mipLevels = 1;
-        TextureDimension  dimension = TEXTURE_DIMENSION_2D;
-        TextureType       type      = TEXTURE_TYPE_2D;
-        TextureSamples    samples   = TEXTURE_SAMPLES_1;
-        TextureUsageFlags usageBits = 0;
-    };
 
     // コピー・Blit 系のサブリソース指定
     struct TextureSubresource
@@ -524,9 +500,29 @@ namespace Silex
     {
         TextureAspectFlags aspect        = TEXTURE_ASPECT_COLOR_BIT;
         uint32             baseMipLevel  = 0;
-        uint32             mipLevelCount = UINT32_MAX; // 
+        uint32             mipLevelCount = RENDER_AUTO_ID; // VK_REMAINING_ARRAY_LAYERS
         uint32             baseLayer     = 0;
-        uint32             layerCount    = UINT32_MAX; // 
+        uint32             layerCount    = RENDER_AUTO_ID; // VK_REMAINING_MIP_LEVELS
+    };
+
+    struct TextureInfo
+    {
+        RenderingFormat   format    = RENDERING_FORMAT_UNDEFINE;
+        uint32            width     = 1;
+        uint32            height    = 1;
+        uint32            depth     = 1;
+        uint32            array     = 1;
+        uint32            mipLevels = 1;
+        TextureDimension  dimension = TEXTURE_DIMENSION_2D;
+        TextureType       type      = TEXTURE_TYPE_2D;
+        TextureSamples    samples   = TEXTURE_SAMPLES_1;
+        TextureUsageFlags usageBits = 0;
+    };
+
+    struct TextureViewInfo
+    {
+        TextureType             type        = TEXTURE_TYPE_2D;
+        TextureSubresourceRange subresource = {};
     };
 
     //================================================
@@ -733,9 +729,9 @@ namespace Silex
 
     struct DescriptorHandle
     {
-        Handle* buffer  = nullptr;
-        Handle* image   = nullptr;
-        Handle* sampler = nullptr;
+        Handle* buffer    = nullptr;
+        Handle* imageView = nullptr;
+        Handle* sampler   = nullptr;
     };
 
     struct DescriptorInfo
@@ -749,12 +745,12 @@ namespace Silex
     {
         std::vector<DescriptorInfo> infos;
 
-        void AddTexture(uint32 binding, DescriptorType type, TextureHandle* texture, Sampler* sampler)
+        void AddTexture(uint32 binding, DescriptorType type, TextureView* view, Sampler* sampler)
         {
             DescriptorInfo& info = infos.emplace_back();
             info.binding = binding;
             info.type    = type;
-            info.handles.emplace_back(DescriptorHandle{ nullptr, texture, sampler });
+            info.handles.emplace_back(DescriptorHandle{ nullptr, view, sampler });
         }
 
         void AddBuffer(uint32 binding, DescriptorType type, Buffer* buffer)

@@ -111,47 +111,29 @@ namespace Silex
         CleanupLightingBuffer();
         CleanupEnvironmentBuffer();
 
-        api->UnmapBuffer(sceneUBO);
-        api->DestroyBuffer(sceneUBO);
         api->UnmapBuffer(gridUBO);
         api->DestroyBuffer(gridUBO);
-        api->UnmapBuffer(lightUBO);
-        api->DestroyBuffer(lightUBO);
         api->UnmapBuffer(equirectangularUBO);
         api->DestroyBuffer(equirectangularUBO);
-        api->DestroyBuffer(vb);
-        api->DestroyBuffer(ib);
-        api->DestroyTexture(sceneColorTexture);
-        api->DestroyTexture(sceneDepthTexture);
-        api->DestroyTexture(textureFile);
+        api->DestroyTexture(defaultTexture);
         api->DestroyTexture(envTexture);
-        api->DestroyTexture(cubemap);
+        api->DestroyTexture(cubemapTexture);
         api->DestroyTexture(compositTexture);
-        api->DestroyShader(shader);
         api->DestroyShader(gridShader);
         api->DestroyShader(compositShader);
-        api->DestroyShader(skyShader);
         api->DestroyShader(equirectangularShader);
         api->DestroyDescriptorSet(equirectangularSet);
-        api->DestroyDescriptorSet(descriptorSet);
-        api->DestroyDescriptorSet(textureSet);
-        api->DestroyDescriptorSet(lightSet);
         api->DestroyDescriptorSet(gridSet);
         api->DestroyDescriptorSet(compositSet);
         api->DestroyDescriptorSet(imageSet);
-        api->DestroyPipeline(pipeline);
         api->DestroyPipeline(gridPipeline);
         api->DestroyPipeline(compositPipeline);
-        api->DestroyPipeline(skyPipeline);
         api->DestroyPipeline(equirectangularPipeline);
         api->DestroyRenderPass(compositPass);
         api->DestroyRenderPass(equirectangularPass);
-        api->DestroyRenderPass(scenePass);
         api->DestroyFramebuffer(equirectangularFB);
-        api->DestroyFramebuffer(sceneFramebuffer);
         api->DestroyFramebuffer(compositFB);
-        api->DestroySampler(sceneSampler);
-        api->DestroySampler(cubemapSampler);
+        api->DestroySampler(sampler);
 
         for (uint32 i = 0; i < frameData.size(); i++)
         {
@@ -249,9 +231,9 @@ namespace Silex
         _DestroyPendingResources(frameIndex);
 
         // 描画先スワップチェインバッファを取得
-        auto [fb, tex] = api->GetCurrentBackBuffer(swapchain, frame.presentSemaphore);
+        auto [fb, view] = api->GetCurrentBackBuffer(swapchain, frame.presentSemaphore);
         currentSwapchainFramebuffer = fb;
-        currentSwapchainTexture     = tex;
+        currentSwapchainView        = view;
 
         // コマンドバッファ開始
         result = api->BeginCommandBuffer(frame.commandBuffer);
@@ -290,22 +272,21 @@ namespace Silex
         layout.Attribute(4, VERTEX_BUFFER_FORMAT_R32G32B32);
 
         SamplerInfo info = {};
-        sceneSampler = api->CreateSampler(info);
+        sampler = api->CreateSampler(info);
 
-        {
-            TextureReader reader;
-            byte* pixels = reader.Read8bit("Assets/Textures/default.png");
-            textureFile = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
-        }
+        TextureReader reader;
+        byte*         pixels;
 
-        {
-            TextureReader reader;
-            byte* pixels = reader.Read8bit("Assets/Textures/cloud.png");
-            envTexture = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
+        pixels = reader.Read("Assets/Textures/checkerboard.png");
+        defaultTexture     = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
+        defaultTextureView = CreateTextureView(defaultTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        reader.Unload(pixels);
 
-            SamplerInfo samplerInfo = {};
-            cubemapSampler = api->CreateSampler(samplerInfo);
-        }
+        pixels = reader.Read("Assets/Textures/cloud.png");
+        envTexture     = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
+        envTextureView = CreateTextureView(envTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        reader.Unload(pixels);
+
 
         {
             // 環境マップ変換 レンダーパス
@@ -336,7 +317,9 @@ namespace Silex
             equirectangularShader = api->CreateShader(compiledData);
 
             // キューブマップ
-            cubemap = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, 1024, 1024, false);
+            cubemapTexture     = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, 1024, 1024);
+            cubemapTextureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT);
+
 
             // キューブマップ UBO
             Test::EquirectangularData data;
@@ -362,11 +345,10 @@ namespace Silex
             // デスクリプタ
             DescriptorSetInfo info;
             info.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
-            info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, envTexture, cubemapSampler);
+            info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, envTextureView, sampler);
             equirectangularSet = CreateDescriptorSet(equirectangularShader, 0, info);
 
-
-            equirectangularFB = CreateFramebuffer(equirectangularPass, 1, &cubemap, 1024, 1024);
+            equirectangularFB = CreateFramebuffer(equirectangularPass, 1, &cubemapTexture, 1024, 1024);
 
             // キューブマップ書き込み
             api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
@@ -377,7 +359,7 @@ namespace Silex
                 api->SetScissor(cmd,  0, 0, 1024, 1024);
 
                 // layer N
-                api->BeginRenderPass(cmd, equirectangularPass, equirectangularFB, 1, &cubemap);
+                api->BeginRenderPass(cmd, equirectangularPass, equirectangularFB, 1, &cubemapTextureView);
                 api->BindPipeline(cmd, equirectangularPipeline);
                 api->BindDescriptorSet(cmd, equirectangularSet, 0);
                 api->BindVertexBuffer(cmd, ms->GetVertexBuffer(), 0);
@@ -405,51 +387,6 @@ namespace Silex
         }
 
         {
-            // シーンパス
-            Attachment color = {};
-            color.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
-            color.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            color.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
-            color.storeOp       = ATTACHMENT_STORE_OP_STORE;
-            color.samples       = TEXTURE_SAMPLES_1;
-            color.format        = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
-
-            AttachmentReference colorRef = {};
-            colorRef.attachment = 0;
-            colorRef.layout     = TEXTURE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-            Attachment depth = {};
-            depth.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
-            depth.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            depth.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
-            depth.storeOp       = ATTACHMENT_STORE_OP_STORE;
-            depth.samples       = TEXTURE_SAMPLES_1;
-            depth.format        = RENDERING_FORMAT_D24_UNORM_S8_UINT;
-
-            AttachmentReference depthRef = {};
-            depthRef.attachment = 1;
-            depthRef.layout     = TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-            Subpass subpass = {};
-            subpass.colorReferences.push_back(colorRef);
-            subpass.depthstencilReference = depthRef;
-
-            RenderPassClearValue clear[2] = {};
-            clear[0].SetFloat(0, 0, 0, 1);
-            clear[1].SetDepthStencil(1, 0);
-
-            Attachment attachments[] = {color, depth};
-            scenePass = api->CreateRenderPass(std::size(attachments), attachments, 1, &subpass, 0, nullptr, 2, clear);
-
-            sceneColorTexture = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, size.x, size.y);
-            sceneDepthTexture = CreateTexture2D(RENDERING_FORMAT_D24_UNORM_S8_UINT,   size.x, size.y);
-
-            TextureHandle* textures[] = { sceneColorTexture , sceneDepthTexture };
-            sceneFramebuffer = CreateFramebuffer(scenePass, std::size(textures), textures, size.x, size.y);
-        }
-
-        {
-            // シーンBlitパス
             Attachment color = {};
             color.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
             color.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -468,60 +405,11 @@ namespace Silex
             RenderPassClearValue clear = {};
             clear.SetFloat(0, 0, 0, 1);
 
-            compositPass    = api->CreateRenderPass(1, &color, 1, &subpass, 0, nullptr, 1, &clear);
-            compositTexture = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM, size.x, size.y);
-            compositFB      = CreateFramebuffer(compositPass, 1, &compositTexture, size.x, size.y);
-        }
+            compositPass        = api->CreateRenderPass(1, &color, 1, &subpass, 0, nullptr, 1, &clear);
+            compositTexture     = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM, size.x, size.y);
+            compositTextureView = CreateTextureView(compositTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+            compositFB          = CreateFramebuffer(compositPass, 1, &compositTexture, size.x, size.y);
 
-        {
-            // スカイ
-            PipelineStateInfoBuilder builder;
-            PipelineStateInfo pipelineInfo = builder
-                .InputLayout(1, &layout)
-                .Rasterizer(POLYGON_CULL_BACK, POLYGON_FRONT_FACE_CLOCKWISE)
-                .Depth(false, false)
-                .Stencil(true, 0, COMPARE_OP_EQUAL)
-                .Blend(false, 1)
-                .Value();
-
-            ShaderCompiledData compiledData;
-            ShaderCompiler::Get()->Compile("Assets/Shaders/Environment.glsl", compiledData);
-            skyShader   = api->CreateShader(compiledData);
-            skyPipeline = api->CreateGraphicsPipeline(skyShader, &pipelineInfo, scenePass);
-        }
-
-        {
-            // グリッド
-            PipelineStateInfoBuilder builder;
-            PipelineStateInfo pipelineInfo = builder
-                .Depth(true, true)
-                .Blend(true, 1)
-                .Value();
-
-            ShaderCompiledData compiledData;
-            ShaderCompiler::Get()->Compile("Assets/Shaders/Grid.glsl", compiledData);
-            gridShader   = api->CreateShader(compiledData);
-            gridPipeline = api->CreateGraphicsPipeline(gridShader, &pipelineInfo, scenePass);
-        }
-
-        {
-            // シーン
-            PipelineStateInfoBuilder builder;
-            PipelineStateInfo pipelineInfo = builder
-                .InputLayout(1, &layout)
-                .Depth(true, true)
-                .Stencil(true, 1, COMPARE_OP_ALWAYS)
-                .Blend(false, 1)
-                .Value();
-
-            ShaderCompiledData compiledData;
-            ShaderCompiler::Get()->Compile("Assets/Shaders/Triangle.glsl", compiledData);
-            shader   = api->CreateShader(compiledData);
-            pipeline = api->CreateGraphicsPipeline(shader, &pipelineInfo, scenePass);
-        }
-
-        {
-            // Blit
             PipelineStateInfoBuilder builder;
             PipelineStateInfo pipelineInfo = builder
                 .Blend(false, 1)
@@ -533,42 +421,7 @@ namespace Silex
             compositPipeline = api->CreateGraphicsPipeline(compositShader, &pipelineInfo, compositPass);
         }
 
-        Vertex data[] =
-        {
-            {{-1.0,  1.0,  0.0 }, { 0.0, 0.0, 0.0 }, { 0.0, 0.0 }}, // 0
-            {{-1.0, -1.0,  0.0 }, { 0.0, 0.0, 0.0 }, { 1.0, 0.0 }}, // 1
-            {{ 1.0, -1.0,  0.0 }, { 0.0, 0.0, 0.0 }, { 0.0, 1.0 }}, // 2
-            {{ 1.0,  1.0,  0.0 }, { 0.0, 0.0, 0.0 }, { 1.0, 1.0 }}, // 3
-        };
-
-        uint32 indices[] = { 0, 1, 2,  2, 3, 0};
-
-        vb = CreateVertexBuffer(data, sizeof(data));
-        ib = CreateIndexBuffer(indices, sizeof(indices));
-
-        sceneUBO    = CreateUniformBuffer(nullptr, sizeof(Test::Transform),   &mappedSceneData);
-        gridUBO     = CreateUniformBuffer(nullptr, sizeof(Test::GridData),    &mappedGridData);
-        lightUBO    = CreateUniformBuffer(nullptr, sizeof(Test::Light),       &mappedLightData);
-
-        {
-            DescriptorSetInfo uboinfo;
-            uboinfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, sceneUBO);
-            descriptorSet = CreateDescriptorSet(shader, 0, uboinfo);
-
-            DescriptorSetInfo texinfo;
-            texinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemap, sceneSampler);
-            textureSet = CreateDescriptorSet(shader, 1, texinfo);
-
-            DescriptorSetInfo lightinfo;
-            lightinfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lightUBO);
-            lightSet = CreateDescriptorSet(shader, 2, lightinfo);
-        }
-
-        {
-            DescriptorSetInfo gridinfo;
-            gridinfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gridUBO);
-            gridSet = CreateDescriptorSet(gridShader, 0, gridinfo);
-        }
+        gridUBO = CreateUniformBuffer(nullptr, sizeof(Test::GridData), &mappedGridData);
 
 
         // Gバッファ初期化
@@ -581,14 +434,32 @@ namespace Silex
         PrepareEnvironmentBuffer(size.x, size.y);
 
         {
+            // グリッド
+            PipelineStateInfoBuilder builder;
+            PipelineStateInfo pipelineInfo = builder
+                .Depth(true, true)
+                .Blend(true, 1)
+                .Value();
+
+            ShaderCompiledData compiledData;
+            ShaderCompiler::Get()->Compile("Assets/Shaders/Grid.glsl", compiledData);
+            gridShader   = api->CreateShader(compiledData);
+            gridPipeline = api->CreateGraphicsPipeline(gridShader, &pipelineInfo, environment.pass);
+
+            DescriptorSetInfo gridinfo;
+            gridinfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gridUBO);
+            gridSet = CreateDescriptorSet(gridShader, 0, gridinfo);
+        }
+
+        {
             DescriptorSetInfo blitinfo;
-            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  lighting.color, sceneSampler);
+            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  lighting.view, sampler);
             compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
         }
 
         {
             DescriptorSetInfo imageinfo;
-            imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTexture, sceneSampler);
+            imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTextureView, sampler);
             imageSet = CreateDescriptorSet(compositShader, 0, imageinfo);
         }
     }
@@ -600,6 +471,13 @@ namespace Silex
         gbuffer.emission = CreateTexture2D(RENDERING_FORMAT_B10G11R11_UFLOAT_PACK32, width, height);
         gbuffer.id       = CreateTexture2D(RENDERING_FORMAT_R32_SINT,                width, height);
         gbuffer.depth    = CreateTexture2D(RENDERING_FORMAT_D24_UNORM_S8_UINT,       width, height);
+
+        gbuffer.albedoView   = CreateTextureView(gbuffer.albedo,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer.normalView   = CreateTextureView(gbuffer.normal,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer.emissionView = CreateTextureView(gbuffer.emission, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer.idView       = CreateTextureView(gbuffer.id,       TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer.depthView    = CreateTextureView(gbuffer.depth,    TEXTURE_TYPE_2D, TEXTURE_ASPECT_DEPTH_BIT);
+
 
         RenderPassClearValue clearvalues[5] = {};
         Attachment           attachments[5] = {};
@@ -735,7 +613,7 @@ namespace Silex
         // マテリアル
         DescriptorSetInfo materialInfo = {};
         materialInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gbuffer.materialUBO);
-        materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, textureFile, sceneSampler);
+        materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, defaultTextureView, sampler);
         gbuffer.materialSet  = CreateDescriptorSet(gbuffer.shader, 1, materialInfo);
     }
 
@@ -765,6 +643,7 @@ namespace Silex
 
         lighting.pass        = api->CreateRenderPass(1, &color, 1, &subpass, 0, nullptr, 1, &clear);
         lighting.color       = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, width, height);
+        lighting.view        = CreateTextureView(lighting.color, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
         lighting.framebuffer = CreateFramebuffer(lighting.pass, 1, &lighting.color, width, height);
 
         // パイプライン
@@ -785,10 +664,10 @@ namespace Silex
 
         // セット
         DescriptorSetInfo textureInfo = {};
-        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.albedo,   sceneSampler);
-        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.normal,   sceneSampler);
-        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.emission, sceneSampler);
-        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.depth,    sceneSampler);
+        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.albedoView,   sampler);
+        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.normalView,   sampler);
+        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.emissionView, sampler);
+        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.depthView,    sampler);
         textureInfo.AddBuffer(4, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
 
         lighting.set = CreateDescriptorSet(lighting.shader, 0, textureInfo);
@@ -858,12 +737,11 @@ namespace Silex
             ShaderCompiler::Get()->Compile("Assets/Shaders/Environment.glsl", compiledData);
             environment.shader   = api->CreateShader(compiledData);
             environment.pipeline = api->CreateGraphicsPipeline(environment.shader, &pipelineInfo, environment.pass);
-
-            environment.ubo = CreateUniformBuffer(nullptr, sizeof(Test::EnvironmentUBO), &environment.mapped);
+            environment.ubo      = CreateUniformBuffer(nullptr, sizeof(Test::EnvironmentUBO), &environment.mapped);
 
             DescriptorSetInfo materialInfo = {};
             materialInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, environment.ubo);
-            materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemap, sceneSampler);
+            materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView, sampler);
             environment.set = CreateDescriptorSet(environment.shader, 0, materialInfo);
         }
     }
@@ -986,6 +864,12 @@ namespace Silex
         api->DestroyTexture(gbuffer.id);
         api->DestroyTexture(gbuffer.depth);
 
+        api->DestroyTextureView(gbuffer.albedoView);
+        api->DestroyTextureView(gbuffer.normalView);
+        api->DestroyTextureView(gbuffer.emissionView);
+        api->DestroyTextureView(gbuffer.idView);
+        api->DestroyTextureView(gbuffer.depthView);
+
         api->DestroyDescriptorSet(gbuffer.transformSet);
         api->DestroyDescriptorSet(gbuffer.materialSet);
 
@@ -1003,6 +887,7 @@ namespace Silex
         api->DestroyFramebuffer(lighting.framebuffer);
 
         api->DestroyTexture(lighting.color);
+        api->DestroyTextureView(lighting.view);
         api->DestroyDescriptorSet(lighting.set);
 
         api->UnmapBuffer(lighting.sceneUBO);
@@ -1030,6 +915,12 @@ namespace Silex
         DestroyTexture(gbuffer.id);
         DestroyTexture(gbuffer.depth);
 
+        DestroyTextureView(gbuffer.albedoView);
+        DestroyTextureView(gbuffer.normalView);
+        DestroyTextureView(gbuffer.emissionView);
+        DestroyTextureView(gbuffer.idView);
+        DestroyTextureView(gbuffer.depthView);
+
         DestroyFramebuffer(gbuffer.framebuffer);
 
         gbuffer.albedo   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
@@ -1038,6 +929,12 @@ namespace Silex
         gbuffer.id       = CreateTexture2D(RENDERING_FORMAT_R32_SINT,                width, height);
         gbuffer.depth    = CreateTexture2D(RENDERING_FORMAT_D24_UNORM_S8_UINT,       width, height);
 
+        gbuffer.albedoView   = CreateTextureView(gbuffer.albedo,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer.normalView   = CreateTextureView(gbuffer.normal,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer.emissionView = CreateTextureView(gbuffer.emission, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer.idView       = CreateTextureView(gbuffer.id,       TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer.depthView    = CreateTextureView(gbuffer.depth,    TEXTURE_TYPE_2D, TEXTURE_ASPECT_DEPTH_BIT);
+
         TextureHandle* textures[] = {gbuffer.albedo, gbuffer.normal, gbuffer.emission, gbuffer.id, gbuffer.depth};
         gbuffer.framebuffer = CreateFramebuffer(gbuffer.pass, std::size(textures), textures, width, height);
     }
@@ -1045,17 +942,19 @@ namespace Silex
     void RHI::ResizeLightingBuffer(uint32 width, uint32 height)
     {
         DestroyTexture(lighting.color);
+        DestroyTextureView(lighting.view);
         DestroyFramebuffer(lighting.framebuffer);
         DestroyDescriptorSet(lighting.set);
 
         lighting.color       = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, width, height);
+        lighting.view        = CreateTextureView(lighting.color, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
         lighting.framebuffer = CreateFramebuffer(lighting.pass, 1, &lighting.color, width, height);
 
         DescriptorSetInfo textureInfo = {};
-        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.albedo,   sceneSampler);
-        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.normal,   sceneSampler);
-        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.emission, sceneSampler);
-        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.depth,    sceneSampler);
+        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.albedoView,   sampler);
+        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.normalView,   sampler);
+        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.emissionView, sampler);
+        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.depthView,    sampler);
         textureInfo.AddBuffer(4, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
         lighting.set = CreateDescriptorSet(lighting.shader, 0, textureInfo);
     }
@@ -1073,18 +972,6 @@ namespace Silex
         if (width == 0 || height == 0)
             return;
 
-        if (0)
-        {
-            DestroyFramebuffer(sceneFramebuffer);
-            DestroyTexture(sceneColorTexture);
-            DestroyTexture(sceneDepthTexture);
-
-            sceneColorTexture = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, width, height);
-            sceneDepthTexture = CreateTexture2D(RENDERING_FORMAT_D24_UNORM_S8_UINT, width, height);
-            TextureHandle* textures[] = { sceneColorTexture , sceneDepthTexture };
-            sceneFramebuffer = CreateFramebuffer(scenePass, std::size(textures), textures, width, height);
-        }
-
         ResizeGBuffer(width, height);
         ResizeLightingBuffer(width, height);
         ResizeEnvironmentBuffer(width, height);
@@ -1093,18 +980,21 @@ namespace Silex
             DestroyDescriptorSet(compositSet);
             DestroyFramebuffer(compositFB);
             DestroyTexture(compositTexture);
+            DestroyTextureView(compositTextureView);
 
-            compositTexture = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM, width, height);
-            compositFB      = CreateFramebuffer(compositPass, 1, &compositTexture, width, height);
+            compositTexture     = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM, width, height);
+            compositTextureView = CreateTextureView(compositTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+            compositFB          = CreateFramebuffer(compositPass, 1, &compositTexture, width, height);
             DescriptorSetInfo blitinfo;
-            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.color, sceneSampler);
+            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, sampler);
             compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
         }
 
         {
             DestroyDescriptorSet(imageSet);
+
             DescriptorSetInfo imageinfo;
-            imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTexture, sceneSampler);
+            imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTextureView, sampler);
             imageSet = CreateDescriptorSet(compositShader, 0, imageinfo);
         }
     }
@@ -1119,7 +1009,6 @@ namespace Silex
             Test::Transform sceneData;
             sceneData.projection = camera->GetProjectionMatrix();
             sceneData.view       = camera->GetViewMatrix();
-            std::memcpy(mappedSceneData, &sceneData, sizeof(Test::Transform));
             std::memcpy(gbuffer.mappedTransfrom, &sceneData, sizeof(Test::Transform));
         }
 
@@ -1129,13 +1018,6 @@ namespace Silex
             gridData.view       = camera->GetViewMatrix();
             gridData.pos        = glm::vec4(camera->GetPosition(), camera->GetFarPlane());
             std::memcpy(mappedGridData, &gridData, sizeof(Test::GridData));
-        }
-
-        {
-            Test::Light lightData;
-            lightData.directionalLight = glm::vec4(1.0, 1.0, 0.0, 0.0);
-            lightData.cameraPos        = glm::vec4(camera->GetPosition(), 0.0);
-            std::memcpy(mappedLightData, &lightData, sizeof(Test::Light));
         }
 
         {
@@ -1169,8 +1051,8 @@ namespace Silex
 
         if (1) // メッシュパス
         {
-            TextureHandle* gb[] = {gbuffer.albedo, gbuffer.normal, gbuffer.emission, gbuffer.id, gbuffer.depth};
-            api->BeginRenderPass(frame.commandBuffer, gbuffer.pass, gbuffer.framebuffer, 5, gb);
+            TextureView* views[] = {gbuffer.albedoView, gbuffer.normalView, gbuffer.emissionView, gbuffer.idView, gbuffer.depthView };
+            api->BeginRenderPass(frame.commandBuffer, gbuffer.pass, gbuffer.framebuffer, 5, views);
             
             api->BindPipeline(frame.commandBuffer, gbuffer.pipeline);
             api->BindDescriptorSet(frame.commandBuffer, gbuffer.transformSet, 0);
@@ -1192,7 +1074,7 @@ namespace Silex
 
         if (1) // ライティングパス
         {
-            api->BeginRenderPass(frame.commandBuffer, lighting.pass, lighting.framebuffer, 1, &lighting.color);
+            api->BeginRenderPass(frame.commandBuffer, lighting.pass, lighting.framebuffer, 1, &lighting.view);
 
             api->BindPipeline(frame.commandBuffer, lighting.pipeline);
             api->BindDescriptorSet(frame.commandBuffer, lighting.set, 0);
@@ -1204,8 +1086,8 @@ namespace Silex
 
         if (1)
         {
-            TextureHandle* textures[] = { lighting.color, gbuffer.depth };
-            api->BeginRenderPass(frame.commandBuffer, environment.pass, environment.framebuffer, 2, textures);
+            TextureView* views[] = { lighting.view, gbuffer.depthView };
+            api->BeginRenderPass(frame.commandBuffer, environment.pass, environment.framebuffer, 2, views);
 
             if (1) // スカイ
             {
@@ -1230,7 +1112,7 @@ namespace Silex
 
         if (1) // コンポジットパス
         {
-            api->BeginRenderPass(frame.commandBuffer, compositPass, compositFB, 1, &compositTexture);
+            api->BeginRenderPass(frame.commandBuffer, compositPass, compositFB, 1, &compositTextureView);
 
             api->BindPipeline(frame.commandBuffer, compositPipeline);
             api->BindDescriptorSet(frame.commandBuffer, compositSet, 0);
@@ -1282,6 +1164,25 @@ namespace Silex
         frame.pendingResources->texture.push_back(texture);
     }
 
+    TextureView* RHI::CreateTextureView(TextureHandle* texture, TextureType type, TextureAspectFlags aspect, uint32 baseArrayLayer, uint32 numArrayLayer, uint32 baseMipLevel, uint32 numMipLevel)
+    {
+        TextureViewInfo viewInfo = {};
+        viewInfo.type                      = type;
+        viewInfo.subresource.aspect        = aspect;
+        viewInfo.subresource.baseLayer     = baseArrayLayer;
+        viewInfo.subresource.layerCount    = numArrayLayer;
+        viewInfo.subresource.baseMipLevel  = baseMipLevel;
+        viewInfo.subresource.mipLevelCount = numMipLevel;
+
+        return api->CreateTextureView(texture, viewInfo);
+    }
+
+    void RHI::DestroyTextureView(TextureView* view)
+    {
+        FrameData& frame = frameData[frameIndex];
+        frame.pendingResources->textureView.push_back(view);
+    }
+
     TextureHandle* RHI::_CreateTexture(TextureDimension dimension, TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 depth, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags)
     {
         int32 usage = TEXTURE_USAGE_SAMPLING_BIT;
@@ -1303,10 +1204,7 @@ namespace Silex
         texformat.depth     = depth;
         texformat.mipLevels = genMipmap? mipmaps.size() : 1;
 
-        TextureHandle* texture = api->CreateTexture(texformat);
-        SL_CHECK(!texture, nullptr);
-
-        return texture;
+        return api->CreateTexture(texformat);
     }
 
     void RHI::_SubmitTextureData(TextureHandle* texture, uint32 width, uint32 height, bool genMipmap, const void* pixelData, uint64 dataSize)
@@ -1503,10 +1401,7 @@ namespace Silex
 
     FramebufferHandle* RHI::CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height)
     {
-        FramebufferHandle* framebuffer = api->CreateFramebuffer(renderpass, numTexture, textures, width, height);
-        SL_CHECK(!framebuffer, nullptr);
-
-        return framebuffer;
+        return api->CreateFramebuffer(renderpass, numTexture, textures, width, height);
     }
 
     void RHI::DestroyFramebuffer(FramebufferHandle* framebuffer)
@@ -1519,10 +1414,7 @@ namespace Silex
 
     DescriptorSet* RHI::CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex, DescriptorSetInfo& setInfo)
     {
-        DescriptorSet* descriptorSet = api->CreateDescriptorSet(setInfo.infos.size(), setInfo.infos.data(), shader, setIndex);
-        SL_CHECK(!descriptorSet, nullptr);
-
-        return descriptorSet;
+        return api->CreateDescriptorSet(setInfo.infos.size(), setInfo.infos.data(), shader, setIndex);;
     }
 
     void RHI::DestroyDescriptorSet(DescriptorSet* set)
@@ -1535,10 +1427,7 @@ namespace Silex
 
     SwapChain* RHI::CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode)
     {
-        SwapChain* swapchain = api->CreateSwapChain(surface, width, height, swapchainBufferCount, mode);
-        SL_CHECK(!swapchain, nullptr);
-
-        return swapchain;
+        return api->CreateSwapChain(surface, width, height, swapchainBufferCount, mode);
     }
 
     void RHI::DestoySwapChain(SwapChain* swapchain)
@@ -1548,10 +1437,7 @@ namespace Silex
 
     bool RHI::ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode)
     {
-        bool result = api->ResizeSwapChain(swapchain, width, height, swapchainBufferCount, mode);
-        SL_CHECK(!result, false);
-
-        return false;
+        return api->ResizeSwapChain(swapchain, width, height, swapchainBufferCount, mode);
     }
 
     bool RHI::Present()
@@ -1559,16 +1445,16 @@ namespace Silex
         SwapChain* swapchain = Window::Get()->GetSwapChain();
         FrameData& frame = frameData[frameIndex];
 
-        api->Present(graphicsQueue, swapchain, frame.renderSemaphore);
+        bool result = api->Present(graphicsQueue, swapchain, frame.renderSemaphore);
         frameIndex = (frameIndex + 1) % 2;
 
-        return true;
+        return result;
     }
 
     void RHI::BeginSwapChainPass()
     {
         FrameData& frame = frameData[frameIndex];
-        api->BeginRenderPass(frame.commandBuffer, swapchainPass, currentSwapchainFramebuffer, 1, &currentSwapchainTexture);
+        api->BeginRenderPass(frame.commandBuffer, swapchainPass, currentSwapchainFramebuffer, 1, &currentSwapchainView);
     }
 
     void RHI::EndSwapChainPass()
@@ -1596,6 +1482,13 @@ namespace Silex
         }
 
         f.pendingResources->texture.clear();
+
+        for (TextureView* view : f.pendingResources->textureView)
+        {
+            api->DestroyTextureView(view);
+        }
+
+        f.pendingResources->textureView.clear();
 
         for (Sampler* sampler : f.pendingResources->sampler)
         {

@@ -50,7 +50,7 @@ namespace Silex
         Unload(data.pixels);
     }
 
-    byte* TextureReader::Read8bit(const char* path, bool flipOnRead)
+    byte* TextureReader::Read(const char* path, bool flipOnRead)
     {
         return (byte*)_Read(path, false, flipOnRead, this);
     }
@@ -60,12 +60,13 @@ namespace Silex
         return (float*)_Read(path, true, flipOnRead, this);
     }
 
-    void TextureReader::Unload(void* data)
+    void TextureReader::Unload(void* pixelData)
     {
-        if (data)
+        if (pixelData)
         {
-            stbi_image_free(data);
-            data = nullptr;
+            stbi_image_free(pixelData);
+            pixelData = nullptr;
+            data.pixels = nullptr;
         }
     }
 

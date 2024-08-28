@@ -69,10 +69,7 @@ namespace Silex
 
     // スワップチェイン
     struct VulkanSwapChain : public SwapChain
-    {
-        VulkanSurface*    surface    = nullptr;
-        VulkanRenderPass* renderpass = nullptr;
-
+    { 
         VkSwapchainKHR  swapchain  = nullptr;
         VkFormat        format     = VK_FORMAT_UNDEFINED;
         VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
@@ -80,8 +77,11 @@ namespace Silex
         VkSemaphore present = nullptr;
         VkSemaphore render  = nullptr;
 
-        std::vector<FramebufferHandle*> framebuffers;
-        std::vector<TextureHandle*>     textures;
+        std::vector<FramebufferHandle*> framebuffers = {};
+        std::vector<TextureHandle*>     textures     = {};
+        std::vector<TextureView*>       views        = {};
+        VulkanSurface*                  surface      = nullptr;
+        VulkanRenderPass*               renderpass   = nullptr;
 
         uint32 imageIndex = 0;
     };
@@ -98,20 +98,22 @@ namespace Silex
     // テクスチャ
     struct VulkanTexture : public TextureHandle
     {
-        VkImage image = nullptr;
+        VkImage            image       = nullptr;
+        VkFormat           format      = {};
+        VkImageUsageFlags  usageflags  = {};
+        VkImageCreateFlags createFlags = {};
+        VkExtent3D         extent      = {};
+        uint32             arrayLayers = 1;
+        uint32             mipLevels   = 1;
 
-        VkImageView                           imageView; // 全体
-      //std::vector<VkImageView>              layerView; // layer[N]          : CSM
-      //std::vector<std::vector<VkImageView>> mipView;   // layer[N] + mip[N] : プリフィルターマップ
+        VmaAllocation allocationHandle = nullptr;
+    };
 
-        VkImageViewType          imageType   = {};
-        VkFormat                 format      = {};
-        VkImageUsageFlags        usageflags  = {};
-        VkExtent3D               extent      = {};
-        VkImageSubresourceRange  subresource = {};
-        uint32                   createFlags = {};
-
-        VmaAllocation     allocationHandle = nullptr;
+    // テクスチャビュー
+    struct VulkanTextureView : public TextureView
+    {
+        VkImageSubresourceRange subresource = {};
+        VkImageView             view        = nullptr;
     };
 
     // サンプラー
@@ -123,11 +125,11 @@ namespace Silex
     // シェーダー
     struct VulkanShader : public ShaderHandle
     {
-        VkShaderStageFlags                           stageFlags = 0;
-        std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos;
-        std::vector<VkDescriptorSetLayout>           descriptorsetLayouts;
-        VkPipelineLayout                             pipelineLayout;
-        ShaderReflectionData*                        reflection;
+        VkShaderStageFlags                           stageFlags           = 0;
+        std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos     = {};
+        std::vector<VkDescriptorSetLayout>           descriptorsetLayouts = {};
+        VkPipelineLayout                             pipelineLayout       = nullptr;
+        ShaderReflectionData*                        reflection           = nullptr;
     };
 
     // プール検索キー

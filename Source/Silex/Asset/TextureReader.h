@@ -21,7 +21,7 @@ namespace Silex
         TextureReader();
         ~TextureReader();
 
-        byte*  Read8bit(const char* path, bool flipOnRead = false);
+        byte*  Read(const char* path, bool flipOnRead = false);
         float* ReadHDR(const char* path, bool flipOnRead = false);
 
         void Unload(void* data);

@@ -65,7 +65,7 @@ namespace Silex
         virtual SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) = 0;
         virtual void DestroySwapChain(SwapChain* swapchain) = 0;
         virtual bool ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) = 0;
-        virtual std::pair<FramebufferHandle*, TextureHandle*> GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present) = 0;
+        virtual std::pair<FramebufferHandle*, TextureView*> GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present) = 0;
         virtual bool Present(CommandQueue* queue, SwapChain* swapchain, Semaphore* render) = 0;
         
         virtual RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) = 0;
@@ -82,8 +82,14 @@ namespace Silex
         //--------------------------------------------------
         // テクスチャ
         //--------------------------------------------------
-        virtual TextureHandle* CreateTexture(const TextureInfo& format) = 0;
+        virtual TextureHandle* CreateTexture(const TextureInfo& info) = 0;
         virtual void DestroyTexture(TextureHandle* texture) = 0;
+
+        //--------------------------------------------------
+        // テクスチャビュー
+        //--------------------------------------------------
+        virtual TextureView* CreateTextureView(TextureHandle* texture, const TextureViewInfo& info) = 0;
+        virtual void DestroyTextureView(TextureView* view) = 0;
 
         //--------------------------------------------------
         // サンプラ
@@ -114,7 +120,6 @@ namespace Silex
         //--------------------------------------------------
         virtual DescriptorSet* CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex) = 0;
         virtual void DestroyDescriptorSet(DescriptorSet* descriptorset) = 0;
-        virtual void UpdateDescriptorSet(DescriptorSet* descriptorSet, uint32 numdescriptor, DescriptorInfo* descriptors) = 0;
 
         //--------------------------------------------------
         // パイプライン
@@ -137,7 +142,7 @@ namespace Silex
         virtual void BlitTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureBlitRegion* regions, SamplerFilter filter = SAMPLER_FILTER_LINEAR) = 0;
 
         virtual void PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData) = 0;
-        virtual void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, uint32 numTexture, TextureHandle** textures, CommandBufferType commandBufferType = COMMAND_BUFFER_TYPE_PRIMARY) = 0;
+        virtual void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, uint32 numView, TextureView** views, CommandBufferType commandBufferType = COMMAND_BUFFER_TYPE_PRIMARY) = 0;
         virtual void EndRenderPass(CommandBuffer* commandbuffer) = 0;
         virtual void NextRenderSubpass(CommandBuffer* commandbuffer, CommandBufferType commandBufferType) = 0;
         virtual void SetViewport(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) = 0;

@@ -16,7 +16,7 @@ namespace Silex
         {
             uint32 id;
             TextureReader reader;
-            byte* pixels = reader.Read8bit(filePath.c_str(), true);
+            byte* pixels = reader.Read(filePath.c_str(), true);
 
             if (pixels)
             {

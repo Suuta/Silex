@@ -82,8 +82,8 @@ namespace Silex
     {
         SL_CLASS(Handle, Class)
 
-        Handle()          : pointer(uint64(this)) {}
-        Handle(void* ptr) : pointer(uint64(ptr))  {}
+        Handle()          { pointer = uint64(this); }
+        Handle(void* ptr) { pointer = uint64(ptr);  }
 
     protected:
 

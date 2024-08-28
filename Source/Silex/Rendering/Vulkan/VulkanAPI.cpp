@@ -773,39 +773,36 @@ namespace Silex
         SL_CHECK_VKRESULT(result, nullptr);
 
         // イメージビュー生成
-        VkImageViewCreateInfo viewCreateInfo = {};
-        viewCreateInfo.sType                       = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewCreateInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
-        viewCreateInfo.format                      = vkSwapchain->format;
-        viewCreateInfo.components.r                = VK_COMPONENT_SWIZZLE_R;
-        viewCreateInfo.components.g                = VK_COMPONENT_SWIZZLE_G;
-        viewCreateInfo.components.b                = VK_COMPONENT_SWIZZLE_B;
-        viewCreateInfo.components.a                = VK_COMPONENT_SWIZZLE_A;
-        viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewCreateInfo.subresourceRange.levelCount = 1;
-        viewCreateInfo.subresourceRange.layerCount = 1;
-
         VkImageView* vkview = SL_STACK(VkImageView, imageCount);
         for (uint32 i = 0; i < imageCount; i++)
         {
-            viewCreateInfo.image = vkimg[i];
-
-            result = vkCreateImageView(device, &viewCreateInfo, nullptr, &vkview[i]);
-            SL_CHECK_VKRESULT(result, nullptr);
-
             VulkanTexture* vktex = slnew(VulkanTexture);
-            vktex->createFlags = 0;
-            vktex->image       = vkimg[i];
-            vktex->imageView   = vkview[i];
-            vktex->imageType   = viewCreateInfo.viewType;
-            vktex->subresource = viewCreateInfo.subresourceRange;
-            vktex->format      = swapCreateInfo.imageFormat;
-            vktex->usageflags  = swapCreateInfo.imageUsage;
-            vktex->extent      = VkExtent3D(swapCreateInfo.imageExtent.width, swapCreateInfo.imageExtent.height, 1);
+            vktex->createFlags      = 0;
+            vktex->image            = vkimg[i];
+            vktex->format           = swapCreateInfo.imageFormat;
+            vktex->usageflags       = swapCreateInfo.imageUsage;
+            vktex->extent           = VkExtent3D(swapCreateInfo.imageExtent.width, swapCreateInfo.imageExtent.height, 1);
+            vktex->arrayLayers      = 1;
+            vktex->mipLevels        = 1;
+            vktex->allocationHandle = nullptr;
 
             vkSwapchain->textures.push_back(vktex);
+
+            TextureViewInfo viewinfo = {};
+            viewinfo.type                      = TEXTURE_TYPE_2D;
+            viewinfo.subresource.aspect        = TEXTURE_ASPECT_COLOR_BIT;
+            viewinfo.subresource.baseLayer     = 0;
+            viewinfo.subresource.layerCount    = 1;
+            viewinfo.subresource.baseMipLevel  = 0;
+            viewinfo.subresource.mipLevelCount = 1;
+
+            TextureView* vkview = CreateTextureView(vktex, viewinfo);
+            SL_CHECK(!vkview, nullptr);
+
+            vkSwapchain->views.push_back(vkview);
         }
 
+        // フレームバッファ
         for (uint32 i = 0; i < imageCount; i++)
         {
             FramebufferHandle* fb = CreateFramebuffer(vkSwapchain->renderpass, 1, &vkSwapchain->textures[i], extent.width, extent.height);
@@ -844,27 +841,30 @@ namespace Silex
             // フレームバッファ破棄
             for (uint32 i = 0; i < vkSwapchain->framebuffers.size(); i++)
             {
-                VulkanFramebuffer* vkfb = (VulkanFramebuffer*)vkSwapchain->framebuffers[i];
-                vkDestroyFramebuffer(device, vkfb->framebuffer, nullptr);
-                sldelete(vkfb);
+                DestroyFramebuffer(vkSwapchain->framebuffers[i]);
             }
 
             // イメージビュー破棄
+            for (uint32 i = 0; i < vkSwapchain->views.size(); i++)
+            {
+                DestroyTextureView(vkSwapchain->views[i]);
+            }
+
+            // イメージ破棄
             for (uint32 i = 0; i < vkSwapchain->textures.size(); i++)
             {
+                //-------------------------------------------------
+                // VkImage 自体は swapchain が管理しているので破棄しない
+                //-------------------------------------------------
                 VulkanTexture* vktex = (VulkanTexture*)vkSwapchain->textures[i];
-                vkDestroyImageView(device, vktex->imageView, nullptr);
                 sldelete(vktex);
-
-                //--------------------------------------------
-                // VkImageは swapchain が管理しているので破棄しない
-                //--------------------------------------------
             }
 
             // スワップチェイン破棄
             DestroySwapchainKHR(device, vkSwapchain->swapchain, nullptr);
 
             vkSwapchain->framebuffers.clear();
+            vkSwapchain->views.clear();
             vkSwapchain->textures.clear();
         }
 
@@ -875,7 +875,7 @@ namespace Silex
 
         // サイズ
         VkExtent2D extent;
-        if (surfaceCapabilities.currentExtent.width == 0xFFFFFFFF) // == (uint32)-1
+        if (surfaceCapabilities.currentExtent.width == 0xFFFFFFFF) // == (uint32)-1i32
         {
             // 0xFFFFFFFF の場合は、仕様が許す限り好きなサイズで生成できることを表す
             extent.width  = std::clamp(width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
@@ -982,39 +982,36 @@ namespace Silex
         SL_CHECK_VKRESULT(result, false);
 
         // イメージビュー生成
-        VkImageViewCreateInfo viewCreateInfo = {};
-        viewCreateInfo.sType                       = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewCreateInfo.viewType                    = VK_IMAGE_VIEW_TYPE_2D;
-        viewCreateInfo.format                      = vkSwapchain->format;
-        viewCreateInfo.components.r                = VK_COMPONENT_SWIZZLE_R;
-        viewCreateInfo.components.g                = VK_COMPONENT_SWIZZLE_G;
-        viewCreateInfo.components.b                = VK_COMPONENT_SWIZZLE_B;
-        viewCreateInfo.components.a                = VK_COMPONENT_SWIZZLE_A;
-        viewCreateInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        viewCreateInfo.subresourceRange.levelCount = 1;
-        viewCreateInfo.subresourceRange.layerCount = 1;
-
         VkImageView* vkview = SL_STACK(VkImageView, imageCount);
         for (uint32 i = 0; i < imageCount; i++)
         {
-            viewCreateInfo.image = vkimg[i];
-
-            result = vkCreateImageView(device, &viewCreateInfo, nullptr, &vkview[i]);
-            SL_CHECK_VKRESULT(result, false);
-
             VulkanTexture* vktex = slnew(VulkanTexture);
-            vktex->createFlags = 0;
-            vktex->image       = vkimg[i];
-            vktex->imageView   = vkview[i];
-            vktex->imageType   = viewCreateInfo.viewType;
-            vktex->subresource = viewCreateInfo.subresourceRange;
-            vktex->format      = swapCreateInfo.imageFormat;
-            vktex->usageflags  = swapCreateInfo.imageUsage;
-            vktex->extent      = VkExtent3D(swapCreateInfo.imageExtent.width, swapCreateInfo.imageExtent.height, 1);
+            vktex->createFlags      = 0;
+            vktex->image            = vkimg[i];
+            vktex->format           = swapCreateInfo.imageFormat;
+            vktex->usageflags       = swapCreateInfo.imageUsage;
+            vktex->extent           = VkExtent3D(swapCreateInfo.imageExtent.width, swapCreateInfo.imageExtent.height, 1);
+            vktex->arrayLayers      = 1;
+            vktex->mipLevels        = 1;
+            vktex->allocationHandle = nullptr;
 
             vkSwapchain->textures.push_back(vktex);
+
+            TextureViewInfo viewinfo = {};
+            viewinfo.type                      = TEXTURE_TYPE_2D;
+            viewinfo.subresource.aspect        = TEXTURE_ASPECT_COLOR_BIT;
+            viewinfo.subresource.baseLayer     = 0;
+            viewinfo.subresource.layerCount    = 1;
+            viewinfo.subresource.baseMipLevel  = 0;
+            viewinfo.subresource.mipLevelCount = 1;
+
+            TextureView* vkview = CreateTextureView(vktex, viewinfo);
+            SL_CHECK(!vkview, false);
+
+            vkSwapchain->views.push_back(vkview);
         }
 
+        // フレームバッファ生成
         for (uint32 i = 0; i < imageCount; i++)
         {
             FramebufferHandle* fb = CreateFramebuffer(vkSwapchain->renderpass, 1, &vkSwapchain->textures[i], extent.width, extent.height);
@@ -1026,7 +1023,7 @@ namespace Silex
         return true;
     }
 
-    std::pair<FramebufferHandle*, TextureHandle*> VulkanAPI::GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present)
+    std::pair<FramebufferHandle*, TextureView*> VulkanAPI::GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present)
     {
         VulkanSwapChain* vkswapchain = (VulkanSwapChain*)swapchain;
 
@@ -1034,9 +1031,9 @@ namespace Silex
         SL_CHECK_VKRESULT(result, std::make_pair(nullptr, nullptr));
 
         FramebufferHandle* fb = vkswapchain->framebuffers[vkswapchain->imageIndex];
-        TextureHandle*     te = vkswapchain->textures[vkswapchain->imageIndex];
+        TextureView*       tv = vkswapchain->views[vkswapchain->imageIndex];
 
-        return {fb, te};
+        return {fb, tv};
     }
 
     bool VulkanAPI::Present(CommandQueue* queue, SwapChain* swapchain, Semaphore* render)
@@ -1086,21 +1083,23 @@ namespace Silex
             // フレームバッファ破棄
             for (uint32 i = 0; i < vkSwapchain->framebuffers.size(); i++)
             {
-                VulkanFramebuffer* vkfb = (VulkanFramebuffer*)vkSwapchain->framebuffers[i];
-                vkDestroyFramebuffer(device, vkfb->framebuffer, nullptr);
-                sldelete(vkfb);
+                DestroyFramebuffer(vkSwapchain->framebuffers[i]);
             }
 
             // イメージビュー破棄
+            for (uint32 i = 0; i < vkSwapchain->views.size(); i++)
+            {
+                DestroyTextureView(vkSwapchain->views[i]);
+            }
+
+            // イメージ破棄
             for (uint32 i = 0; i < vkSwapchain->textures.size(); i++)
             {
+                //-------------------------------------------------
+                // VkImage 自体は swapchain が管理しているので破棄しない
+                //-------------------------------------------------
                 VulkanTexture* vktex = (VulkanTexture*)vkSwapchain->textures[i];
-                vkDestroyImageView(device, vktex->imageView, nullptr);
                 sldelete(vktex);
-
-                //--------------------------------------------
-                // VkImageは swapchain が管理しているので破棄しない
-                //--------------------------------------------
             }
 
             // スワップチェイン破棄
@@ -1206,14 +1205,14 @@ namespace Silex
     //==================================================================================
     // テクスチャ
     //==================================================================================
-    TextureHandle* VulkanAPI::CreateTexture(const TextureInfo& format)
+    TextureHandle* VulkanAPI::CreateTexture(const TextureInfo& info)
     {
         VkResult result;
 
-        bool isCube          = format.type == TEXTURE_TYPE_CUBE || format.type == TEXTURE_TYPE_CUBE_ARRAY;
-        bool isInCpuMemory   = format.usageBits & TEXTURE_USAGE_CPU_READ_BIT;
-        bool isDepthStencil  = format.usageBits & TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        auto sampleCountBits = _CheckSupportedSampleCounts(format.samples);
+        bool isCube          = info.type == TEXTURE_TYPE_CUBE || info.type == TEXTURE_TYPE_CUBE_ARRAY;
+        bool isInCpuMemory   = info.usageBits & TEXTURE_USAGE_CPU_READ_BIT;
+        bool isDepthStencil  = info.usageBits & TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        auto sampleCountBits = _CheckSupportedSampleCounts(info.samples);
 
         // キューブマップを生成する場合に指定する。
         // また、キューブマップでは layer を 6にする必要がある (キューブ配列の場合 => 6 * 配列数)
@@ -1223,16 +1222,16 @@ namespace Silex
         VkImageCreateInfo imageCreateInfo = {};
         imageCreateInfo.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
         imageCreateInfo.flags         = flags;
-        imageCreateInfo.imageType     = (VkImageType)format.dimension;
-        imageCreateInfo.format        = (VkFormat)format.format;
-        imageCreateInfo.mipLevels     = format.mipLevels;
-        imageCreateInfo.arrayLayers   = format.array;
+        imageCreateInfo.imageType     = (VkImageType)info.dimension;
+        imageCreateInfo.format        = (VkFormat)info.format;
+        imageCreateInfo.mipLevels     = info.mipLevels;
+        imageCreateInfo.arrayLayers   = info.array;
         imageCreateInfo.samples       = sampleCountBits;
-        imageCreateInfo.extent.width  = format.width;
-        imageCreateInfo.extent.height = format.height;
-        imageCreateInfo.extent.depth  = format.depth;
+        imageCreateInfo.extent.width  = info.width;
+        imageCreateInfo.extent.height = info.height;
+        imageCreateInfo.extent.depth  = info.depth;
         imageCreateInfo.tiling        = isInCpuMemory? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL;
-        imageCreateInfo.usage         = (VkImageUsageFlagBits)format.usageBits;
+        imageCreateInfo.usage         = (VkImageUsageFlagBits)info.usageBits;
         imageCreateInfo.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
         imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
@@ -1248,89 +1247,15 @@ namespace Silex
         result = vmaCreateImage(allocator, &imageCreateInfo, &allocationCreateInfo, &vkimage, &allocation, &allocationInfo);
         SL_CHECK_VKRESULT(result, nullptr);
 
-        // ==================== ビュー生成 ====================
-        VkImageViewCreateInfo viewCreateInfo = {};
-        viewCreateInfo.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        viewCreateInfo.image                           = vkimage;
-        viewCreateInfo.viewType                        = (VkImageViewType)format.type;
-        viewCreateInfo.format                          = (VkFormat)format.format;
-        viewCreateInfo.components.r                    = VK_COMPONENT_SWIZZLE_R;
-        viewCreateInfo.components.g                    = VK_COMPONENT_SWIZZLE_G;
-        viewCreateInfo.components.b                    = VK_COMPONENT_SWIZZLE_B;
-        viewCreateInfo.components.a                    = VK_COMPONENT_SWIZZLE_A;
-        viewCreateInfo.subresourceRange.aspectMask     = isDepthStencil? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-        viewCreateInfo.subresourceRange.baseMipLevel   = 0;
-        viewCreateInfo.subresourceRange.levelCount     = imageCreateInfo.mipLevels;
-        viewCreateInfo.subresourceRange.baseArrayLayer = 0;
-        viewCreateInfo.subresourceRange.layerCount     = imageCreateInfo.arrayLayers;
-
-        VkImageView vkview = nullptr;
-        result = vkCreateImageView(device, &viewCreateInfo, nullptr, &vkview);
-        if (result != VK_SUCCESS)
-        {
-            vmaDestroyImage(allocator, vkimage, allocation);
-            SL_LOG_LOCATION_ERROR(VkResultToString(result));
-
-            return nullptr;
-        }
-
         VulkanTexture* texture = slnew(VulkanTexture);
         texture->allocationHandle = allocation;
         texture->image            = vkimage;
-        texture->imageView        = vkview;
-        texture->imageType        = viewCreateInfo.viewType;
-        texture->format           = viewCreateInfo.format;
+        texture->format           = (VkFormat)info.format;
         texture->extent           = imageCreateInfo.extent;
-        texture->subresource      = viewCreateInfo.subresourceRange;
         texture->createFlags      = imageCreateInfo.flags;
         texture->usageflags       = imageCreateInfo.usage;
-
-#if 0
-        // ==================== レイヤービュー生成 ====================
-        texture->layerView.resize(format.array);
-        for (uint32 i = 0; i < texture->layerView.size(); i++)
-        {
-            viewCreateInfo.subresourceRange.baseArrayLayer = i;
-            viewCreateInfo.subresourceRange.layerCount     = 1;
-            viewCreateInfo.subresourceRange.baseMipLevel   = 0;
-            viewCreateInfo.subresourceRange.levelCount     = 1;
-
-            VkImageView mipview = nullptr;
-            result = vkCreateImageView(device, &viewCreateInfo, nullptr, &mipview);
-            if (result != VK_SUCCESS)
-            {
-                SL_LOG_LOCATION_ERROR(VkResultToString(result));
-                return nullptr;
-            }
-
-            texture->layerView[i] = mipview;
-        }
-
-        // ==================== ミップマップビュー生成 ====================
-
-        texture->mipView.resize(imageCreateInfo.arrayLayers);
-        for (uint32 i = 0; i < texture->layerView.size(); i++)
-        {
-            texture->mipView[i].resize(format.mipLevels);
-            for (uint32 j = 0; j < texture->mipView[i].size(); j++)
-            {
-                viewCreateInfo.subresourceRange.baseArrayLayer = i;
-                viewCreateInfo.subresourceRange.layerCount     = 1;
-                viewCreateInfo.subresourceRange.baseMipLevel   = j;
-                viewCreateInfo.subresourceRange.levelCount     = 1;
-
-                VkImageView mipview = nullptr;
-                result = vkCreateImageView(device, &viewCreateInfo, nullptr, &mipview);
-                if (result != VK_SUCCESS)
-                {
-                    SL_LOG_LOCATION_ERROR(VkResultToString(result));
-                    return nullptr;
-                }
-
-                texture->mipView[i][j] = mipview;
-            }
-        }
-#endif
+        texture->mipLevels        = imageCreateInfo.mipLevels;
+        texture->arrayLayers      = imageCreateInfo.arrayLayers;
 
         return texture;
     }
@@ -1340,14 +1265,63 @@ namespace Silex
         if (texture)
         {
             VulkanTexture* vktexture = (VulkanTexture*)texture;
-            vkDestroyImageView(device, vktexture->imageView, nullptr);
-
-            //for (uint32 i = 0; i < vktexture->layerView.size(); i++)
-            //    vkDestroyImageView(device, vktexture->layerView[i], nullptr);
-
             vmaDestroyImage(allocator, vktexture->image, vktexture->allocationHandle);
 
             sldelete(vktexture);
+        }
+    }
+
+
+    //==================================================================================
+    // テクスチャビュー
+    //==================================================================================
+    TextureView* VulkanAPI::CreateTextureView(TextureHandle* texture, const TextureViewInfo& info)
+    {
+        VulkanTexture* vktex = (VulkanTexture*)texture;
+        bool isDepthStencil = vktex->usageflags & TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+        //-------------------------------------------------------------------------------------
+        // VK_REMAINING_ARRAY_LAYERS や VK_REMAINING_MIP_LEVELS による自動指定が反映されないので
+        //-------------------------------------------------------------------------------------
+        uint32 numLayerCount = info.subresource.layerCount    == UINT32_MAX? vktex->arrayLayers : info.subresource.layerCount;
+        uint32 numMipCount   = info.subresource.mipLevelCount == UINT32_MAX? vktex->mipLevels   : info.subresource.mipLevelCount;
+
+        VkImageViewCreateInfo viewCreateInfo = {};
+        viewCreateInfo.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        viewCreateInfo.pNext                           = nullptr;
+        viewCreateInfo.flags                           = 0;
+        viewCreateInfo.image                           = vktex->image;
+        viewCreateInfo.viewType                        = (VkImageViewType)info.type;
+        viewCreateInfo.format                          = (VkFormat)vktex->format;
+        viewCreateInfo.components.r                    = VK_COMPONENT_SWIZZLE_R;
+        viewCreateInfo.components.g                    = VK_COMPONENT_SWIZZLE_G;
+        viewCreateInfo.components.b                    = VK_COMPONENT_SWIZZLE_B;
+        viewCreateInfo.components.a                    = VK_COMPONENT_SWIZZLE_A;
+        viewCreateInfo.subresourceRange.aspectMask     = isDepthStencil? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+        viewCreateInfo.subresourceRange.baseArrayLayer = info.subresource.baseLayer;
+        viewCreateInfo.subresourceRange.layerCount     = numLayerCount;
+        viewCreateInfo.subresourceRange.baseMipLevel   = info.subresource.baseMipLevel;
+        viewCreateInfo.subresourceRange.levelCount     = numMipCount;
+
+        VkImageView vkview = nullptr;
+        VkResult result = vkCreateImageView(device, &viewCreateInfo, nullptr, &vkview);
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        VulkanTextureView* texview = slnew(VulkanTextureView);
+        texview->view        = vkview;
+        texview->subresource = viewCreateInfo.subresourceRange;
+
+        return texview;
+    }
+
+    void VulkanAPI::DestroyTextureView(TextureView* view)
+    {
+        if (view)
+        {
+            VulkanTextureView* vkview = (VulkanTextureView*)view;
+            vkDestroyImageView(device, vkview->view, nullptr);
+
+            sldelete(vkview);
         }
     }
 
@@ -1403,14 +1377,15 @@ namespace Silex
     //==================================================================================
     FramebufferHandle* VulkanAPI::CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height)
     {
-        //-------------------------------------------------------------------------------------
-        // VK_KHR_imageless_framebuffer (vulkan 1.2)
-        // フレームバッファのアタッチメントのイメージビューを生成時には指定せず、レンダーパス開始時まで遅延できる
-        //https://docs.vulkan.org/guide/latest/extensions/VK_KHR_imageless_framebuffer.html
-        //-------------------------------------------------------------------------------------
-#if 1
         VulkanTexture** tex = (VulkanTexture**)textures;
 
+        //-----------------------------------------------------------------------------------------------
+        // VK_KHR_imageless_framebuffer (vulkan 1.2)
+        // 生成時にアタッチメントのイメージビューを指定せず、レンダーパス開始時まで遅延できる（フレームバッファ汎化）
+        // mipmap毎にフレームバッファが必要だったが、レンダーパス開始時に遅延選択することでフレームバッファの生成が1つになる
+        // https://docs.vulkan.org/guide/latest/extensions/VK_KHR_imageless_framebuffer.html
+        //-----------------------------------------------------------------------------------------------
+        
         // アタッチメントイメージ情報
         VkFramebufferAttachmentImageInfo* attachments = SL_STACK(VkFramebufferAttachmentImageInfo, numTexture);
         for (uint32 i = 0; i < numTexture; i++)
@@ -1421,7 +1396,7 @@ namespace Silex
             attachments[i].usage           = tex[i]->usageflags;
             attachments[i].width           = width;
             attachments[i].height          = height;
-            attachments[i].layerCount      = tex[i]->subresource.layerCount;
+            attachments[i].layerCount      = tex[i]->arrayLayers;
             attachments[i].viewFormatCount = 1;
             attachments[i].pViewFormats    = &tex[i]->format;
         }
@@ -1440,10 +1415,10 @@ namespace Silex
         createInfo.pNext           = &framebufferAttachments;
         createInfo.renderPass      = ((VulkanRenderPass*)renderpass)->renderpass;
         createInfo.attachmentCount = numTexture;
-        createInfo.pAttachments    = nullptr;
         createInfo.width           = width;
         createInfo.height          = height;
-        createInfo.layers          = tex[0]->subresource.layerCount;
+        createInfo.layers          = tex[0]->arrayLayers;
+        createInfo.pAttachments    = nullptr; // VK_KHR_imageless_framebuffer? nullptr : imageView;
 
         VkFramebuffer vkfb = nullptr;
         VkResult result = vkCreateFramebuffer(device, &createInfo, nullptr, &vkfb);
@@ -1457,39 +1432,6 @@ namespace Silex
         framebuffer->rect.height = height;
 
         return framebuffer;
-#else
-        VkImageView*    views  = SL_STACK(VkImageView, numTexture);
-        VulkanTexture** texes  = (VulkanTexture**)textures;
-        uint32          layers = texes[0]->subresource.layerCount;
-
-        for (uint32 i = 0; i < numTexture; i++)
-            views[i] = texes[i]->imageView;
-
-        VkFramebufferCreateInfo createInfo = {};
-        createInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        createInfo.flags           = 0;
-        createInfo.pNext           = nullptr;
-        createInfo.renderPass      = ((VulkanRenderPass*)renderpass)->renderpass;
-        createInfo.attachmentCount = numTexture;
-        createInfo.pAttachments    = views;
-        createInfo.width           = width;
-        createInfo.height          = height;
-        createInfo.layers          = layers;
-
-        VkFramebuffer vkfb = nullptr;
-        VkResult result = vkCreateFramebuffer(device, &createInfo, nullptr, &vkfb);
-        SL_CHECK_VKRESULT(result, nullptr);
-
-        VulkanFramebuffer* framebuffer = slnew(VulkanFramebuffer);
-        framebuffer->framebuffer = vkfb;
-        framebuffer->layer       = createInfo.layers;
-        framebuffer->rect.x      = 0;
-        framebuffer->rect.y      = 0;
-        framebuffer->rect.width  = width;
-        framebuffer->rect.height = height;
-
-        return framebuffer;
-#endif
     }
 
     void VulkanAPI::DestroyFramebuffer(FramebufferHandle* framebuffer)
@@ -1882,23 +1824,22 @@ namespace Silex
         vkCmdPushConstants(cmd->commandBuffer, vkshader->pipelineLayout, vkshader->stageFlags, firstIndex * sizeof(uint32), numData * sizeof(uint32), data);
     }
 
-    void VulkanAPI::BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, uint32 numTexture, TextureHandle** textures, CommandBufferType commandBufferType)
+    void VulkanAPI::BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, uint32 numView, TextureView** views, CommandBufferType commandBufferType)
     {
-        VulkanFramebuffer* vkframebuffer = (VulkanFramebuffer*)framebuffer;
-        VulkanTexture**    tex           = (VulkanTexture**)textures;
+        VulkanFramebuffer*  vkframebuffer = (VulkanFramebuffer*)framebuffer;
+        VulkanTextureView** vkviews       = (VulkanTextureView**)views;
 
-        VkImageView* views = SL_STACK(VkImageView, numTexture);
-        for (uint32 i = 0; i < numTexture; i++)
+        VkImageView* imageViews = SL_STACK(VkImageView, numView);
+        for (uint32 i = 0; i < numView; i++)
         {
-            views[i] = tex[i]->imageView;
+            imageViews[i] = vkviews[i]->view;
         }
 
         VkRenderPassAttachmentBeginInfo attachmentInfo = {};
         attachmentInfo.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_ATTACHMENT_BEGIN_INFO;
         attachmentInfo.pNext           = nullptr;
-        attachmentInfo.attachmentCount = numTexture;
-        attachmentInfo.pAttachments    = views;
-
+        attachmentInfo.attachmentCount = numView;
+        attachmentInfo.pAttachments    = imageViews;
 
         VkRenderPassBeginInfo begineInfo = {};
         begineInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -2394,11 +2335,11 @@ namespace Silex
 
                     for (uint32 j = 0; j < numHandles; j++)
                     {
-                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
-                        bool isDepth = texture->subresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT;
+                        VulkanTextureView* view = (VulkanTextureView*)descriptor.handles[j].imageView;
+                        bool isDepth = view->subresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT;
 
                         imageInfos[j] = {};
-                        imageInfos[j].imageView   = texture->imageView;
+                        imageInfos[j].imageView   = view->view;
                         imageInfos[j].imageLayout = isDepth? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     }
 
@@ -2417,13 +2358,13 @@ namespace Silex
 
                     for (uint32 j = 0; j < numHandles; j++)
                     {
-                        VulkanSampler* sampler = (VulkanSampler*)descriptor.handles[j].sampler;
-                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
-                        bool isDepth = texture->subresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT;
+                        VulkanSampler*     sampler = (VulkanSampler*)descriptor.handles[j].sampler;
+                        VulkanTextureView* view    = (VulkanTextureView*)descriptor.handles[j].imageView;
+                        bool isDepth = view->subresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT;
 
                         imageInfos[j] = {};
                         imageInfos[j].sampler     = sampler->sampler;
-                        imageInfos[j].imageView   = texture->imageView;
+                        imageInfos[j].imageView   = view->view;
                         imageInfos[j].imageLayout = isDepth? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     }
 
@@ -2441,10 +2382,10 @@ namespace Silex
 
                     for (uint32 j = 0; j < numHandles; j++)
                     {
-                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
+                        VulkanTextureView* view = (VulkanTextureView*)descriptor.handles[j].imageView;
 
                         imageInfos[j] = {};
-                        imageInfos[j].imageView   = texture->imageView;
+                        imageInfos[j].imageView   = view->view;
                         imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
                     }
 
@@ -2536,161 +2477,6 @@ namespace Silex
         }
     }
 
-    void VulkanAPI::UpdateDescriptorSet(DescriptorSet* descriptorSet, uint32 numdescriptor, DescriptorInfo* descriptors)
-    {
-        VulkanDescriptorSet* set = (VulkanDescriptorSet*)descriptorSet;
-
-        for (uint32 i = 0; i < numdescriptor; i++)
-        {
-            const DescriptorInfo& descriptor = descriptors[i];
-
-            switch (descriptor.type)
-            {
-                case DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-                {
-                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
-
-                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0].buffer;
-                    *bufferInfo = {};
-                    bufferInfo->buffer = buffer->buffer;
-                    bufferInfo->range  = buffer->size;
-
-                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                    set->writes[i].pBufferInfo    = bufferInfo;
-
-                    break;
-                }
-
-                // ストレージバッファ
-                case DESCRIPTOR_TYPE_STORAGE_BUFFER:
-                {
-                    VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
-
-                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0].buffer;
-                    *bufferInfo = {};
-                    bufferInfo->buffer = buffer->buffer;
-                    bufferInfo->range  = buffer->size;
-
-                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-                    set->writes[i].pBufferInfo    = bufferInfo;
-
-                    break;
-                }
-
-                // サンプラー
-                case DESCRIPTOR_TYPE_SAMPLER:
-                {
-                    uint32 elements = descriptor.handles.size();
-                    VkDescriptorImageInfo* imgInfos = SL_STACK(VkDescriptorImageInfo, elements);
-
-                    for (uint32 j = 0; j < elements; j++)
-                    {
-                        VulkanSampler* sampler = (VulkanSampler*)descriptor.handles[j].sampler;
-                        imgInfos[j] = {};
-                        imgInfos[j].sampler     = sampler->sampler;
-                        imgInfos[j].imageView   = nullptr;
-                        imgInfos[j].imageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-                    }
-
-                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-                    set->writes[i].pImageInfo     = imgInfos;
-
-                    break;
-                }
-
-                // テクスチャ
-                case DESCRIPTOR_TYPE_IMAGE:
-                {
-                    uint32 elements = descriptor.handles.size();
-                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, elements);
-
-                    for (uint32 j = 0; j < elements; j++)
-                    {
-                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
-
-                        imageInfos[j] = {};
-                        imageInfos[j].imageView   = texture->imageView;
-                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                    }
-
-                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
-                    set->writes[i].pImageInfo     = imageInfos;
-
-                    break;
-                }
-
-                // テクスチャ + サンプル
-                case DESCRIPTOR_TYPE_IMAGE_SAMPLER:
-                {
-                    // サンプラーとイメージがセットで1つのデスクリプタとして扱うため
-                    uint32 elements = descriptor.handles.size();
-                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, elements);
-
-                    for (uint32 j = 0; j < elements; j++)
-                    {
-                        VulkanSampler* sampler = (VulkanSampler*)descriptor.handles[j].sampler;
-                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
-
-                        imageInfos[j] = {};
-                        imageInfos[j].sampler     = sampler->sampler;
-                        imageInfos[j].imageView   = texture->imageView;
-                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                    }
-
-                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                    set->writes[i].pImageInfo = imageInfos;
-
-                    break;
-                }
-
-                // ストレージイメージ
-                case DESCRIPTOR_TYPE_STORAGE_IMAGE:
-                {
-                    uint32 elements = descriptor.handles.size();
-                    VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, elements);
-
-                    for (uint32 j = 0; j < elements; j++)
-                    {
-                        VulkanTexture* texture = (VulkanTexture*)descriptor.handles[j].image;
-
-                        imageInfos[j] = {};
-                        imageInfos[j].imageView   = texture->imageView;
-                        imageInfos[j].imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-                    }
-
-                    set->writes[i].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-                    set->writes[i].pImageInfo     = imageInfos;
-
-                    break;
-                }
-
-                // テクセルバッファ
-                case DESCRIPTOR_TYPE_UNIFORM_TEXTURE_BUFFER:
-                {
-                    SL_ASSERT(false, "未実装");
-                    break;
-                }
-
-                // ストレージ テクセルバッファ
-                case DESCRIPTOR_TYPE_STORAGE_TEXTURE_BUFFER:
-                {
-                    SL_ASSERT(false, "未実装");
-                    break;
-                }
-
-                // インプットアタッチメント
-                case DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-                {
-                    SL_ASSERT(false, "未実装");
-                    break;
-                }
-
-                default: SL_ASSERT(false);
-            }
-        }
-
-        vkUpdateDescriptorSets(device, numdescriptor, set->writes.data(), 0, nullptr);
-    }
 
     //==================================================================================
     // パイプライン
