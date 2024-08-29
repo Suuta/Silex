@@ -10,6 +10,29 @@
 
 namespace Silex
 {
+    // プール検索キー
+    struct DescriptorSetPoolKey
+    {
+        uint16 descriptorTypeCounts[DESCRIPTOR_TYPE_MAX] = {};
+        bool operator<(const DescriptorSetPoolKey& other) const
+        {
+            return memcmp(descriptorTypeCounts, other.descriptorTypeCounts, sizeof(descriptorTypeCounts)) < 0;
+        }
+    };
+
+    // スワップチェイン情報クエリ
+    struct SwapChainCapability
+    {
+        uint32                        minImageCount;
+        VkFormat                      format;
+        VkColorSpaceKHR               colorspace;
+        VkExtent2D                    extent;
+        VkSurfaceTransformFlagBitsKHR transform;
+        VkCompositeAlphaFlagBitsKHR   compositeAlpha;
+        VkPresentModeKHR              presentMode;
+    };
+
+
     //=============================================
     // Vulkan 構造体
     //=============================================
@@ -71,11 +94,9 @@ namespace Silex
     struct VulkanSwapChain : public SwapChain
     { 
         VkSwapchainKHR  swapchain  = nullptr;
-        VkFormat        format     = VK_FORMAT_UNDEFINED;
         VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-
-        VkSemaphore present = nullptr;
-        VkSemaphore render  = nullptr;
+        VkFormat        format     = VK_FORMAT_UNDEFINED;
+        uint32          imageIndex = 0;
 
         std::vector<FramebufferHandle*> framebuffers = {};
         std::vector<TextureHandle*>     textures     = {};
@@ -83,7 +104,9 @@ namespace Silex
         VulkanSurface*                  surface      = nullptr;
         VulkanRenderPass*               renderpass   = nullptr;
 
-        uint32 imageIndex = 0;
+
+        VkSemaphore present = nullptr;
+        VkSemaphore render  = nullptr;
     };
 
     // バッファ
@@ -130,16 +153,6 @@ namespace Silex
         std::vector<VkDescriptorSetLayout>           descriptorsetLayouts = {};
         VkPipelineLayout                             pipelineLayout       = nullptr;
         ShaderReflectionData*                        reflection           = nullptr;
-    };
-
-    // プール検索キー
-    struct DescriptorSetPoolKey
-    {
-        uint16 descriptorTypeCounts[DESCRIPTOR_TYPE_MAX] = {};
-        bool operator<(const DescriptorSetPoolKey& other) const
-        {
-            return memcmp(descriptorTypeCounts, other.descriptorTypeCounts, sizeof(descriptorTypeCounts)) < 0;
-        }
     };
 
     // デスクリプターセット

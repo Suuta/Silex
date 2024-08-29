@@ -119,6 +119,10 @@ namespace Silex
         api->DestroyTexture(envTexture);
         api->DestroyTexture(cubemapTexture);
         api->DestroyTexture(compositTexture);
+        api->DestroyTextureView(defaultTextureView);
+        api->DestroyTextureView(envTextureView);
+        api->DestroyTextureView(cubemapTextureView);
+        api->DestroyTextureView(compositTextureView);
         api->DestroyShader(gridShader);
         api->DestroyShader(compositShader);
         api->DestroyShader(equirectangularShader);

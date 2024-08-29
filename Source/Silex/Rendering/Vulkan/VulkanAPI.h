@@ -168,14 +168,18 @@ namespace Silex
 
     private:
 
-        // デスクリプタプールから、特定の組み合わせのデスクリプタのキーを検索、なければ新規生成
+        // デスクリプタプールの管理
         VkDescriptorPool _FindOrCreateDescriptorPool(const DescriptorSetPoolKey& key);
         void             _DecrementPoolRefCount(VkDescriptorPool pool, DescriptorSetPoolKey& poolKey);
 
-        // 指定されたサンプル数が、利用可能なサンプル数かどうかチェックする
+        // 利用可能サンプル数のチェック
         VkSampleCountFlagBits _CheckSupportedSampleCounts(TextureSamples samples);
 
-        // 
+        // スワップチェイン共通処理
+        VulkanSwapChain*  _CreateSwapChain_Internal(VulkanSwapChain* swapchain, const SwapChainCapability& cap);
+        void              _DestroySwapChain_Internal(VulkanSwapChain* swapchain);
+        VulkanRenderPass* _CreateSwapChainRenderPass(VkFormat format);
+        bool              _QuerySwapChainCapability(VkSurfaceKHR surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VkPresentModeKHR mode, SwapChainCapability& out_cap);
 
     private:
 

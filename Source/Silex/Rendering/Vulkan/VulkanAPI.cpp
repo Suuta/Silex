@@ -176,6 +176,313 @@ namespace Silex
         return VK_SAMPLE_COUNT_1_BIT;
     }
 
+    // スワップチェイン生成 共通処理
+    VulkanSwapChain* VulkanAPI::_CreateSwapChain_Internal(VulkanSwapChain* swapchain, const SwapChainCapability& cap)
+    {
+        // スワップチェイン生成
+        VkSwapchainCreateInfoKHR swapCreateInfo = {};
+        swapCreateInfo.sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        swapCreateInfo.surface          = swapchain->surface->surface;
+        swapCreateInfo.minImageCount    = cap.minImageCount;
+        swapCreateInfo.imageFormat      = cap.format;
+        swapCreateInfo.imageColorSpace  = cap.colorspace;
+        swapCreateInfo.imageExtent      = cap.extent;
+        swapCreateInfo.imageArrayLayers = 1;
+        swapCreateInfo.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        swapCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        swapCreateInfo.preTransform     = cap.transform;
+        swapCreateInfo.compositeAlpha   = cap.compositeAlpha;
+        swapCreateInfo.presentMode      = cap.presentMode;
+        swapCreateInfo.clipped          = true;
+
+        VkResult result = CreateSwapchainKHR(device, &swapCreateInfo, nullptr, &swapchain->swapchain);
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        // イメージ取得
+        uint32 imageCount = 0;
+        result = GetSwapchainImagesKHR(device, swapchain->swapchain, &imageCount, nullptr);
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        VkImage* vkimg = SL_STACK(VkImage, imageCount);
+        result = GetSwapchainImagesKHR(device, swapchain->swapchain, &imageCount, vkimg);
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        // イメージビュー生成
+        VkImageView* vkview = SL_STACK(VkImageView, imageCount);
+        for (uint32 i = 0; i < imageCount; i++)
+        {
+            VulkanTexture* vktex = slnew(VulkanTexture);
+            vktex->createFlags      = 0;
+            vktex->image            = vkimg[i];
+            vktex->format           = swapCreateInfo.imageFormat;
+            vktex->usageflags       = swapCreateInfo.imageUsage;
+            vktex->extent           = VkExtent3D(swapCreateInfo.imageExtent.width, swapCreateInfo.imageExtent.height, 1);
+            vktex->arrayLayers      = 1;
+            vktex->mipLevels        = 1;
+            vktex->allocationHandle = nullptr;
+
+            swapchain->textures.push_back(vktex);
+
+            TextureViewInfo viewinfo = {};
+            viewinfo.type                      = TEXTURE_TYPE_2D;
+            viewinfo.subresource.aspect        = TEXTURE_ASPECT_COLOR_BIT;
+            viewinfo.subresource.baseLayer     = 0;
+            viewinfo.subresource.layerCount    = 1;
+            viewinfo.subresource.baseMipLevel  = 0;
+            viewinfo.subresource.mipLevelCount = 1;
+
+            TextureView* vkview = CreateTextureView(vktex, viewinfo);
+            SL_CHECK(!vkview, nullptr);
+
+            swapchain->views.push_back(vkview);
+        }
+
+        // フレームバッファ
+        for (uint32 i = 0; i < imageCount; i++)
+        {
+            FramebufferHandle* fb = CreateFramebuffer(swapchain->renderpass, 1, &swapchain->textures[i], cap.extent.width, cap.extent.height);
+            SL_CHECK(!fb, nullptr);
+            
+            swapchain->framebuffers.push_back(fb);
+        }
+
+        return swapchain;
+    }
+
+    // スワップチェイン破棄 共通処理
+    void VulkanAPI::_DestroySwapChain_Internal(VulkanSwapChain* swapchain)
+    {
+        if (swapchain)
+        {
+            // フレームバッファ破棄
+            for (uint32 i = 0; i < swapchain->framebuffers.size(); i++)
+            {
+                DestroyFramebuffer(swapchain->framebuffers[i]);
+            }
+
+            // イメージビュー破棄
+            for (uint32 i = 0; i < swapchain->views.size(); i++)
+            {
+                DestroyTextureView(swapchain->views[i]);
+            }
+
+            // イメージ破棄
+            for (uint32 i = 0; i < swapchain->textures.size(); i++)
+            {
+                //-------------------------------------------------
+                // VkImage 自体は swapchain が管理しているので破棄しない
+                //-------------------------------------------------
+                VulkanTexture* vktex = (VulkanTexture*)swapchain->textures[i];
+                sldelete(vktex);
+            }
+
+            // スワップチェイン破棄
+            DestroySwapchainKHR(device, swapchain->swapchain, nullptr);
+
+            swapchain->framebuffers.clear();
+            swapchain->views.clear();
+            swapchain->textures.clear();
+        }
+    }
+
+    // スワップチェインパス生成
+    VulkanRenderPass* VulkanAPI::_CreateSwapChainRenderPass(VkFormat format)
+    {
+        VkAttachmentDescription attachment = {};
+        attachment.format         = format;
+        attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+        attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // 描画 前 処理
+        attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;     // 描画 後 処理
+        attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // 
+        attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // 
+        attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;        // イメージの初期レイアウト
+        attachment.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;  // レンダーパス終了後に自動で移行するレイアウト
+
+        VkAttachmentReference colorReference = {};
+        colorReference.attachment = 0;
+        colorReference.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkSubpassDescription subpass = {};
+        subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        subpass.colorAttachmentCount = 1;
+        subpass.pColorAttachments    = &colorReference;
+
+        VkSubpassDependency dependency = {};
+        dependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
+        dependency.dstSubpass    = 0;
+        dependency.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        dependency.srcAccessMask = 0;
+        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+        VkRenderPassCreateInfo passInfo = {};
+        passInfo.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        passInfo.attachmentCount = 1;
+        passInfo.pAttachments    = &attachment;
+        passInfo.subpassCount    = 1;
+        passInfo.pSubpasses      = &subpass;
+        passInfo.dependencyCount = 1;
+        passInfo.pDependencies   = &dependency;
+
+        VkRenderPass vkRenderPass = nullptr;
+        VkResult result = vkCreateRenderPass(device, &passInfo, nullptr, &vkRenderPass);
+        SL_CHECK_VKRESULT(result, nullptr);
+
+        VulkanRenderPass* renderpass = slnew(VulkanRenderPass);
+        renderpass->renderpass = vkRenderPass;
+
+        return renderpass;
+    }
+
+    // スワップチェイン仕様のクエリ
+    bool VulkanAPI::_QuerySwapChainCapability(VkSurfaceKHR surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VkPresentModeKHR mode, SwapChainCapability& out_cap)
+    {
+        VkPhysicalDevice physicalDevice = context->GetPhysicalDevice();
+
+        //================================================================================
+        // フォーマット・色空間
+        //================================================================================
+        uint32 formatCount = 0;
+        VkResult result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr);
+        SL_CHECK_VKRESULT(result, false);
+
+        VkSurfaceFormatKHR* formats = SL_STACK(VkSurfaceFormatKHR, formatCount);
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, formats);
+        SL_CHECK_VKRESULT(result, false);
+
+        VkFormat        format     = VK_FORMAT_UNDEFINED;
+        VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+
+        // BGRA / RGBA https://www.reddit.com/r/vulkan/comments/p3iy0o/why_use_bgra_instead_of_rgba/
+        if (formatCount == 1 && formats[0].format == VK_FORMAT_UNDEFINED)
+        {
+            // VK_FORMAT_UNDEFINED が1つだけ含まれている場合、サーフェスには優先フォーマットがない
+            format = VK_FORMAT_B8G8R8A8_UNORM;
+            colorspace = formats[0].colorSpace;
+        }
+        else
+        {
+            // BGRA8_UNORM がサポートされていればそれが推奨される
+            const VkFormat firstChoice = VK_FORMAT_B8G8R8A8_UNORM;
+            const VkFormat secondChoice = VK_FORMAT_R8G8B8A8_UNORM;
+
+            for (uint32 i = 0; i < formatCount; i++)
+            {
+                if (formats[i].format == firstChoice || formats[i].format == secondChoice)
+                {
+                    format = formats[i].format;
+                    if (formats[i].format == firstChoice)
+                    {
+                        break;
+                    }
+                }
+            }
+        }
+
+
+        //================================================================================
+        // サイズ
+        //================================================================================
+        VkSurfaceCapabilitiesKHR surfaceCapabilities;
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, surface, &surfaceCapabilities);
+        SL_CHECK_VKRESULT(result, false);
+
+        VkExtent2D extent;
+        if (surfaceCapabilities.currentExtent.width == 0xFFFFFFFF) // == (uint32)-1
+        {
+            // 0xFFFFFFFF の場合は、仕様が許す限り好きなサイズで生成できることを表す
+            extent.width  = std::clamp(width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
+            extent.height = std::clamp(height, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
+        }
+        else
+        {
+            // 0xFFFFFFFF 以外は、指定された値で生成する必要がある
+            extent = surfaceCapabilities.currentExtent;
+        }
+
+        //================================================================================
+        // フレームバッファ数決定（現状: 3）
+        //================================================================================
+        uint32 requestImageCount = std::clamp(requestFramebufferCount, surfaceCapabilities.minImageCount, surfaceCapabilities.maxImageCount);
+
+        //================================================================================
+        // トランスフォーム情報（回転・反転）
+        //================================================================================
+        VkSurfaceTransformFlagBitsKHR surfaceTransformBits;
+        if (surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
+        {
+            surfaceTransformBits = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+        }
+        else
+        {
+            surfaceTransformBits = surfaceCapabilities.currentTransform;
+        }
+
+        //================================================================================
+        // アルファモードが有効なら（現状: 使用しない）
+        //================================================================================
+        VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        if (false || !(surfaceCapabilities.supportedCompositeAlpha & compositeAlpha))
+        {
+            VkCompositeAlphaFlagBitsKHR compositeAlphaFlags[4] =
+            {
+                VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
+                VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
+                VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
+                VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
+            };
+
+            for (uint32 i = 0; i < std::size(compositeAlphaFlags); i++)
+            {
+                if (surfaceCapabilities.supportedCompositeAlpha & compositeAlphaFlags[i])
+                {
+                    compositeAlpha = compositeAlphaFlags[i];
+                    break;
+                }
+            }
+        }
+
+        //================================================================================
+        // プレゼントモード
+        //================================================================================
+        uint32 presentModeCount = 0;
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr);
+        SL_CHECK_VKRESULT(result, false);
+
+        VkPresentModeKHR* presentModes = SL_STACK(VkPresentModeKHR, presentModeCount);
+        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, presentModes);
+        SL_CHECK_VKRESULT(result, false);
+
+        VkPresentModeKHR selectMode = mode;
+        bool findRequestMode = false;
+        for (uint32 i = 0; i < presentModeCount; i++)
+        {
+            if (selectMode == presentModes[i])
+            {
+                findRequestMode = true;
+                break;
+            }
+        }
+
+        // 見つからない場合は、必ずサポートされている（VK_PRESENT_MODE_FIFO_KHR）モードを選択
+        if (!findRequestMode)
+        {
+            selectMode = VK_PRESENT_MODE_FIFO_KHR;
+            SL_LOG_WARN("指定されたプレゼントモードがサポートされていないので、FIFOモードが選択されました。");
+        }
+
+        out_cap.format         = format;
+        out_cap.colorspace     = colorspace;
+        out_cap.compositeAlpha = compositeAlpha;
+        out_cap.extent         = extent;
+        out_cap.minImageCount  = requestImageCount;
+        out_cap.presentMode    = selectMode;
+        out_cap.transform      = surfaceTransformBits;
+
+        return true;
+    }
+
+
 
 
     //==================================================================================
@@ -563,462 +870,45 @@ namespace Silex
             return nullptr;
         }
 
-        VkResult result;
+        SwapChainCapability queryResult;
+        SL_CHECK(!_QuerySwapChainCapability(((VulkanSurface*)surface)->surface, width, height, requestFramebufferCount, (VkPresentModeKHR)mode, queryResult), nullptr);
 
-        VkPhysicalDevice physicalDevice = context->GetPhysicalDevice();
-        VkSurfaceKHR     vkSurface      = ((VulkanSurface*)surface)->surface;
+        VulkanSwapChain* swapchain = slnew(VulkanSwapChain);
+        swapchain->renderpass = _CreateSwapChainRenderPass(queryResult.format);
+        swapchain->surface    = (VulkanSurface*)surface;
+        swapchain->format     = queryResult.format;
+        swapchain->colorspace = queryResult.colorspace;
 
-        uint32 formatCount = 0;
-        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkSurface, &formatCount, nullptr);
-        SL_CHECK_VKRESULT(result, nullptr);
+        _CreateSwapChain_Internal(swapchain, queryResult);
 
-        VkSurfaceFormatKHR* formats = SL_STACK(VkSurfaceFormatKHR, formatCount);
-        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkSurface, &formatCount, formats);
-        SL_CHECK_VKRESULT(result, nullptr);
-
-        VkFormat        format     = VK_FORMAT_UNDEFINED;
-        VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-
-        //================================================================================
-        // BGRA / RGBA
-        // https://www.reddit.com/r/vulkan/comments/p3iy0o/why_use_bgra_instead_of_rgba/
-        //================================================================================
-        if (formatCount == 1 && formats[0].format == VK_FORMAT_UNDEFINED)
-        {
-            // VK_FORMAT_UNDEFINED が1つだけ含まれている場合、サーフェスには優先フォーマットがない
-            format = VK_FORMAT_B8G8R8A8_UNORM;
-            colorspace = formats[0].colorSpace;
-        }
-        else
-        {
-            // BGRA8_UNORM がサポートされていればそれが推奨される
-            const VkFormat firstChoice  = VK_FORMAT_B8G8R8A8_UNORM;
-            const VkFormat secondChoice = VK_FORMAT_R8G8B8A8_UNORM;
-
-            for (uint32 i = 0; i < formatCount; i++)
-            {
-                if (formats[i].format == firstChoice || formats[i].format == secondChoice)
-                {
-                    format = formats[i].format;
-                    if (formats[i].format == firstChoice)
-                    {
-                        break;
-                    }
-                }
-            }
-        }
-
-        SL_CHECK(format == VK_FORMAT_UNDEFINED, nullptr);
-
-        VkAttachmentDescription attachment = {};
-        attachment.format         = format;
-        attachment.samples        = VK_SAMPLE_COUNT_1_BIT;
-        attachment.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // 描画 前 処理
-        attachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;     // 描画 後 処理
-        attachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;  // 
-        attachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE; // 
-        attachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;        // イメージの初期レイアウト
-        attachment.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;  // レンダーパス終了後に自動で移行するレイアウト
-
-        VkAttachmentReference colorReference = {};
-        colorReference.attachment = 0;
-        colorReference.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-        VkSubpassDescription subpass = {};
-        subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
-        subpass.colorAttachmentCount = 1;
-        subpass.pColorAttachments    = &colorReference;
-
-        VkSubpassDependency dependency = {};
-        dependency.srcSubpass    = VK_SUBPASS_EXTERNAL;
-        dependency.dstSubpass    = 0;
-        dependency.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependency.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        dependency.srcAccessMask = 0;
-        dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-        VkRenderPassCreateInfo passInfo = {};
-        passInfo.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-        passInfo.attachmentCount = 1;
-        passInfo.pAttachments    = &attachment;
-        passInfo.subpassCount    = 1;
-        passInfo.pSubpasses      = &subpass;
-        passInfo.dependencyCount = 1;
-        passInfo.pDependencies   = &dependency;
-
-        VkRenderPass vkRenderPass = nullptr;
-        result = vkCreateRenderPass(device, &passInfo, nullptr, &vkRenderPass);
-        SL_CHECK_VKRESULT(result, nullptr);
-
-        VulkanRenderPass* renderpass = slnew(VulkanRenderPass);
-        renderpass->renderpass = vkRenderPass;
-
-        VulkanSwapChain* vkSwapchain = slnew(VulkanSwapChain);
-        vkSwapchain->surface    = ((VulkanSurface*)surface);
-        vkSwapchain->format     = format;
-        vkSwapchain->colorspace = colorspace;
-        vkSwapchain->renderpass = renderpass;
-
-        // サーフェース仕様取得
-        VkSurfaceCapabilitiesKHR surfaceCapabilities;
-        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vkSurface, &surfaceCapabilities);
-        SL_CHECK_VKRESULT(result, nullptr);
-
-        // サイズ
-        VkExtent2D extent;
-        if (surfaceCapabilities.currentExtent.width == 0xFFFFFFFF) // == (uint32)-1
-        {
-            // 0xFFFFFFFF の場合は、仕様が許す限り好きなサイズで生成できることを表す
-            extent.width  = std::clamp(width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
-            extent.height = std::clamp(height, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
-        }
-        else
-        {
-            // 0xFFFFFFFF 以外は、指定された値で生成する必要がある
-            extent = surfaceCapabilities.currentExtent;
-        }
-
-        // プレゼントモード
-        uint32 presentModeCount = 0;
-        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vkSurface, &presentModeCount, nullptr);
-        SL_CHECK_VKRESULT(result, nullptr);
-
-        VkPresentModeKHR* presentModes = SL_STACK(VkPresentModeKHR, presentModeCount);
-        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vkSurface, &presentModeCount, presentModes);
-        SL_CHECK_VKRESULT(result, nullptr);
-
-        VkPresentModeKHR selectMode = (VkPresentModeKHR)mode;
-        bool findRequestMode = false;
-        for (uint32 i = 0; i < presentModeCount; i++)
-        {
-            if (selectMode == presentModes[i])
-            {
-                findRequestMode = true;
-                break;
-            }
-        }
-
-        // 見つからない場合は、必ずサポートされている（VK_PRESENT_MODE_FIFO_KHR）モードを選択
-        if (!findRequestMode)
-        {
-            selectMode = VK_PRESENT_MODE_FIFO_KHR;
-            SL_LOG_WARN("指定されたプレゼントモードがサポートされていないので、FIFOモードが選択されました。");
-        }
-
-        // トランスフォーム情報（回転・反転）
-        VkSurfaceTransformFlagBitsKHR surfaceTransformBits;
-        if (surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
-        {
-            surfaceTransformBits = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-        }
-        else
-        {
-            surfaceTransformBits = surfaceCapabilities.currentTransform;
-        }
-
-        // アルファモードが有効なら（現状: 使用しない）
-        VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-        if (false || !(surfaceCapabilities.supportedCompositeAlpha & compositeAlpha))
-        {
-            VkCompositeAlphaFlagBitsKHR compositeAlphaFlags[4] =
-            {
-                VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
-                VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
-                VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
-                VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
-            };
-
-            for (uint32 i = 0; i < std::size(compositeAlphaFlags); i++)
-            {
-                if (surfaceCapabilities.supportedCompositeAlpha & compositeAlphaFlags[i])
-                {
-                    compositeAlpha = compositeAlphaFlags[i];
-                    break;
-                }
-            }
-        }
-
-        // フレームバッファ数決定（現状: 3）
-        uint32 requestImageCount = std::clamp(requestFramebufferCount, surfaceCapabilities.minImageCount, surfaceCapabilities.maxImageCount);
-
-        // スワップチェイン生成
-        VkSwapchainCreateInfoKHR swapCreateInfo = {};
-        swapCreateInfo.sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-        swapCreateInfo.surface          = vkSurface;
-        swapCreateInfo.minImageCount    = requestImageCount;
-        swapCreateInfo.imageFormat      = vkSwapchain->format;
-        swapCreateInfo.imageColorSpace  = vkSwapchain->colorspace;
-        swapCreateInfo.imageExtent      = extent;
-        swapCreateInfo.imageArrayLayers = 1;
-        swapCreateInfo.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        swapCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        swapCreateInfo.preTransform     = surfaceTransformBits;
-        swapCreateInfo.compositeAlpha   = compositeAlpha;
-        swapCreateInfo.presentMode      = selectMode;
-        swapCreateInfo.clipped          = true;
-
-        //------------------------------------------------------------------------------------------
-        // NOTE: VK_ERROR_NATIVE_WINDOW_IN_USE_KHR OpenGL でウィンドウコンテキストが生成されている場合に発生
-        //------------------------------------------------------------------------------------------
-        result = CreateSwapchainKHR(device, &swapCreateInfo, nullptr, &vkSwapchain->swapchain);
-        SL_CHECK_VKRESULT(result, nullptr);
-
-        // イメージ取得
-        uint32 imageCount = 0;
-        result = GetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, nullptr);
-        SL_CHECK_VKRESULT(result, nullptr);
-
-        VkImage* vkimg = SL_STACK(VkImage, imageCount);
-        result = GetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, vkimg);
-        SL_CHECK_VKRESULT(result, nullptr);
-
-        // イメージビュー生成
-        VkImageView* vkview = SL_STACK(VkImageView, imageCount);
-        for (uint32 i = 0; i < imageCount; i++)
-        {
-            VulkanTexture* vktex = slnew(VulkanTexture);
-            vktex->createFlags      = 0;
-            vktex->image            = vkimg[i];
-            vktex->format           = swapCreateInfo.imageFormat;
-            vktex->usageflags       = swapCreateInfo.imageUsage;
-            vktex->extent           = VkExtent3D(swapCreateInfo.imageExtent.width, swapCreateInfo.imageExtent.height, 1);
-            vktex->arrayLayers      = 1;
-            vktex->mipLevels        = 1;
-            vktex->allocationHandle = nullptr;
-
-            vkSwapchain->textures.push_back(vktex);
-
-            TextureViewInfo viewinfo = {};
-            viewinfo.type                      = TEXTURE_TYPE_2D;
-            viewinfo.subresource.aspect        = TEXTURE_ASPECT_COLOR_BIT;
-            viewinfo.subresource.baseLayer     = 0;
-            viewinfo.subresource.layerCount    = 1;
-            viewinfo.subresource.baseMipLevel  = 0;
-            viewinfo.subresource.mipLevelCount = 1;
-
-            TextureView* vkview = CreateTextureView(vktex, viewinfo);
-            SL_CHECK(!vkview, nullptr);
-
-            vkSwapchain->views.push_back(vkview);
-        }
-
-        // フレームバッファ
-        for (uint32 i = 0; i < imageCount; i++)
-        {
-            FramebufferHandle* fb = CreateFramebuffer(vkSwapchain->renderpass, 1, &vkSwapchain->textures[i], extent.width, extent.height);
-            SL_CHECK(!fb, nullptr);
-            
-            vkSwapchain->framebuffers.push_back(fb);
-        }
-
-        return vkSwapchain;
+        return swapchain;
     }
 
     bool VulkanAPI::ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode)
     {
-        VkResult result;
-
         if (width == 0 || height == 0)
         {
+            // リサイズは行わないが、処理を行わずに成功したことを意味する
             return true;
         }
 
         SL_LOG_TRACE("Resize Swapchain: {}, {}", width, height);
+        VulkanSwapChain* vkSwapchain = (VulkanSwapChain*)swapchain;
+        VulkanSurface*   vkSurface   = vkSwapchain->surface;
 
-        //=============================================================
         // GPU待機
-        //=============================================================
-        result = vkDeviceWaitIdle(device);
+        VkResult result = vkDeviceWaitIdle(device);
         SL_CHECK_VKRESULT(result, false);
 
-
-        VkPhysicalDevice physicalDevice = context->GetPhysicalDevice();
-        VulkanSwapChain* vkSwapchain    = (VulkanSwapChain*)swapchain;
-        VulkanSurface*   vkSurface      = vkSwapchain->surface;
-
-        // 解放コード
-        {
-            // フレームバッファ破棄
-            for (uint32 i = 0; i < vkSwapchain->framebuffers.size(); i++)
-            {
-                DestroyFramebuffer(vkSwapchain->framebuffers[i]);
-            }
-
-            // イメージビュー破棄
-            for (uint32 i = 0; i < vkSwapchain->views.size(); i++)
-            {
-                DestroyTextureView(vkSwapchain->views[i]);
-            }
-
-            // イメージ破棄
-            for (uint32 i = 0; i < vkSwapchain->textures.size(); i++)
-            {
-                //-------------------------------------------------
-                // VkImage 自体は swapchain が管理しているので破棄しない
-                //-------------------------------------------------
-                VulkanTexture* vktex = (VulkanTexture*)vkSwapchain->textures[i];
-                sldelete(vktex);
-            }
-
-            // スワップチェイン破棄
-            DestroySwapchainKHR(device, vkSwapchain->swapchain, nullptr);
-
-            vkSwapchain->framebuffers.clear();
-            vkSwapchain->views.clear();
-            vkSwapchain->textures.clear();
-        }
-
-        // サーフェース仕様取得
-        VkSurfaceCapabilitiesKHR surfaceCapabilities;
-        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vkSurface->surface, &surfaceCapabilities);
-        SL_CHECK_VKRESULT(result, false);
-
-        // サイズ
-        VkExtent2D extent;
-        if (surfaceCapabilities.currentExtent.width == 0xFFFFFFFF) // == (uint32)-1i32
-        {
-            // 0xFFFFFFFF の場合は、仕様が許す限り好きなサイズで生成できることを表す
-            extent.width  = std::clamp(width, surfaceCapabilities.minImageExtent.width, surfaceCapabilities.maxImageExtent.width);
-            extent.height = std::clamp(height, surfaceCapabilities.minImageExtent.height, surfaceCapabilities.maxImageExtent.height);
-        }
-        else
-        {
-            // 0xFFFFFFFF 以外は、指定された値で生成する必要がある
-            extent = surfaceCapabilities.currentExtent;
-        }
-
-        // プレゼントモード
-        uint32 presentModeCount = 0;
-        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vkSurface->surface, &presentModeCount, nullptr);
-        SL_CHECK_VKRESULT(result, false);
-
-        VkPresentModeKHR* presentModes = SL_STACK(VkPresentModeKHR, presentModeCount);
-        result = context->GetExtensionFunctions().GetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, vkSurface->surface, &presentModeCount, presentModes);
-        SL_CHECK_VKRESULT(result, false);
-
-        VkPresentModeKHR selectMode = (VkPresentModeKHR)mode;
-        bool findRequestMode = false;
-        for (uint32 i = 0; i < presentModeCount; i++)
-        {
-            if (selectMode == presentModes[i])
-            {
-                findRequestMode = true;
-                break;
-            }
-        }
-
-        // 見つからない場合は、必ずサポートされている（VK_PRESENT_MODE_FIFO_KHR）モードを選択
-        if (!findRequestMode)
-        {
-            selectMode = VK_PRESENT_MODE_FIFO_KHR;
-            SL_LOG_WARN("指定されたプレゼントモードがサポートされていないので、FIFOモードが選択されました。");
-        }
-
-        // トランスフォーム情報（回転・反転）
-        VkSurfaceTransformFlagBitsKHR surfaceTransformBits;
-        if (surfaceCapabilities.supportedTransforms & VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR)
-        {
-            surfaceTransformBits = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-        }
-        else
-        {
-            surfaceTransformBits = surfaceCapabilities.currentTransform;
-        }
-
-        // アルファモードが有効なら（現状: 使用しない）
-        VkCompositeAlphaFlagBitsKHR compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-        if (false || !(surfaceCapabilities.supportedCompositeAlpha & compositeAlpha))
-        {
-            VkCompositeAlphaFlagBitsKHR compositeAlphaFlags[4] =
-            {
-                VK_COMPOSITE_ALPHA_PRE_MULTIPLIED_BIT_KHR,
-                VK_COMPOSITE_ALPHA_POST_MULTIPLIED_BIT_KHR,
-                VK_COMPOSITE_ALPHA_INHERIT_BIT_KHR,
-                VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR
-            };
-
-            for (uint32 i = 0; i < std::size(compositeAlphaFlags); i++)
-            {
-                if (surfaceCapabilities.supportedCompositeAlpha & compositeAlphaFlags[i])
-                {
-                    compositeAlpha = compositeAlphaFlags[i];
-                    break;
-                }
-            }
-        }
-
-        // フレームバッファ数決定（現状: 3）
-        uint32 requestImageCount = std::clamp(requestFramebufferCount, surfaceCapabilities.minImageCount, surfaceCapabilities.maxImageCount);
+        // スワップチェイン仕様クエリ
+        SwapChainCapability queryResult;
+        SL_CHECK(!_QuerySwapChainCapability(vkSurface->surface, width, height, requestFramebufferCount, (VkPresentModeKHR)mode, queryResult), false);
+        
+        // スワップチェイン破棄
+        _DestroySwapChain_Internal(vkSwapchain);
 
         // スワップチェイン生成
-        VkSwapchainCreateInfoKHR swapCreateInfo = {};
-        swapCreateInfo.sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-        swapCreateInfo.surface          = vkSurface->surface;
-        swapCreateInfo.minImageCount    = requestImageCount;
-        swapCreateInfo.imageFormat      = vkSwapchain->format;
-        swapCreateInfo.imageColorSpace  = vkSwapchain->colorspace;
-        swapCreateInfo.imageExtent      = extent;
-        swapCreateInfo.imageArrayLayers = 1;
-        swapCreateInfo.imageUsage       = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-        swapCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        swapCreateInfo.preTransform     = surfaceTransformBits;
-        swapCreateInfo.compositeAlpha   = compositeAlpha;
-        swapCreateInfo.presentMode      = selectMode;
-        swapCreateInfo.clipped          = true;
-
-        //------------------------------------------------------------------------------------------
-        // NOTE: VK_ERROR_NATIVE_WINDOW_IN_USE_KHR OpenGL でウィンドウコンテキストが生成されている場合に発生
-        //------------------------------------------------------------------------------------------
-        result = CreateSwapchainKHR(device, &swapCreateInfo, nullptr, &vkSwapchain->swapchain);
-        SL_CHECK_VKRESULT(result, false);
-
-        // イメージ取得
-        uint32 imageCount = 0;
-        result = GetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, nullptr);
-        SL_CHECK_VKRESULT(result, false);
-
-        VkImage* vkimg = SL_STACK(VkImage, imageCount);
-        result = GetSwapchainImagesKHR(device, vkSwapchain->swapchain, &imageCount, vkimg);
-        SL_CHECK_VKRESULT(result, false);
-
-        // イメージビュー生成
-        VkImageView* vkview = SL_STACK(VkImageView, imageCount);
-        for (uint32 i = 0; i < imageCount; i++)
-        {
-            VulkanTexture* vktex = slnew(VulkanTexture);
-            vktex->createFlags      = 0;
-            vktex->image            = vkimg[i];
-            vktex->format           = swapCreateInfo.imageFormat;
-            vktex->usageflags       = swapCreateInfo.imageUsage;
-            vktex->extent           = VkExtent3D(swapCreateInfo.imageExtent.width, swapCreateInfo.imageExtent.height, 1);
-            vktex->arrayLayers      = 1;
-            vktex->mipLevels        = 1;
-            vktex->allocationHandle = nullptr;
-
-            vkSwapchain->textures.push_back(vktex);
-
-            TextureViewInfo viewinfo = {};
-            viewinfo.type                      = TEXTURE_TYPE_2D;
-            viewinfo.subresource.aspect        = TEXTURE_ASPECT_COLOR_BIT;
-            viewinfo.subresource.baseLayer     = 0;
-            viewinfo.subresource.layerCount    = 1;
-            viewinfo.subresource.baseMipLevel  = 0;
-            viewinfo.subresource.mipLevelCount = 1;
-
-            TextureView* vkview = CreateTextureView(vktex, viewinfo);
-            SL_CHECK(!vkview, false);
-
-            vkSwapchain->views.push_back(vkview);
-        }
-
-        // フレームバッファ生成
-        for (uint32 i = 0; i < imageCount; i++)
-        {
-            FramebufferHandle* fb = CreateFramebuffer(vkSwapchain->renderpass, 1, &vkSwapchain->textures[i], extent.width, extent.height);
-            SL_CHECK(!fb, false);
-
-            vkSwapchain->framebuffers.push_back(fb);
-        }
+        _CreateSwapChain_Internal(vkSwapchain, queryResult);
 
         return true;
     }
@@ -1071,44 +961,18 @@ namespace Silex
     {
         if (swapchain)
         {
-            //=============================================================
+            VulkanSwapChain* vkSwapchain = (VulkanSwapChain*)swapchain;
+
             // GPU待機
-            //=============================================================
             VkResult result = vkDeviceWaitIdle(device);
             SL_CHECK_VKRESULT(result, SL_DONT_USE);
 
-
-            VulkanSwapChain* vkSwapchain = (VulkanSwapChain*)swapchain;
-
-            // フレームバッファ破棄
-            for (uint32 i = 0; i < vkSwapchain->framebuffers.size(); i++)
-            {
-                DestroyFramebuffer(vkSwapchain->framebuffers[i]);
-            }
-
-            // イメージビュー破棄
-            for (uint32 i = 0; i < vkSwapchain->views.size(); i++)
-            {
-                DestroyTextureView(vkSwapchain->views[i]);
-            }
-
-            // イメージ破棄
-            for (uint32 i = 0; i < vkSwapchain->textures.size(); i++)
-            {
-                //-------------------------------------------------
-                // VkImage 自体は swapchain が管理しているので破棄しない
-                //-------------------------------------------------
-                VulkanTexture* vktex = (VulkanTexture*)vkSwapchain->textures[i];
-                sldelete(vktex);
-            }
+            // レンダーパス破棄
+            vkDestroyRenderPass(device, vkSwapchain->renderpass->renderpass, nullptr);
+            sldelete(vkSwapchain->renderpass);
 
             // スワップチェイン破棄
-            DestroySwapchainKHR(device, vkSwapchain->swapchain, nullptr);
-
-            //レンダーパス破棄
-            vkDestroyRenderPass(device, vkSwapchain->renderpass->renderpass, nullptr);
-
-            sldelete(vkSwapchain->renderpass);
+            _DestroySwapChain_Internal(vkSwapchain);
             sldelete(vkSwapchain);
         }
     }
