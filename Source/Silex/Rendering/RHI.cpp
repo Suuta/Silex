@@ -107,35 +107,26 @@ namespace Silex
         sldelete(cubeMesh);
         sldelete(sponzaMesh);
 
+        CleanupIBL();
         CleanupGBuffer();
         CleanupLightingBuffer();
         CleanupEnvironmentBuffer();
 
+
         api->UnmapBuffer(gridUBO);
         api->DestroyBuffer(gridUBO);
-        api->UnmapBuffer(equirectangularUBO);
-        api->DestroyBuffer(equirectangularUBO);
         api->DestroyTexture(defaultTexture);
-        api->DestroyTexture(envTexture);
-        api->DestroyTexture(cubemapTexture);
         api->DestroyTexture(compositTexture);
         api->DestroyTextureView(defaultTextureView);
-        api->DestroyTextureView(envTextureView);
-        api->DestroyTextureView(cubemapTextureView);
         api->DestroyTextureView(compositTextureView);
         api->DestroyShader(gridShader);
         api->DestroyShader(compositShader);
-        api->DestroyShader(equirectangularShader);
-        api->DestroyDescriptorSet(equirectangularSet);
         api->DestroyDescriptorSet(gridSet);
         api->DestroyDescriptorSet(compositSet);
         api->DestroyDescriptorSet(imageSet);
         api->DestroyPipeline(gridPipeline);
         api->DestroyPipeline(compositPipeline);
-        api->DestroyPipeline(equirectangularPipeline);
         api->DestroyRenderPass(compositPass);
-        api->DestroyRenderPass(equirectangularPass);
-        api->DestroyFramebuffer(equirectangularFB);
         api->DestroyFramebuffer(compositFB);
         api->DestroySampler(sampler);
 
@@ -267,128 +258,23 @@ namespace Silex
         cubeMesh   = MeshFactory::Cube();
         sponzaMesh = MeshFactory::Sponza();
 
-        InputLayout layout;
-        layout.Binding(0);
-        layout.Attribute(0, VERTEX_BUFFER_FORMAT_R32G32B32);
-        layout.Attribute(1, VERTEX_BUFFER_FORMAT_R32G32B32);
-        layout.Attribute(2, VERTEX_BUFFER_FORMAT_R32G32);
-        layout.Attribute(3, VERTEX_BUFFER_FORMAT_R32G32B32);
-        layout.Attribute(4, VERTEX_BUFFER_FORMAT_R32G32B32);
+        defaultLayout.Binding(0);
+        defaultLayout.Attribute(0, VERTEX_BUFFER_FORMAT_R32G32B32);
+        defaultLayout.Attribute(1, VERTEX_BUFFER_FORMAT_R32G32B32);
+        defaultLayout.Attribute(2, VERTEX_BUFFER_FORMAT_R32G32);
+        defaultLayout.Attribute(3, VERTEX_BUFFER_FORMAT_R32G32B32);
+        defaultLayout.Attribute(4, VERTEX_BUFFER_FORMAT_R32G32B32);
 
         SamplerInfo info = {};
         sampler = api->CreateSampler(info);
 
         TextureReader reader;
-        byte*         pixels;
+        byte* pixels;
 
         pixels = reader.Read("Assets/Textures/checkerboard.png");
-        defaultTexture     = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
+        defaultTexture = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
         defaultTextureView = CreateTextureView(defaultTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
         reader.Unload(pixels);
-
-        pixels = reader.Read("Assets/Textures/cloud.png");
-        envTexture     = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
-        envTextureView = CreateTextureView(envTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-        reader.Unload(pixels);
-
-
-        {
-            // 環境マップ変換 レンダーパス
-            Attachment color = {};
-            color.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
-            color.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            color.loadOp        = ATTACHMENT_LOAD_OP_DONT_CARE;
-            color.storeOp       = ATTACHMENT_STORE_OP_STORE;
-            color.samples       = TEXTURE_SAMPLES_1;
-            color.format        = RENDERING_FORMAT_R8G8B8A8_UNORM;
-
-            AttachmentReference colorRef = {};
-            colorRef.attachment = 0;
-            colorRef.layout     = TEXTURE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-            Subpass subpass = {};
-            subpass.colorReferences.push_back(colorRef);
-
-            RenderPassClearValue clear;
-            clear.SetFloat(0, 0, 0, 1);
-
-            equirectangularPass = api->CreateRenderPass(1, &color, 1, &subpass, 0, nullptr, 1, &clear);
-
-
-            // シェーダー
-            ShaderCompiledData compiledData;
-            ShaderCompiler::Get()->Compile("Assets/Shaders/EquirectangularToCubeMap.glsl", compiledData);
-            equirectangularShader = api->CreateShader(compiledData);
-
-            // キューブマップ
-            cubemapTexture     = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, 1024, 1024);
-            cubemapTextureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT);
-
-
-            // キューブマップ UBO
-            Test::EquirectangularData data;
-            data.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 1.0f);
-            data.view[0]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3( 0.0f, -1.0f,  0.0f));
-            data.view[1]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3( 0.0f, -1.0f,  0.0f));
-            data.view[2]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3( 0.0f,  0.0f, -1.0f));
-            data.view[3]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3( 0.0f,  0.0f, -1.0f));
-            data.view[4]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3( 0.0f, -1.0f,  0.0f));
-            data.view[5]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3( 0.0f, -1.0f,  0.0f));
-            equirectangularUBO = CreateUniformBuffer(&data, sizeof(Test::EquirectangularData), &mappedEquirectanguler);
-
-            PipelineStateInfoBuilder builder;
-            PipelineStateInfo pipelineInfo = builder
-                .InputLayout(1, &layout)
-                .Rasterizer(POLYGON_CULL_BACK, POLYGON_FRONT_FACE_CLOCKWISE)
-                .Depth(false, false)
-                .Blend(false, 1)
-                .Value();
-
-            equirectangularPipeline = api->CreateGraphicsPipeline(equirectangularShader, &pipelineInfo, equirectangularPass);
-
-            // デスクリプタ
-            DescriptorSetInfo info;
-            info.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
-            info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, envTextureView, sampler);
-            equirectangularSet = CreateDescriptorSet(equirectangularShader, 0, info);
-
-            equirectangularFB = CreateFramebuffer(equirectangularPass, 1, &cubemapTexture, 1024, 1024);
-
-            // キューブマップ書き込み
-            api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
-            {
-                MeshSource* ms = cubeMesh->GetMeshSource();
-
-                api->SetViewport(cmd, 0, 0, 1024, 1024);
-                api->SetScissor(cmd,  0, 0, 1024, 1024);
-
-                // layer N
-                api->BeginRenderPass(cmd, equirectangularPass, equirectangularFB, 1, &cubemapTextureView);
-                api->BindPipeline(cmd, equirectangularPipeline);
-                api->BindDescriptorSet(cmd, equirectangularSet, 0);
-                api->BindVertexBuffer(cmd, ms->GetVertexBuffer(), 0);
-                api->BindIndexBuffer(cmd, ms->GetIndexBuffer(), INDEX_BUFFER_FORMAT_UINT32, 0);
-                api->DrawIndexed(cmd, ms->GetIndexCount(), 1, 0, 0, 0);
-                api->EndRenderPass(cmd);
-
-#if 0
-                TextureBarrierInfo info = {};
-                info.texture      = cubemap;
-                info.subresources = {};
-                info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
-                info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
-                info.oldLayout    = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                info.newLayout    = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
-                api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
-
-                _GenerateMipmaps(cmd, cubemap, 1024, 1024, 1, 6, TEXTURE_ASPECT_COLOR_BIT);
-
-                info.oldLayout = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-                info.newLayout = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
-#endif
-            });
-        }
 
         {
             Attachment color = {};
@@ -427,6 +313,8 @@ namespace Silex
 
         gridUBO = CreateUniformBuffer(nullptr, sizeof(Test::GridData), &mappedGridData);
 
+        // IBL
+        PrepareIBL("Assets/Textures/cloud.png");
 
         // Gバッファ初期化
         PrepareGBuffer(size.x, size.y);
@@ -466,6 +354,147 @@ namespace Silex
             imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTextureView, sampler);
             imageSet = CreateDescriptorSet(compositShader, 0, imageinfo);
         }
+    }
+
+    void RHI::PrepareIBL(const char* environmentTexturePath)
+    {
+        TextureReader reader;
+        byte*         pixels;
+
+        pixels = reader.Read(environmentTexturePath);
+        envTexture     = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
+        envTextureView = CreateTextureView(envTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+
+        // 環境マップ変換 レンダーパス
+        Attachment color = {};
+        color.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
+        color.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        color.loadOp        = ATTACHMENT_LOAD_OP_DONT_CARE;
+        color.storeOp       = ATTACHMENT_STORE_OP_STORE;
+        color.samples       = TEXTURE_SAMPLES_1;
+        color.format        = RENDERING_FORMAT_R8G8B8A8_UNORM;
+
+        AttachmentReference colorRef = {};
+        colorRef.attachment = 0;
+        colorRef.layout     = TEXTURE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        Subpass subpass = {};
+        subpass.colorReferences.push_back(colorRef);
+
+        RenderPassClearValue clear;
+        clear.SetFloat(0, 0, 0, 1);
+        IBLProcessPass = api->CreateRenderPass(1, &color, 1, &subpass, 0, nullptr, 1, &clear);
+
+        // シェーダー
+        ShaderCompiledData compiledData;
+        ShaderCompiler::Get()->Compile("Assets/Shaders/EquirectangularToCubeMap.glsl", compiledData);
+        equirectangularShader = api->CreateShader(compiledData);
+
+        // キューブマップ
+        cubemapTexture     = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, 1024, 1024, true);
+        cubemapTextureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT, 0, 6, 0, 1);
+
+        // キューブマップ UBO
+        Test::EquirectangularData data;
+        data.projection = glm::perspective(glm::radians(90.0f), 1.0f, 0.1f, 1.0f);
+        data.view[0]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 1.0f,  0.0f,  0.0f), glm::vec3( 0.0f, -1.0f,  0.0f));
+        data.view[1]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3( 0.0f, -1.0f,  0.0f));
+        data.view[2]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f, -1.0f,  0.0f), glm::vec3( 0.0f,  0.0f, -1.0f));
+        data.view[3]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3( 0.0f,  0.0f, -1.0f));
+        data.view[4]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3( 0.0f, -1.0f,  0.0f));
+        data.view[5]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3( 0.0f, -1.0f,  0.0f));
+        equirectangularUBO = CreateUniformBuffer(&data, sizeof(Test::EquirectangularData), &mappedEquirectanguler);
+
+        PipelineStateInfoBuilder builder;
+        PipelineStateInfo pipelineInfo = builder
+            .InputLayout(1, &defaultLayout)
+            .Rasterizer(POLYGON_CULL_BACK, POLYGON_FRONT_FACE_CLOCKWISE)
+            .Depth(false, false)
+            .Blend(false, 1)
+            .Value();
+
+        equirectangularPipeline = api->CreateGraphicsPipeline(equirectangularShader, &pipelineInfo, IBLProcessPass);
+
+        // デスクリプタ
+        DescriptorSetInfo info;
+        info.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
+        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, envTextureView, sampler);
+        equirectangularSet = CreateDescriptorSet(equirectangularShader, 0, info);
+
+        IBLProcessFB = CreateFramebuffer(IBLProcessPass, 1, &cubemapTexture, 1024, 1024);
+
+        // キューブマップ書き込み
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        {
+            // イメージレイアウトを read_only に移行させる（現状、mip[0]しか移行していない）
+            TextureBarrierInfo info = {};
+            info.texture      = cubemapTexture;
+            info.subresources = {};
+            info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.oldLayout    = TEXTURE_LAYOUT_UNDEFINED;
+            info.newLayout    = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+
+            MeshSource* ms = cubeMesh->GetMeshSource();
+
+            api->SetViewport(cmd, 0, 0, 1024, 1024);
+            api->SetScissor(cmd,  0, 0, 1024, 1024);
+
+            api->BeginRenderPass(cmd, IBLProcessPass, IBLProcessFB, 1, &cubemapTextureView);
+            api->BindPipeline(cmd, equirectangularPipeline);
+            api->BindDescriptorSet(cmd, equirectangularSet, 0);
+            api->BindVertexBuffer(cmd, ms->GetVertexBuffer(), 0);
+            api->BindIndexBuffer(cmd, ms->GetIndexBuffer(), INDEX_BUFFER_FORMAT_UINT32, 0);
+            api->DrawIndexed(cmd, ms->GetIndexCount(), 1, 0, 0, 0);
+            api->EndRenderPass(cmd);
+#if 1
+            info = {};
+            info.texture      = cubemapTexture;
+            info.subresources = {};
+            info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.oldLayout    = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            info.newLayout    = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
+            api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+
+            _GenerateMipmaps(cmd, cubemapTexture, 1024, 1024, 1, 6, TEXTURE_ASPECT_COLOR_BIT);
+
+            info.oldLayout = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            info.newLayout = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+#endif
+        });
+
+        //api->DestroyFramebuffer(IBLProcessFB);
+
+        //CreateIrradiance();
+        //CreateBRDF();
+        //CreatePrefilter();
+    }
+
+    void RHI::CreateIrradiance()
+    {
+        const uint32 irradianceResolution = 32;
+
+        // シェーダー
+        //ShaderCompiledData compiledData;
+        //ShaderCompiler::Get()->Compile("Assets/Shaders/Irradiance.glsl", compiledData);
+        //irradianceShader = api->CreateShader(compiledData);
+
+        // キューブマップ
+        irradianceTexture     = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, irradianceResolution, irradianceResolution, false);
+        irradianceTextureView = CreateTextureView(irradianceTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT);
+
+        api->CreateFramebuffer(IBLProcessPass, 1, &irradianceTexture, irradianceResolution, irradianceResolution);
+    }
+
+    void RHI::CreatePrefilter()
+    {
+    }
+
+    void RHI::CreateBRDF()
+    {
     }
 
     void RHI::PrepareGBuffer(uint32 width, uint32 height)
@@ -583,17 +612,9 @@ namespace Silex
 
         {
             // Gバッファ―
-            InputLayout layout;
-            layout.Binding(0);
-            layout.Attribute(0, VERTEX_BUFFER_FORMAT_R32G32B32);
-            layout.Attribute(1, VERTEX_BUFFER_FORMAT_R32G32B32);
-            layout.Attribute(2, VERTEX_BUFFER_FORMAT_R32G32);
-            layout.Attribute(3, VERTEX_BUFFER_FORMAT_R32G32B32);
-            layout.Attribute(4, VERTEX_BUFFER_FORMAT_R32G32B32);
-
             PipelineStateInfoBuilder builder;
             PipelineStateInfo pipelineInfo = builder
-                .InputLayout(1, &layout)
+                .InputLayout(1, &defaultLayout)
                 .Depth(true, true)
                 .Stencil(true, 1, COMPARE_OP_ALWAYS)
                 .Blend(false, 4)
@@ -720,17 +741,9 @@ namespace Silex
         }
 
         {
-            InputLayout layout;
-            layout.Binding(0);
-            layout.Attribute(0, VERTEX_BUFFER_FORMAT_R32G32B32);
-            layout.Attribute(1, VERTEX_BUFFER_FORMAT_R32G32B32);
-            layout.Attribute(2, VERTEX_BUFFER_FORMAT_R32G32);
-            layout.Attribute(3, VERTEX_BUFFER_FORMAT_R32G32B32);
-            layout.Attribute(4, VERTEX_BUFFER_FORMAT_R32G32B32);
-
             PipelineStateInfoBuilder builder;
             PipelineStateInfo pipelineInfo = builder
-                .InputLayout(1, &layout)
+                .InputLayout(1, &defaultLayout)
                 .Rasterizer(POLYGON_CULL_BACK, POLYGON_FRONT_FACE_CLOCKWISE)
                 .Depth(false, false)
                 .Stencil(true, 0, COMPARE_OP_EQUAL)
@@ -853,6 +866,24 @@ namespace Silex
         ImGui::End();
 
         ImGui::PopStyleVar(2);
+    }
+
+    void RHI::CleanupIBL()
+    {
+        api->UnmapBuffer(equirectangularUBO);
+        api->DestroyBuffer(equirectangularUBO);
+
+        api->DestroyTexture(cubemapTexture);
+        api->DestroyTextureView(cubemapTextureView);
+        api->DestroyTexture(envTexture);
+        api->DestroyTextureView(envTextureView);
+
+        api->DestroyRenderPass(IBLProcessPass);
+        api->DestroyFramebuffer(IBLProcessFB);
+
+        api->DestroyShader(equirectangularShader);
+        api->DestroyPipeline(equirectangularPipeline);
+        api->DestroyDescriptorSet(equirectangularSet);
     }
 
     void RHI::CleanupGBuffer()
@@ -1189,9 +1220,9 @@ namespace Silex
 
     TextureHandle* RHI::_CreateTexture(TextureDimension dimension, TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 depth, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags)
     {
-        int32 usage = TEXTURE_USAGE_SAMPLING_BIT;
+        int32 usage = TEXTURE_USAGE_SAMPLING_BIT | TEXTURE_USAGE_COPY_DST_BIT;
         usage |= RenderingUtility::IsDepthFormat(format)? TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : TEXTURE_USAGE_COLOR_ATTACHMENT_BIT;
-        usage |= genMipmap? TEXTURE_USAGE_COPY_SRC_BIT | TEXTURE_USAGE_COPY_DST_BIT : TEXTURE_USAGE_COPY_DST_BIT;
+        usage |= genMipmap? TEXTURE_USAGE_COPY_SRC_BIT : 0;
         usage |= additionalFlags;
 
         auto mipmaps = RenderingUtility::CalculateMipmap(width, height);
@@ -1297,9 +1328,11 @@ namespace Silex
             Extent srcExtent = mipmaps[mipLevel + 0];
             Extent dstExtent = mipmaps[mipLevel + 1];
 
+            //------------------------------------------------------------------------------------------------------------------------------------------
             // NOTE:
-            // srcImageがVK_IMAGE_TYPE_1DまたはVK_IMAGE_TYPE_2D型の場合、pRegionsの各要素について、srcOffsets[0].zは0、srcOffsets[1].zは1でなければなりません。
+            // srcImageが VK_IMAGE_TYPE_1D または VK_IMAGE_TYPE_2D 型の場合、pRegionsの各要素について、srcOffsets[0].zは0、srcOffsets[1].z は1でなければなりません。
             // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/vkCmdBlitImage.html#VUID-vkCmdBlitImage-srcImage-00247
+            //------------------------------------------------------------------------------------------------------------------------------------------
 
             TextureBlitRegion region = {};
             region.srcOffset[0] = { 0, 0, 0 };

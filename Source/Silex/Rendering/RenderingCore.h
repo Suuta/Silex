@@ -500,7 +500,7 @@ namespace Silex
     {
         TextureAspectFlags aspect        = TEXTURE_ASPECT_COLOR_BIT;
         uint32             baseMipLevel  = 0;
-        uint32             mipLevelCount = RENDER_AUTO_ID; // VK_REMAINING_ARRAY_LAYERS
+        uint32             mipLevelCount = RENDER_AUTO_ID; //VK_REMAINING_ARRAY_LAYERS
         uint32             baseLayer     = 0;
         uint32             layerCount    = RENDER_AUTO_ID; // VK_REMAINING_MIP_LEVELS
     };

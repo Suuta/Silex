@@ -194,7 +194,6 @@ namespace Silex
         //===========================================================
         // ヘルパー
         //===========================================================
-
         Buffer*        _CreateAndMapBuffer(BufferUsageBits type, const void* data, uint64 dataSize, void** outMappedAdress);
         Buffer*        _CreateAndSubmitBufferData(BufferUsageBits type, const void* data, uint64 dataSize);
 
@@ -207,7 +206,6 @@ namespace Silex
         //===========================================================
         // メンバ
         //===========================================================
-
         ImmidiateCommandData     immidiateContext = {};
         std::array<FrameData, 2> frameData        = {};
         uint64                   frameIndex       = 0;
@@ -254,16 +252,37 @@ namespace Silex
         void CleanupEnvironmentBuffer();
         EnvironmentBuffer environment;
 
+        // IBL生成
+        void PrepareIBL(const char* environmentTexturePath);
+        void CleanupIBL();
+
+        void CreateIrradiance();
+        void CreatePrefilter();
+        void CreateBRDF();
+
     public:
+
+        // 頂点レイアウト
+        InputLayout defaultLayout;
+
+        // IBL
+        FramebufferHandle* IBLProcessFB       = nullptr;
+        RenderPass*        IBLProcessPass     = nullptr;
 
         // キューブマップ変換
         Pipeline*          equirectangularPipeline = nullptr;
-        FramebufferHandle* equirectangularFB       = nullptr;
-        RenderPass*        equirectangularPass     = nullptr;
         ShaderHandle*      equirectangularShader   = nullptr;
         DescriptorSet*     equirectangularSet      = nullptr;
         Buffer*            equirectangularUBO      = nullptr;
         void*              mappedEquirectanguler   = nullptr;
+        TextureHandle*     cubemapTexture          = nullptr;
+        TextureView*       cubemapTextureView      = nullptr;
+
+        // 放射照度マップ
+        Pipeline*          irradiancePipeline    = nullptr;
+        ShaderHandle*      irradianceShader      = nullptr;
+        TextureHandle*     irradianceTexture     = nullptr;
+        TextureView*       irradianceTextureView = nullptr;
 
         // シーンBlit
         FramebufferHandle* compositFB          = nullptr;
@@ -299,9 +318,6 @@ namespace Silex
 
         TextureHandle* envTexture     = nullptr;
         TextureView*   envTextureView = nullptr;
-
-        TextureHandle* cubemapTexture     = nullptr;
-        TextureView*   cubemapTextureView = nullptr;
     };
 }
 
