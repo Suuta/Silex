@@ -38,13 +38,14 @@ layout(location = 0)  in vec3 inPosAsUV;
 layout(location = 0) out vec4 outColor;
 
 layout (set = 0, binding = 1) uniform samplerCube environmentMap;
+layout (set = 0, binding = 2) uniform samplerCube irradianceMap;
+layout (set = 0, binding = 3) uniform sampler2D   brdfMap;
+layout (set = 0, binding = 4) uniform samplerCube prefilterMap;
 
 void main()
 {
     // ローカル頂点座標がそのままキューブのテクスチャ座標になる
     vec3 pos      = inPosAsUV;
     vec3 envColor = texture(environmentMap, pos).rgb;
-
     outColor = vec4(envColor, 1.0);
-    outColor.rgb = pow(outColor.rgb, vec3(2.2));
 }

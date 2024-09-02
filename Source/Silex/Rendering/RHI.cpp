@@ -23,6 +23,11 @@ namespace Silex
 
     namespace Test
     {
+        struct PrifilterParam
+        {
+            float roughness;
+        };
+
         struct Transform
         {
             glm::mat4 world      = glm::mat4(1.0f);
@@ -111,7 +116,6 @@ namespace Silex
         CleanupGBuffer();
         CleanupLightingBuffer();
         CleanupEnvironmentBuffer();
-
 
         api->UnmapBuffer(gridUBO);
         api->DestroyBuffer(gridUBO);
@@ -392,7 +396,10 @@ namespace Silex
 
         // キューブマップ
         cubemapTexture     = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, 1024, 1024, true);
-        cubemapTextureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT, 0, 6, 0, 1);
+        cubemapTextureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT);
+
+        // 一時ビュー
+        TextureView* captureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT, 0, 6, 0, 1);
 
         // キューブマップ UBO
         Test::EquirectangularData data;
@@ -441,14 +448,14 @@ namespace Silex
             api->SetViewport(cmd, 0, 0, 1024, 1024);
             api->SetScissor(cmd,  0, 0, 1024, 1024);
 
-            api->BeginRenderPass(cmd, IBLProcessPass, IBLProcessFB, 1, &cubemapTextureView);
+            api->BeginRenderPass(cmd, IBLProcessPass, IBLProcessFB, 1, &captureView);
             api->BindPipeline(cmd, equirectangularPipeline);
             api->BindDescriptorSet(cmd, equirectangularSet, 0);
             api->BindVertexBuffer(cmd, ms->GetVertexBuffer(), 0);
             api->BindIndexBuffer(cmd, ms->GetIndexBuffer(), INDEX_BUFFER_FORMAT_UINT32, 0);
             api->DrawIndexed(cmd, ms->GetIndexCount(), 1, 0, 0, 0);
             api->EndRenderPass(cmd);
-#if 1
+
             info = {};
             info.texture      = cubemapTexture;
             info.subresources = {};
@@ -463,14 +470,14 @@ namespace Silex
             info.oldLayout = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
             info.newLayout = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
-#endif
         });
 
-        //api->DestroyFramebuffer(IBLProcessFB);
+        // キャプチャ用テンポラリビュー破棄
+        api->DestroyTextureView(captureView);
 
-        //CreateIrradiance();
-        //CreateBRDF();
-        //CreatePrefilter();
+        CreateIrradiance();
+        CreatePrefilter();
+        CreateBRDF();
     }
 
     void RHI::CreateIrradiance()
@@ -478,23 +485,165 @@ namespace Silex
         const uint32 irradianceResolution = 32;
 
         // シェーダー
-        //ShaderCompiledData compiledData;
-        //ShaderCompiler::Get()->Compile("Assets/Shaders/Irradiance.glsl", compiledData);
-        //irradianceShader = api->CreateShader(compiledData);
+        ShaderCompiledData compiledData;
+        ShaderCompiler::Get()->Compile("Assets/Shaders/Irradiance.glsl", compiledData);
+        irradianceShader = api->CreateShader(compiledData);
+
+        PipelineStateInfoBuilder builder;
+        PipelineStateInfo pipelineInfo = builder
+            .InputLayout(1, &defaultLayout)
+            .Rasterizer(POLYGON_CULL_BACK, POLYGON_FRONT_FACE_CLOCKWISE)
+            .Depth(false, false)
+            .Blend(false, 1)
+            .Value();
+
+        irradiancePipeline = api->CreateGraphicsPipeline(irradianceShader, &pipelineInfo, IBLProcessPass);
 
         // キューブマップ
         irradianceTexture     = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, irradianceResolution, irradianceResolution, false);
         irradianceTextureView = CreateTextureView(irradianceTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT);
 
-        api->CreateFramebuffer(IBLProcessPass, 1, &irradianceTexture, irradianceResolution, irradianceResolution);
+        // リサイズ
+        api->DestroyFramebuffer(IBLProcessFB);
+        IBLProcessFB = api->CreateFramebuffer(IBLProcessPass, 1, &irradianceTexture, irradianceResolution, irradianceResolution);
+
+        // デスクリプタ
+        DescriptorSetInfo info;
+        info.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
+        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView, sampler);
+        irradianceSet = CreateDescriptorSet(irradianceShader, 0, info);
+
+        // キューブマップ書き込み
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        {
+            MeshSource* ms = cubeMesh->GetMeshSource();
+
+            api->SetViewport(cmd, 0, 0, irradianceResolution, irradianceResolution);
+            api->SetScissor(cmd,  0, 0, irradianceResolution, irradianceResolution);
+
+            api->BeginRenderPass(cmd, IBLProcessPass, IBLProcessFB, 1, &irradianceTextureView);
+            api->BindPipeline(cmd, irradiancePipeline);
+            api->BindDescriptorSet(cmd, irradianceSet, 0);
+            api->BindVertexBuffer(cmd, ms->GetVertexBuffer(), 0);
+            api->BindIndexBuffer(cmd, ms->GetIndexBuffer(), INDEX_BUFFER_FORMAT_UINT32, 0);
+            api->DrawIndexed(cmd, ms->GetIndexCount(), 1, 0, 0, 0);
+            api->EndRenderPass(cmd);
+        });
     }
 
     void RHI::CreatePrefilter()
     {
+        const uint32 prefilterResolution = 256;
+        const uint32 prefilterMipCount   = 5;
+        const auto   miplevels           = RenderingUtility::CalculateMipmap(prefilterResolution, prefilterResolution);
+
+        // シェーダー
+        ShaderCompiledData compiledData;
+        ShaderCompiler::Get()->Compile("Assets/Shaders/Prefilter.glsl", compiledData);
+        prefilterShader = api->CreateShader(compiledData);
+
+        PipelineStateInfoBuilder builder;
+        PipelineStateInfo pipelineInfo = builder
+            .InputLayout(1, &defaultLayout)
+            .Rasterizer(POLYGON_CULL_BACK, POLYGON_FRONT_FACE_CLOCKWISE)
+            .Depth(false, false)
+            .Blend(false, 1)
+            .Value();
+
+        prefilterPipeline = api->CreateGraphicsPipeline(prefilterShader, &pipelineInfo, IBLProcessPass);
+
+        // キューブマップ
+        prefilterTexture     = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, prefilterResolution, prefilterResolution, true);
+        prefilterTextureView = CreateTextureView(prefilterTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT);
+
+        // 生成用ビュー（ミップレベル分用意）
+        std::array<TextureView*, prefilterMipCount> prefilterViews;
+        for (uint32 i = 0; i < prefilterMipCount; i++)
+        {
+            prefilterViews[i] = CreateTextureView(prefilterTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT, 0, 6, i, 1);
+        }
+
+        // 生成用フレームバッファ（ミップレベル分用意）
+        std::array<FramebufferHandle*, prefilterMipCount> prefilterFBs;
+        for (uint32 i = 0; i < prefilterMipCount; i++)
+        {
+            prefilterFBs[i] = api->CreateFramebuffer(IBLProcessPass, 1, &prefilterTexture, miplevels[i].width, miplevels[i].height);
+        }
+
+        // デスクリプタ
+        DescriptorSetInfo info;
+        info.AddBuffer( 0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
+        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  cubemapTextureView, sampler);
+        prefilterSet = CreateDescriptorSet(prefilterShader, 0, info);
+
+        // キューブマップ書き込み
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        {
+            MeshSource* ms = cubeMesh->GetMeshSource();
+            api->BindVertexBuffer(cmd, ms->GetVertexBuffer(), 0);
+            api->BindIndexBuffer(cmd, ms->GetIndexBuffer(), INDEX_BUFFER_FORMAT_UINT32, 0);
+
+            for (uint32 i = 0; i < prefilterMipCount; i++)
+            {
+                api->SetViewport(cmd, 0, 0, miplevels[i].width, miplevels[i].height);
+                api->SetScissor(cmd,  0, 0, miplevels[i].width, miplevels[i].height);
+
+                api->BeginRenderPass(cmd, IBLProcessPass, prefilterFBs[i], 1, &prefilterViews[i]);
+                api->BindPipeline(cmd, prefilterPipeline);
+                api->BindDescriptorSet(cmd, prefilterSet, 0);
+
+                // firstInstance でミップレベルを指定（シェーダー内でラフネス計算）
+                api->DrawIndexed(cmd, ms->GetIndexCount(), 1, 0, 0, i);
+
+                api->EndRenderPass(cmd);
+            }
+        });
+
+
+        // テンポラリオブジェクト破棄
+        for (uint32 i = 0; i < prefilterMipCount; i++)
+        {
+            api->DestroyFramebuffer(prefilterFBs[i]);
+            api->DestroyTextureView(prefilterViews[i]);
+        }
     }
 
     void RHI::CreateBRDF()
     {
+        const uint32 brdfResolution = 512;
+
+        ShaderCompiledData compiledData;
+        ShaderCompiler::Get()->Compile("Assets/Shaders/BRDF.glsl", compiledData);
+        brdflutShader = api->CreateShader(compiledData);
+
+        PipelineStateInfoBuilder builder;
+        PipelineStateInfo pipelineInfo = builder
+            .Depth(false, false)
+            .Blend(false, 1)
+            .Value();
+
+        brdflutPipeline = api->CreateGraphicsPipeline(brdflutShader, &pipelineInfo, IBLProcessPass);
+
+        brdflutTexture     = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM, brdfResolution, brdfResolution, false);
+        brdflutTextureView = CreateTextureView(brdflutTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+
+        // リサイズ
+        api->DestroyFramebuffer(IBLProcessFB);
+        IBLProcessFB = api->CreateFramebuffer(IBLProcessPass, 1, &brdflutTexture, brdfResolution, brdfResolution);
+
+        // キューブマップ書き込み
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        {
+            MeshSource* ms = cubeMesh->GetMeshSource();
+
+            api->SetViewport(cmd, 0, 0, brdfResolution, brdfResolution);
+            api->SetScissor(cmd,  0, 0, brdfResolution, brdfResolution);
+
+            api->BeginRenderPass(cmd, IBLProcessPass, IBLProcessFB, 1, &brdflutTextureView);
+            api->BindPipeline(cmd, brdflutPipeline);
+            api->Draw(cmd, 3, 1, 0, 0);
+            api->EndRenderPass(cmd);
+        });
     }
 
     void RHI::PrepareGBuffer(uint32 width, uint32 height)
@@ -758,7 +907,10 @@ namespace Silex
 
             DescriptorSetInfo materialInfo = {};
             materialInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, environment.ubo);
-            materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView, sampler);
+            materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView,    sampler);
+            materialInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER, irradianceTextureView, sampler);
+            materialInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER, brdflutTextureView,    sampler);
+            materialInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER, prefilterTextureView,  sampler);
             environment.set = CreateDescriptorSet(environment.shader, 0, materialInfo);
         }
     }
@@ -870,20 +1022,36 @@ namespace Silex
 
     void RHI::CleanupIBL()
     {
-        api->UnmapBuffer(equirectangularUBO);
-        api->DestroyBuffer(equirectangularUBO);
-
-        api->DestroyTexture(cubemapTexture);
-        api->DestroyTextureView(cubemapTextureView);
         api->DestroyTexture(envTexture);
         api->DestroyTextureView(envTextureView);
 
-        api->DestroyRenderPass(IBLProcessPass);
         api->DestroyFramebuffer(IBLProcessFB);
+        api->DestroyRenderPass(IBLProcessPass);
+        api->UnmapBuffer(equirectangularUBO);
+        api->DestroyBuffer(equirectangularUBO);
 
-        api->DestroyShader(equirectangularShader);
         api->DestroyPipeline(equirectangularPipeline);
+        api->DestroyShader(equirectangularShader);
         api->DestroyDescriptorSet(equirectangularSet);
+        api->DestroyTexture(cubemapTexture);
+        api->DestroyTextureView(cubemapTextureView);
+
+        api->DestroyPipeline(irradiancePipeline);
+        api->DestroyShader(irradianceShader);
+        api->DestroyDescriptorSet(irradianceSet);
+        api->DestroyTexture(irradianceTexture);
+        api->DestroyTextureView(irradianceTextureView);
+
+        api->DestroyPipeline(prefilterPipeline);
+        api->DestroyShader(prefilterShader);
+        api->DestroyDescriptorSet(prefilterSet);
+        api->DestroyTexture(prefilterTexture);
+        api->DestroyTextureView(prefilterTextureView);
+
+        api->DestroyPipeline(brdflutPipeline);
+        api->DestroyShader(brdflutShader);
+        api->DestroyTexture(brdflutTexture);
+        api->DestroyTextureView(brdflutTextureView);
     }
 
     void RHI::CleanupGBuffer()

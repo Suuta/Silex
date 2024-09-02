@@ -61,25 +61,24 @@ namespace Silex
 
     struct Extent
     {
-        uint32 width  = 0;
-        uint32 height = 0;
+        uint32 width  = 1;
+        uint32 height = 1;
         uint32 depth  = 1;
     };
 
     //================================================
     // デバイス
     //================================================
+    //https://pcisig.com/membership/member-companies?combine=&order=field_vendor_id&sort=asc&page=1
     enum DeviceVendor
     {
         DEVICE_VENDOR_UNKNOWN   = 0x0000,
-        DEVICE_VENDOR_AMD       = 0x1002,
-        DEVICE_VENDOR_IMGTEC    = 0x1010,
-        DEVICE_VENDOR_APPLE     = 0x106B,
+        DEVICE_VENDOR_AMD       = 0x1022,
         DEVICE_VENDOR_NVIDIA    = 0x10DE,
         DEVICE_VENDOR_ARM       = 0x13B5,
-        DEVICE_VENDOR_MICROSOFT = 0x1414,
-        DEVICE_VENDOR_QUALCOMM  = 0x5143,
         DEVICE_VENDOR_INTEL     = 0x8086,
+      //DEVICE_VENDOR_APPLE     = 0x106B,
+      //DEVICE_VENDOR_QUALCOMM  = 0x17CB,
     };
 
     enum DeviceType

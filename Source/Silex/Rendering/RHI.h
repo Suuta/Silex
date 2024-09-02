@@ -262,27 +262,40 @@ namespace Silex
 
     public:
 
-        // 頂点レイアウト
-        InputLayout defaultLayout;
-
         // IBL
-        FramebufferHandle* IBLProcessFB       = nullptr;
-        RenderPass*        IBLProcessPass     = nullptr;
+        FramebufferHandle* IBLProcessFB          = nullptr;
+        RenderPass*        IBLProcessPass        = nullptr;
+        Buffer*            equirectangularUBO    = nullptr;
+        void*              mappedEquirectanguler = nullptr;
 
         // キューブマップ変換
-        Pipeline*          equirectangularPipeline = nullptr;
-        ShaderHandle*      equirectangularShader   = nullptr;
-        DescriptorSet*     equirectangularSet      = nullptr;
-        Buffer*            equirectangularUBO      = nullptr;
-        void*              mappedEquirectanguler   = nullptr;
-        TextureHandle*     cubemapTexture          = nullptr;
-        TextureView*       cubemapTextureView      = nullptr;
+        Pipeline*      equirectangularPipeline = nullptr;
+        ShaderHandle*  equirectangularShader   = nullptr;
+        TextureHandle* cubemapTexture          = nullptr;
+        TextureView*   cubemapTextureView      = nullptr;
+        DescriptorSet* equirectangularSet      = nullptr;
 
-        // 放射照度マップ
-        Pipeline*          irradiancePipeline    = nullptr;
-        ShaderHandle*      irradianceShader      = nullptr;
-        TextureHandle*     irradianceTexture     = nullptr;
-        TextureView*       irradianceTextureView = nullptr;
+        // irradiance
+        Pipeline*      irradiancePipeline    = nullptr;
+        ShaderHandle*  irradianceShader      = nullptr;
+        TextureHandle* irradianceTexture     = nullptr;
+        TextureView*   irradianceTextureView = nullptr;
+        DescriptorSet* irradianceSet         = nullptr;
+
+        // prefilter
+        Pipeline*      prefilterPipeline    = nullptr;
+        ShaderHandle*  prefilterShader      = nullptr;
+        TextureHandle* prefilterTexture     = nullptr;
+        TextureView*   prefilterTextureView = nullptr;
+        DescriptorSet* prefilterSet         = nullptr;
+
+        // BRDF-LUT
+        Pipeline*      brdflutPipeline    = nullptr;
+        ShaderHandle*  brdflutShader      = nullptr;
+        TextureHandle* brdflutTexture     = nullptr;
+        TextureView*   brdflutTextureView = nullptr;
+
+    public:
 
         // シーンBlit
         FramebufferHandle* compositFB          = nullptr;
@@ -293,24 +306,35 @@ namespace Silex
         Pipeline*          compositPipeline    = nullptr;
         DescriptorSet*     compositSet         = nullptr;
 
+    public:
+
+        // グリッド
+        Buffer*        gridUBO        = nullptr;
+        void*          mappedGridData = nullptr;
+        ShaderHandle*  gridShader     = nullptr;
+        Pipeline*      gridPipeline   = nullptr;
+        DescriptorSet* gridSet        = nullptr;
+
+    public:
+
         // ImGui::Image
         DescriptorSet* imageSet = nullptr;
-
-        // Scene
-        glm::ivec2 sceneFramebufferSize = {};
-        Sampler*   sampler              = nullptr;
 
         // swapchain
         FramebufferHandle* currentSwapchainFramebuffer = nullptr;
         TextureView*       currentSwapchainView        = nullptr;
         RenderPass*        swapchainPass               = nullptr;
 
-        // グリッド
-        Buffer*        gridUBO         = nullptr;
-        void*          mappedGridData  = nullptr;
-        ShaderHandle*  gridShader    = nullptr;
-        Pipeline*      gridPipeline  = nullptr;
-        DescriptorSet* gridSet       = nullptr;
+    public:
+
+        // Scene
+        glm::ivec2 sceneFramebufferSize = {};
+        Sampler*   sampler              = nullptr;
+
+        // 頂点レイアウト
+        InputLayout defaultLayout;
+
+    public:
 
         // テクスチャ
         TextureHandle* defaultTexture     = nullptr;
