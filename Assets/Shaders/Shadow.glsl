@@ -2,46 +2,49 @@
 // 頂点シェーダ
 //===================================================================================
 #pragma VERTEX
-#version 450 core
+#version 450
 
-layout (location = 0) in vec3 aPos;       // 頂点: 座標
-layout (location = 1) in vec3 aNormal;    // 頂点: ノーマル
-layout (location = 2) in vec2 aTexCoords; // 頂点: UV
-
-//layout (location = 3) in vec4 aTransform0; // インスタンス: トランスフォーム0
-//layout (location = 4) in vec4 aTransform1; // インスタンス: トランスフォーム1
-//layout (location = 5) in vec4 aTransform2; // インスタンス: トランスフォーム2
-
-//layout (location = N) in vec3 aTangent;
-//layout (location = N) in vec3 aBitangent;
-
-uniform mat4 model;
-uniform int  instanceOffset;
+layout (location = 0) in vec3 inPos;
+layout (location = 1) in vec3 inNormal;
+layout (location = 2) in vec2 inTexCoord;
+layout (location = 3) in vec3 inTangent;
+layout (location = 4) in vec3 inBitangent;
 
 
-struct InstanceParameter
-{
-    mat4  transformMatrix;
-    mat4  normalMatrix;
-    ivec4 pixelID;
-};
+//uniform mat4 model;
+//uniform int  instanceOffset;
+
+//struct InstanceParameter
+//{
+//    mat4  transformMatrix;
+//    mat4  normalMatrix;
+//    ivec4 pixelID;
+//};
 
 // インスタンスバッファ
-layout (std430, binding = 0) buffer InstanceParameterStorage
+//layout (std430, binding = 0) buffer InstanceParameterStorage
+//{
+//    InstanceParameter parameter[];
+//;
+
+
+layout (set = 0, binding = 0) uniform Transform
 {
-    InstanceParameter parameter[];
+    mat4 world;
 };
 
 
 void main()
 {
     // SSBOを使う場合
-    mat4 worldMatrix = parameter[instanceOffset + gl_InstanceID].transformMatrix;
-    gl_Position = worldMatrix * vec4(aPos, 1.0);
+    //mat4 worldMatrix = parameter[instanceOffset + gl_InstanceID].transformMatrix;
+    //gl_Position = worldMatrix * vec4(inPos, 1.0);
 
     // 頂点インスタンスを使った場合
     //gl_Position = aTransform0 * vec4(aPos, 1.0);
     //gl_Position = model * vec4(aPos, 1.0);
+
+    gl_Position = world * vec4(inPos, 1.0);
 }
 
 
@@ -49,18 +52,18 @@ void main()
 // ジオメトリシェーダ
 //===================================================================================
 #pragma GEOMETRY
-#version 450 core
+#version 450
 
+// シェーダー呼び出し回数
 layout(triangles,      invocations  = 4) in;
 layout(triangle_strip, max_vertices = 3) out;
 
-layout (std140, binding = 0) uniform LightSpaceMatrices
+layout (set = 0, binding = 1) uniform LightSpaceMatrices
 {
     mat4 lightSpaceMatrices[4];
 };
 
-// 頂点シェーダーは頂点に対して1度しか処理できない
-// 各レイヤーに対して1回の描画で複数レイヤーに書き込むため
+
 void main()
 {
     for (int i = 0; i < 3; ++i)
@@ -83,10 +86,17 @@ void main()
 // フラグメントシェーダ
 //===================================================================================
 #pragma FRAGMENT
-#version 450 core
+#version 450
     
 void main()
 {
-    // 実際には、フラグメントシェーダーが内部で実行するので行う必要はない
+    //-------------------------------------------------------------------------------
+    // フラグメントシェーダーが内部で実行する処理
     // gl_FragDepth = gl_FragCoord.z;
+    //-------------------------------------------------------------------------------
+    // 本来は ピクセルシェーダー ⇒ 深度 の順で実行されるが、余剰ピクセルの計算が発生しないように
+    // 深度 => ピクセルシェーダー の順で実行されるように最適化される。
+    // しかし、手動で深度値に変更を加えると、深度テスト前にフラグメントシェーダーが（本来の順序で）
+    // 実行されるようになってしまう。 このほかに "discard" 命令もこの対象になる
+    //--------------------------------------------------------------------------------
 }

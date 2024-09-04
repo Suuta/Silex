@@ -21,6 +21,10 @@ namespace Silex
     Mesh* cubeMesh   = nullptr;
     Mesh* sponzaMesh = nullptr;
 
+    // シャドウマップ
+    static const uint32  shadowMapResolution = 1024;
+    std::array<float, 4> shadowCascadeLevels = { 10.0f, 40.0f, 100.0f, 200.0f };
+
     namespace Test
     {
         struct PrifilterParam
@@ -33,6 +37,16 @@ namespace Silex
             glm::mat4 world      = glm::mat4(1.0f);
             glm::mat4 view       = glm::mat4(1.0f);
             glm::mat4 projection = glm::mat4(1.0f);
+        };
+
+        struct ShadowTransformData
+        {
+            glm::mat4 world = glm::mat4(1.0f);
+        };
+
+        struct LightSpaceTransformData
+        {
+            std::array<glm::mat4, 4> cascade;
         };
 
         struct GridData
@@ -113,6 +127,7 @@ namespace Silex
         sldelete(sponzaMesh);
 
         CleanupIBL();
+        CleanupShadowBuffer();
         CleanupGBuffer();
         CleanupLightingBuffer();
         CleanupEnvironmentBuffer();
@@ -132,7 +147,8 @@ namespace Silex
         api->DestroyPipeline(compositPipeline);
         api->DestroyRenderPass(compositPass);
         api->DestroyFramebuffer(compositFB);
-        api->DestroySampler(sampler);
+        api->DestroySampler(linearSampler);
+        api->DestroySampler(shadowSampler);
 
         for (uint32 i = 0; i < frameData.size(); i++)
         {
@@ -262,6 +278,8 @@ namespace Silex
         cubeMesh   = MeshFactory::Cube();
         sponzaMesh = MeshFactory::Sponza();
 
+        sceneLightDir = glm::vec3(1, 1, 0);
+
         defaultLayout.Binding(0);
         defaultLayout.Attribute(0, VERTEX_BUFFER_FORMAT_R32G32B32);
         defaultLayout.Attribute(1, VERTEX_BUFFER_FORMAT_R32G32B32);
@@ -269,8 +287,22 @@ namespace Silex
         defaultLayout.Attribute(3, VERTEX_BUFFER_FORMAT_R32G32B32);
         defaultLayout.Attribute(4, VERTEX_BUFFER_FORMAT_R32G32B32);
 
-        SamplerInfo info = {};
-        sampler = api->CreateSampler(info);
+        {
+            SamplerInfo linear = {};
+            linear.magFilter = SAMPLER_FILTER_LINEAR;
+            linear.minFilter = SAMPLER_FILTER_LINEAR;
+            linear.mipFilter = SAMPLER_FILTER_LINEAR;
+            linearSampler = api->CreateSampler(linear);
+        
+            SamplerInfo shadow = {};
+            shadow.magFilter     = SAMPLER_FILTER_LINEAR;
+            shadow.minFilter     = SAMPLER_FILTER_LINEAR;
+            shadow.mipFilter     = SAMPLER_FILTER_LINEAR;
+            shadow.enableCompare = true;
+            shadow.compareOp     = COMPARE_OP_LESS;
+            shadowSampler = api->CreateSampler(shadow);
+        }
+
 
         TextureReader reader;
         byte* pixels;
@@ -320,7 +352,10 @@ namespace Silex
         // IBL
         PrepareIBL("Assets/Textures/cloud.png");
 
-        // Gバッファ初期化
+        // シャドウマップ
+        PrepareShadowBuffer();
+
+        // Gバッファ
         PrepareGBuffer(size.x, size.y);
 
         // ライティングバッファ
@@ -349,13 +384,13 @@ namespace Silex
 
         {
             DescriptorSetInfo blitinfo;
-            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  lighting.view, sampler);
+            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  lighting.view, linearSampler);
             compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
         }
 
         {
             DescriptorSetInfo imageinfo;
-            imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTextureView, sampler);
+            imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTextureView, linearSampler);
             imageSet = CreateDescriptorSet(compositShader, 0, imageinfo);
         }
     }
@@ -425,7 +460,7 @@ namespace Silex
         // デスクリプタ
         DescriptorSetInfo info;
         info.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
-        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, envTextureView, sampler);
+        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, envTextureView, linearSampler);
         equirectangularSet = CreateDescriptorSet(equirectangularShader, 0, info);
 
         IBLProcessFB = CreateFramebuffer(IBLProcessPass, 1, &cubemapTexture, 1024, 1024);
@@ -510,7 +545,7 @@ namespace Silex
         // デスクリプタ
         DescriptorSetInfo info;
         info.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
-        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView, sampler);
+        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView, linearSampler);
         irradianceSet = CreateDescriptorSet(irradianceShader, 0, info);
 
         // キューブマップ書き込み
@@ -573,7 +608,7 @@ namespace Silex
         // デスクリプタ
         DescriptorSetInfo info;
         info.AddBuffer( 0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
-        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  cubemapTextureView, sampler);
+        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  cubemapTextureView, linearSampler);
         prefilterSet = CreateDescriptorSet(prefilterShader, 0, info);
 
         // キューブマップ書き込み
@@ -644,6 +679,148 @@ namespace Silex
             api->Draw(cmd, 3, 1, 0, 0);
             api->EndRenderPass(cmd);
         });
+    }
+
+
+    void RHI::PrepareShadowBuffer()
+    {
+        // 環境マップ変換 レンダーパス
+        Attachment depth = {};
+        depth.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
+        depth.finalLayout   = TEXTURE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+        depth.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
+        depth.storeOp       = ATTACHMENT_STORE_OP_STORE;
+        depth.samples       = TEXTURE_SAMPLES_1;
+        depth.format        = RENDERING_FORMAT_D32_SFLOAT;
+
+        AttachmentReference depthRef = {};
+        depthRef.attachment = 0;
+        depthRef.layout     = TEXTURE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        Subpass subpass = {};
+        subpass.depthstencilReference = depthRef;
+
+        RenderPassClearValue clear;
+        clear.SetDepthStencil(1.0f, 0);
+        shadow.pass = api->CreateRenderPass(1, &depth, 1, &subpass, 0, nullptr, 1, &clear);
+
+        shadow.depth             = CreateTexture2DArray(RENDERING_FORMAT_D32_SFLOAT, shadowMapResolution, shadowMapResolution, 4);
+        shadow.depthView         = CreateTextureView(shadow.depth, TEXTURE_TYPE_2D_ARRAY, TEXTURE_ASPECT_DEPTH_BIT);
+        shadow.framebuffer       = CreateFramebuffer(shadow.pass, 1, &shadow.depth, shadowMapResolution, shadowMapResolution);
+        shadow.transformUBO      = CreateUniformBuffer(nullptr, sizeof(Test::ShadowTransformData), &shadow.transformMap);
+        shadow.lightTransformUBO = CreateUniformBuffer(nullptr, sizeof(Test::LightSpaceTransformData), &shadow.lightTransformMap);
+
+        // パイプライン
+        PipelineStateInfoBuilder builder;
+        PipelineStateInfo pipelineInfo = builder
+            .InputLayout(1, &defaultLayout)
+            .Depth(true, true)
+            .Blend(false, 1)
+            .Value();
+
+        ShaderCompiledData compiledData;
+        ShaderCompiler::Get()->Compile("Assets/Shaders/Shadow.glsl", compiledData);
+        shadow.shader   = api->CreateShader(compiledData);
+        shadow.pipeline = api->CreateGraphicsPipeline(shadow.shader, &pipelineInfo, shadow.pass);
+
+        // デスクリプター
+        DescriptorSetInfo setInfo = {};
+        setInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.transformUBO);
+        setInfo.AddBuffer(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.lightTransformUBO);
+        shadow.set = CreateDescriptorSet(shadow.shader, 0, setInfo);
+    }
+
+    void RHI::CleanupShadowBuffer()
+    {
+        api->UnmapBuffer(shadow.transformUBO);
+        api->UnmapBuffer(shadow.lightTransformUBO);
+        api->DestroyBuffer(shadow.transformUBO);
+        api->DestroyBuffer(shadow.lightTransformUBO);
+
+        api->DestroyTexture(shadow.depth);
+        api->DestroyTextureView(shadow.depthView);
+
+        api->DestroyShader(shadow.shader);
+        api->DestroyPipeline(shadow.pipeline);
+        api->DestroyDescriptorSet(shadow.set);
+        api->DestroyRenderPass(shadow.pass);
+        api->DestroyFramebuffer(shadow.framebuffer);
+    }
+
+    void RHI::CalculateLightSapceMatrices(glm::vec3 directionalLightDir, Camera* camera, std::array<glm::mat4, 4>& out_result)
+    {
+        auto nearP  = camera->GetNearPlane();
+        auto farP   = camera->GetFarPlane();
+
+        out_result[0] = (GetLightSpaceMatrix(directionalLightDir, camera, nearP,                  shadowCascadeLevels[0]));
+        out_result[1] = (GetLightSpaceMatrix(directionalLightDir, camera, shadowCascadeLevels[0], shadowCascadeLevels[1]));
+        out_result[2] = (GetLightSpaceMatrix(directionalLightDir, camera, shadowCascadeLevels[1], shadowCascadeLevels[2]));
+        out_result[3] = (GetLightSpaceMatrix(directionalLightDir, camera, shadowCascadeLevels[2], farP));
+    }
+
+    glm::mat4 RHI::GetLightSpaceMatrix(glm::vec3 directionalLightDir, Camera* camera, const float nearPlane, const float farPlane)
+    {
+        glm::mat4 proj = glm::perspective(glm::radians(camera->GetFOV()), (float)sceneFramebufferSize.x / (float)sceneFramebufferSize.y, nearPlane, farPlane);
+        
+        std::array<glm::vec4, 8> corners;
+        GetFrustumCornersWorldSpace(proj * camera->GetViewMatrix(), corners);
+
+        glm::vec3 center = glm::vec3(0, 0, 0);
+        for (const auto& v : corners)
+        {
+            center += glm::vec3(v);
+        }
+
+        center /= corners.size();
+
+        const auto lightView = glm::lookAt(center + glm::normalize(directionalLightDir), center, glm::vec3(0.0f, 1.0f, 0.0f));
+        float minX = std::numeric_limits<float>::max();
+        float maxX = std::numeric_limits<float>::lowest();
+        float minY = std::numeric_limits<float>::max();
+        float maxY = std::numeric_limits<float>::lowest();
+        float minZ = std::numeric_limits<float>::max();
+        float maxZ = std::numeric_limits<float>::lowest();
+
+        for (const auto& v : corners)
+        {
+            const auto trf = lightView * v;
+            minX = std::min(minX, trf.x);
+            maxX = std::max(maxX, trf.x);
+            minY = std::min(minY, trf.y);
+            maxY = std::max(maxY, trf.y);
+            minZ = std::min(minZ, trf.z);
+            maxZ = std::max(maxZ, trf.z);
+        }
+
+        constexpr float zMult = 10.0f;
+
+        if (minZ < 0) minZ *= zMult;
+        else          minZ /= zMult;
+
+        if (maxZ < 0) maxZ /= zMult;
+        else          maxZ *= zMult;
+
+        const glm::mat4 lightProjection = glm::ortho(minX, maxX, minY, maxY, minZ, maxZ);
+        return lightProjection * lightView;
+    }
+
+    void RHI::GetFrustumCornersWorldSpace(const glm::mat4& projview, std::array<glm::vec4, 8>& out_result)
+    {
+        const glm::mat4 inv = glm::inverse(projview);
+        uint32 index = 0;
+
+        for (uint32 x = 0; x < 2; ++x)
+        {
+            for (uint32 y = 0; y < 2; ++y)
+            {
+                for (uint32 z = 0; z < 2; ++z)
+                {
+                    const glm::vec4 pt = inv * glm::vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, 2.0f * z - 1.0f, 1.0f);
+                    out_result[index] = (pt / pt.w);
+                    index++;
+                }
+            }
+        }
     }
 
     void RHI::PrepareGBuffer(uint32 width, uint32 height)
@@ -787,7 +964,7 @@ namespace Silex
         // マテリアル
         DescriptorSetInfo materialInfo = {};
         materialInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gbuffer.materialUBO);
-        materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, defaultTextureView, sampler);
+        materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, defaultTextureView, linearSampler);
         gbuffer.materialSet  = CreateDescriptorSet(gbuffer.shader, 1, materialInfo);
     }
 
@@ -838,11 +1015,12 @@ namespace Silex
 
         // セット
         DescriptorSetInfo textureInfo = {};
-        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.albedoView,   sampler);
-        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.normalView,   sampler);
-        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.emissionView, sampler);
-        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.depthView,    sampler);
-        textureInfo.AddBuffer(4, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
+        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.albedoView,   linearSampler);
+        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.normalView,   linearSampler);
+        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.emissionView, linearSampler);
+        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.depthView,    linearSampler);
+        textureInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  shadow.depthView,     shadowSampler);
+        textureInfo.AddBuffer( 5, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
 
         lighting.set = CreateDescriptorSet(lighting.shader, 0, textureInfo);
     }
@@ -903,14 +1081,14 @@ namespace Silex
             ShaderCompiler::Get()->Compile("Assets/Shaders/Environment.glsl", compiledData);
             environment.shader   = api->CreateShader(compiledData);
             environment.pipeline = api->CreateGraphicsPipeline(environment.shader, &pipelineInfo, environment.pass);
-            environment.ubo      = CreateUniformBuffer(nullptr, sizeof(Test::EnvironmentUBO), &environment.mapped);
+            environment.ubo      = CreateUniformBuffer(nullptr, sizeof(Test::EnvironmentUBO), &environment.map);
 
             DescriptorSetInfo materialInfo = {};
             materialInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, environment.ubo);
-            materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView,    sampler);
-            materialInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER, irradianceTextureView, sampler);
-            materialInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER, brdflutTextureView,    sampler);
-            materialInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER, prefilterTextureView,  sampler);
+            materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView,    linearSampler);
+            materialInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER, irradianceTextureView, linearSampler);
+            materialInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER, brdflutTextureView,    linearSampler);
+            materialInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER, prefilterTextureView,  linearSampler);
             environment.set = CreateDescriptorSet(environment.shader, 0, materialInfo);
         }
     }
@@ -1154,11 +1332,12 @@ namespace Silex
         lighting.framebuffer = CreateFramebuffer(lighting.pass, 1, &lighting.color, width, height);
 
         DescriptorSetInfo textureInfo = {};
-        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.albedoView,   sampler);
-        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.normalView,   sampler);
-        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.emissionView, sampler);
-        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER, gbuffer.depthView,    sampler);
-        textureInfo.AddBuffer(4, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
+        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.albedoView,   linearSampler);
+        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.normalView,   linearSampler);
+        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.emissionView, linearSampler);
+        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.depthView,    linearSampler);
+        textureInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  shadow.depthView,     linearSampler);
+        textureInfo.AddBuffer( 5, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
         lighting.set = CreateDescriptorSet(lighting.shader, 0, textureInfo);
     }
 
@@ -1189,7 +1368,7 @@ namespace Silex
             compositTextureView = CreateTextureView(compositTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
             compositFB          = CreateFramebuffer(compositPass, 1, &compositTexture, width, height);
             DescriptorSetInfo blitinfo;
-            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, sampler);
+            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
             compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
         }
 
@@ -1197,7 +1376,7 @@ namespace Silex
             DestroyDescriptorSet(imageSet);
 
             DescriptorSetInfo imageinfo;
-            imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTextureView, sampler);
+            imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTextureView, linearSampler);
             imageSet = CreateDescriptorSet(compositShader, 0, imageinfo);
         }
     }
@@ -1212,7 +1391,18 @@ namespace Silex
             Test::Transform sceneData;
             sceneData.projection = camera->GetProjectionMatrix();
             sceneData.view       = camera->GetViewMatrix();
+            sceneData.world      = glm::mat4(1.0);
             std::memcpy(gbuffer.mappedTransfrom, &sceneData, sizeof(Test::Transform));
+        }
+
+        {
+            Test::ShadowTransformData shadowData;
+            shadowData.world = glm::mat4(1.0);
+            std::memcpy(shadow.transformMap, &shadowData, sizeof(Test::ShadowTransformData));
+
+            Test::LightSpaceTransformData lightData;
+            CalculateLightSapceMatrices(sceneLightDir, camera, lightData.cascade);
+            std::memcpy(shadow.lightTransformMap, &lightData, sizeof(Test::LightSpaceTransformData));
         }
 
         {
@@ -1236,7 +1426,7 @@ namespace Silex
         {
             Test::SceneUBO sceneUBO = {};
             sceneUBO.lightColor        = glm::vec4(1.0, 1.0, 1.0, 1.0);
-            sceneUBO.lightDir          = glm::vec4(1.0, 1.0, 0.0, 0.0);
+            sceneUBO.lightDir          = glm::vec4(sceneLightDir, 1.0);
             sceneUBO.cameraPosition    = glm::vec4(camera->GetPosition(), 0.0);
             sceneUBO.invViewProjection = glm::inverse(camera->GetProjectionMatrix() * camera->GetViewMatrix());
             std::memcpy(lighting.mappedScene, &sceneUBO, sizeof(Test::SceneUBO));
@@ -1246,11 +1436,34 @@ namespace Silex
             Test::EnvironmentUBO environmentUBO = {};
             environmentUBO.view       = camera->GetViewMatrix();
             environmentUBO.projection = camera->GetProjectionMatrix();
-            std::memcpy(environment.mapped, &environmentUBO, sizeof(Test::EnvironmentUBO));
+            std::memcpy(environment.map, &environmentUBO, sizeof(Test::EnvironmentUBO));
         }
 
         api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
         api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
+
+
+        // シャドウパス
+        if (1)
+        {
+            api->BeginRenderPass(frame.commandBuffer, shadow.pass, shadow.framebuffer, 1, &shadow.depthView);
+
+            api->BindPipeline(frame.commandBuffer, shadow.pipeline);
+            api->BindDescriptorSet(frame.commandBuffer, shadow.set, 0);
+
+            // スポンザ
+            for (MeshSource* source : sponzaMesh->GetMeshSources())
+            {
+                Buffer* vb        = source->GetVertexBuffer();
+                Buffer* ib        = source->GetIndexBuffer();
+                uint32 indexCount = source->GetIndexCount();
+                api->BindVertexBuffer(frame.commandBuffer, vb, 0);
+                api->BindIndexBuffer(frame.commandBuffer, ib, INDEX_BUFFER_FORMAT_UINT32, 0);
+                api->DrawIndexed(frame.commandBuffer, indexCount, 1, 0, 0, 0);
+            }
+
+            api->EndRenderPass(frame.commandBuffer);
+        }
 
         if (1) // メッシュパス
         {
@@ -1281,7 +1494,6 @@ namespace Silex
 
             api->BindPipeline(frame.commandBuffer, lighting.pipeline);
             api->BindDescriptorSet(frame.commandBuffer, lighting.set, 0);
-
             api->Draw(frame.commandBuffer, 3, 1, 0, 0);
 
             api->EndRenderPass(frame.commandBuffer);
@@ -1619,7 +1831,7 @@ namespace Silex
 
     DescriptorSet* RHI::CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex, DescriptorSetInfo& setInfo)
     {
-        return api->CreateDescriptorSet(setInfo.infos.size(), setInfo.infos.data(), shader, setIndex);;
+        return api->CreateDescriptorSet(setInfo.infos.size(), setInfo.infos.data(), shader, setIndex);
     }
 
     void RHI::DestroyDescriptorSet(DescriptorSet* set)
@@ -1746,16 +1958,11 @@ namespace Silex
         return api;
     }
 
-    FrameData& RHI::GetFrameData()
-    {
-        return frameData[frameIndex];
-    }
-
     const FrameData& RHI::GetFrameData() const
     {
         return frameData[frameIndex];
     }
-    
+
     CommandQueue* RHI::GetGraphicsCommandQueue() const
     {
         return graphicsQueue;

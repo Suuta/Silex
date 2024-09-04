@@ -39,11 +39,13 @@ void main()
 layout(location = 0) in  vec2 inTexCoord;
 layout(location = 0) out vec4 outColor;
 
-layout(set = 0, binding = 0) uniform sampler2D sceneColor;
-layout(set = 0, binding = 1) uniform sampler2D sceneNormal;
-layout(set = 0, binding = 2) uniform sampler2D sceneEmission;
-layout(set = 0, binding = 3) uniform sampler2D sceneDepth;
-layout(set = 0, binding = 4) uniform Scene
+layout(set = 0, binding = 0) uniform sampler2D            sceneColor;
+layout(set = 0, binding = 1) uniform sampler2D            sceneNormal;
+layout(set = 0, binding = 2) uniform sampler2D            sceneEmission;
+layout(set = 0, binding = 3) uniform sampler2D            sceneDepth;
+layout(set = 0, binding = 4) uniform sampler2DArrayShadow cascadeshadowMap;
+
+layout(set = 0, binding = 5) uniform Scene
 {
     vec4 lightDir;
     vec4 lightColor;
@@ -52,13 +54,14 @@ layout(set = 0, binding = 4) uniform Scene
 } u_scene;
 
 
-vec3 ConstructWorldPosition(vec2 texcoord, float depthFromDepthBuffer)
+// 深度値 から ワールド座標 を計算
+vec3 ConstructWorldPosition(vec2 texcoord, float depthFromDepthBuffer, mat4 inverceProjectionView)
 {
     // テクスチャ座標 と 深度値を使って NDC座標系[xy: -1~1 z: 0~1] に変換  ※openGL のみ z: -1~1
     vec4 clipSpace = vec4(texcoord * 2.0 - vec2(1.0), depthFromDepthBuffer, 1.0);
 
     // ワールドに変換
-    vec4 position = u_scene.invViewProjection * clipSpace;
+    vec4 position = inverceProjectionView * clipSpace;
 
     // 透視除算
     return vec3(position.xyz / position.w);
@@ -81,7 +84,7 @@ vec3 BlinnPhong()
     float DEPTH    = texture(sceneDepth,    inTexCoord).r;
 
     // 深度値から復元
-    vec3 WORLD = ConstructWorldPosition(inTexCoord, DEPTH);
+    vec3 WORLD = ConstructWorldPosition(inTexCoord, DEPTH, u_scene.invViewProjection);
 
     // ノーマルを -1~1に戻す
     vec3 N = vec3(NORMAL * 2.0) - vec3(1.0);

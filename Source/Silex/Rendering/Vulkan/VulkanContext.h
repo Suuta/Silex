@@ -1,8 +1,6 @@
 
 #pragma once
-
 #include "Rendering/RenderingContext.h"
-#include "Rendering/Vulkan/VulkanStructures.h"
 
 
 namespace Silex

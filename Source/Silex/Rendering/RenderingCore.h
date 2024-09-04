@@ -33,10 +33,9 @@ namespace Silex
     SL_HANDLE(Sampler);
     SL_HANDLE(DescriptorSet);
     SL_HANDLE(FramebufferHandle);
-
+    SL_HANDLE(TextureView);
     SL_HANDLE(TextureHandle);
     SL_HANDLE(ShaderHandle);
-    SL_HANDLE(TextureView);
 
 
 

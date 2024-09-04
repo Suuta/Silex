@@ -5,7 +5,6 @@
 #include "Asset/Asset.h"
 #include "Editor/SplashImage.h"
 #include "Rendering/RenderingContext.h"
-#include "Rendering/RHI.h"
 
 
 namespace Silex

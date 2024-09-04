@@ -6,6 +6,7 @@
 #include "Core/Timer.h"
 #include "Editor/Editor.h"
 #include "ImGui/GUI.h"
+#include "Rendering/RHI.h"
 
 
 namespace Silex
@@ -48,14 +49,11 @@ namespace Silex
 
     private:
 
-        // レンダリング
-        RHI*              rhi     = nullptr;
-        RenderingContext* context = nullptr;
-
-        // 
-        Editor* editor     = nullptr;
-        GUI*    gui      = nullptr;
-        Window* mainWindow = nullptr;
+        RHI*              rhi        = nullptr;
+        RenderingContext* context    = nullptr;
+        Editor*           editor     = nullptr;
+        GUI*              gui        = nullptr;
+        Window*           mainWindow = nullptr;
 
         // フラグ
         bool isRunning = true;

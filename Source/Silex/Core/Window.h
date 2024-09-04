@@ -24,7 +24,6 @@ namespace Silex
 
     class  Window;
     class  RenderingContext;
-    class  RHI;
 
     using WindowCreateFunction = Window* (*)(const char* title, uint32 width, uint32 height);
 

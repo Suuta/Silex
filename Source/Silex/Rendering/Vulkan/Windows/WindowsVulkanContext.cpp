@@ -2,7 +2,7 @@
 #include "PCH.h"
 #include "Platform/Windows/WindowsWindow.h"
 #include "Rendering/Vulkan/Windows/WindowsVulkanContext.h"
-
+#include "Rendering/Vulkan/VulkanStructures.h"
 
 namespace Silex
 {

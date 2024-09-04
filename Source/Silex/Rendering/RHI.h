@@ -49,7 +49,7 @@ namespace Silex
 
 
     // Gバッファ
-    struct GBuffer
+    struct GBufferData
     {
         RenderPass*        pass        = nullptr;
         FramebufferHandle* framebuffer = nullptr;
@@ -77,7 +77,7 @@ namespace Silex
         DescriptorSet* materialSet  = nullptr;
     };
 
-    struct LightingBuffer
+    struct LightingData
     {
         RenderPass*        pass        = nullptr;
         FramebufferHandle* framebuffer = nullptr;
@@ -92,20 +92,32 @@ namespace Silex
         DescriptorSet* set         = nullptr;
     };
 
-    struct EnvironmentBuffer
+    struct EnvironmentData
     {
         RenderPass*        pass        = nullptr;
         FramebufferHandle* framebuffer = nullptr;
+        TextureHandle*     depth       = nullptr;
+        TextureView*       view        = nullptr;
         Pipeline*          pipeline    = nullptr;
         ShaderHandle*      shader      = nullptr;
         Buffer*            ubo         = nullptr;
-        void*              mapped      = nullptr;
+        void*              map         = nullptr;
         DescriptorSet*     set         = nullptr;
     };
 
-    struct CompositBuffer
+    struct ShadowData
     {
-
+        RenderPass*        pass              = nullptr;
+        FramebufferHandle* framebuffer       = nullptr;
+        TextureHandle*     depth             = nullptr;
+        TextureView*       depthView         = nullptr;
+        Pipeline*          pipeline          = nullptr;
+        ShaderHandle*      shader            = nullptr;
+        Buffer*            transformUBO      = nullptr;
+        void*              transformMap      = nullptr;
+        Buffer*            lightTransformUBO = nullptr;
+        void*              lightTransformMap = nullptr;
+        DescriptorSet*     set               = nullptr;
     };
 
 
@@ -138,11 +150,12 @@ namespace Silex
         RenderingAPI*     GetAPI()     const;
 
         // コマンドキュー
-        QueueID       GetGraphicsQueueID()  const;
+        QueueID       GetGraphicsQueueID()      const;
         CommandQueue* GetGraphicsCommandQueue() const;
+      //QueueID       GetComputeQueueID()       const;
+      //CommandQueue* GetComputeCommandQueue()  const;
 
         // フレームデータ
-        FrameData&       GetFrameData();
         const FrameData& GetFrameData() const;
 
         // デバイス情報
@@ -191,9 +204,6 @@ namespace Silex
     
     private:
 
-        //===========================================================
-        // ヘルパー
-        //===========================================================
         Buffer*        _CreateAndMapBuffer(BufferUsageBits type, const void* data, uint64 dataSize, void** outMappedAdress);
         Buffer*        _CreateAndSubmitBufferData(BufferUsageBits type, const void* data, uint64 dataSize);
 
@@ -234,31 +244,44 @@ namespace Silex
 
     public:
 
+        // ビューポートサイズ
+        glm::ivec2 sceneFramebufferSize = {};
+
         // Gバッファ
         void PrepareGBuffer(uint32 width, uint32 height);
         void ResizeGBuffer(uint32 width, uint32 height);
         void CleanupGBuffer();
-        GBuffer gbuffer;
+        GBufferData gbuffer;
 
         // ライティング
         void PrepareLightingBuffer(uint32 width, uint32 height);
         void ResizeLightingBuffer(uint32 width, uint32 height);
         void CleanupLightingBuffer();
-        LightingBuffer lighting;
+        LightingData lighting;
 
         // 環境マップ
         void PrepareEnvironmentBuffer(uint32 width, uint32 height);
         void ResizeEnvironmentBuffer(uint32 width, uint32 height);
         void CleanupEnvironmentBuffer();
-        EnvironmentBuffer environment;
+        EnvironmentData environment;
 
         // IBL生成
         void PrepareIBL(const char* environmentTexturePath);
         void CleanupIBL();
-
         void CreateIrradiance();
         void CreatePrefilter();
         void CreateBRDF();
+
+        // シャドウマップ
+        void PrepareShadowBuffer();
+        void CleanupShadowBuffer();
+
+        void CalculateLightSapceMatrices(glm::vec3 directionalLightDir, Camera* camera, std::array<glm::mat4, 4>& out_result);
+        void GetFrustumCornersWorldSpace(const glm::mat4& projview, std::array<glm::vec4, 8>& out_result);
+        glm::mat4 GetLightSpaceMatrix(glm::vec3 directionalLightDir, Camera* camera, const float nearPlane, const float farPlane);
+
+        ShadowData shadow;
+
 
     public:
 
@@ -327,12 +350,15 @@ namespace Silex
 
     public:
 
-        // Scene
-        glm::ivec2 sceneFramebufferSize = {};
-        Sampler*   sampler              = nullptr;
+        // サンプラー
+        Sampler*   linearSampler = nullptr;
+        Sampler*   shadowSampler = nullptr;
 
         // 頂点レイアウト
         InputLayout defaultLayout;
+
+        // ライト
+        glm::vec3 sceneLightDir;
 
     public:
 

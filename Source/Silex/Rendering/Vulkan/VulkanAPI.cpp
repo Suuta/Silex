@@ -1243,12 +1243,12 @@ namespace Silex
     {
         VulkanTexture** tex = (VulkanTexture**)textures;
 
-        //-----------------------------------------------------------------------------------------------
+        //----------------------------------------------------------------------------------------
         // VK_KHR_imageless_framebuffer (vulkan 1.2)
         // 生成時にアタッチメントのイメージビューを指定せず、レンダーパス開始時まで遅延できる（フレームバッファ汎化）
-        // mipmap毎にフレームバッファが必要だったが、レンダーパス開始時に遅延選択することでフレームバッファの生成が1つになる
+        // mipmap毎にフレームバッファが必要だったが、フレームバッファの生成が1つになる
         // https://docs.vulkan.org/guide/latest/extensions/VK_KHR_imageless_framebuffer.html
-        //-----------------------------------------------------------------------------------------------
+        //----------------------------------------------------------------------------------------
         
         // アタッチメントイメージ情報
         VkFramebufferAttachmentImageInfo* attachments = SL_STACK(VkFramebufferAttachmentImageInfo, numTexture);
@@ -1261,8 +1261,8 @@ namespace Silex
             attachments[i].width           = width;
             attachments[i].height          = height;
             attachments[i].layerCount      = tex[i]->arrayLayers;
-            attachments[i].viewFormatCount = 1;
-            attachments[i].pViewFormats    = &tex[i]->format;
+            attachments[i].viewFormatCount = 1;                   // VK_KHR_image_format_list (vulkan 1.2)
+            attachments[i].pViewFormats    = &tex[i]->format;     // VK_KHR_image_format_list (vulkan 1.2)
         }
 
         // アタッチメント情報
