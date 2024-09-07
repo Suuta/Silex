@@ -22,7 +22,7 @@ namespace Silex
     Mesh* sponzaMesh = nullptr;
 
     // シャドウマップ
-    static const uint32  shadowMapResolution = 1024;
+    static const uint32  shadowMapResolution = 2048;
     std::array<float, 4> shadowCascadeLevels = { 10.0f, 40.0f, 100.0f, 200.0f };
 
     namespace Test
@@ -46,7 +46,12 @@ namespace Silex
 
         struct LightSpaceTransformData
         {
-            std::array<glm::mat4, 4> cascade;
+            glm::mat4 cascade[4];
+        };
+
+        struct CascadeData
+        {
+            glm::vec4 cascadePlaneDistances[4];
         };
 
         struct GridData
@@ -82,6 +87,7 @@ namespace Silex
             glm::vec4 lightDir;
             glm::vec4 lightColor;
             glm::vec4 cameraPosition;
+            glm::mat4 view;
             glm::mat4 invViewProjection;
         };
 
@@ -131,6 +137,8 @@ namespace Silex
         CleanupGBuffer();
         CleanupLightingBuffer();
         CleanupEnvironmentBuffer();
+
+        sldelete(gbuffer);
 
         api->UnmapBuffer(gridUBO);
         api->DestroyBuffer(gridUBO);
@@ -303,11 +311,10 @@ namespace Silex
             shadowSampler = api->CreateSampler(shadow);
         }
 
-
         TextureReader reader;
         byte* pixels;
 
-        pixels = reader.Read("Assets/Textures/checkerboard.png");
+        pixels = reader.Read("Assets/Textures/gray.png");
         defaultTexture = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
         defaultTextureView = CreateTextureView(defaultTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
         reader.Unload(pixels);
@@ -356,6 +363,7 @@ namespace Silex
         PrepareShadowBuffer();
 
         // Gバッファ
+        gbuffer = slnew(GBufferData);
         PrepareGBuffer(size.x, size.y);
 
         // ライティングバッファ
@@ -368,7 +376,7 @@ namespace Silex
             // グリッド
             PipelineStateInfoBuilder builder;
             PipelineStateInfo pipelineInfo = builder
-                .Depth(true, true)
+                .Depth(true, false)
                 .Blend(true, 1)
                 .Value();
 
@@ -709,6 +717,7 @@ namespace Silex
         shadow.framebuffer       = CreateFramebuffer(shadow.pass, 1, &shadow.depth, shadowMapResolution, shadowMapResolution);
         shadow.transformUBO      = CreateUniformBuffer(nullptr, sizeof(Test::ShadowTransformData), &shadow.transformMap);
         shadow.lightTransformUBO = CreateUniformBuffer(nullptr, sizeof(Test::LightSpaceTransformData), &shadow.lightTransformMap);
+        shadow.cascadeUBO        = CreateUniformBuffer(nullptr, sizeof(Test::CascadeData), &shadow.cascadeMap);
 
         // パイプライン
         PipelineStateInfoBuilder builder;
@@ -734,8 +743,10 @@ namespace Silex
     {
         api->UnmapBuffer(shadow.transformUBO);
         api->UnmapBuffer(shadow.lightTransformUBO);
+        api->UnmapBuffer(shadow.cascadeUBO);
         api->DestroyBuffer(shadow.transformUBO);
         api->DestroyBuffer(shadow.lightTransformUBO);
+        api->DestroyBuffer(shadow.cascadeUBO);
 
         api->DestroyTexture(shadow.depth);
         api->DestroyTextureView(shadow.depthView);
@@ -761,7 +772,7 @@ namespace Silex
     glm::mat4 RHI::GetLightSpaceMatrix(glm::vec3 directionalLightDir, Camera* camera, const float nearPlane, const float farPlane)
     {
         glm::mat4 proj = glm::perspective(glm::radians(camera->GetFOV()), (float)sceneFramebufferSize.x / (float)sceneFramebufferSize.y, nearPlane, farPlane);
-        
+
         std::array<glm::vec4, 8> corners;
         GetFrustumCornersWorldSpace(proj * camera->GetViewMatrix(), corners);
 
@@ -825,18 +836,17 @@ namespace Silex
 
     void RHI::PrepareGBuffer(uint32 width, uint32 height)
     {
-        gbuffer.albedo   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
-        gbuffer.normal   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
-        gbuffer.emission = CreateTexture2D(RENDERING_FORMAT_B10G11R11_UFLOAT_PACK32, width, height);
-        gbuffer.id       = CreateTexture2D(RENDERING_FORMAT_R32_SINT,                width, height);
-        gbuffer.depth    = CreateTexture2D(RENDERING_FORMAT_D24_UNORM_S8_UINT,       width, height);
+        gbuffer->albedo   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
+        gbuffer->normal   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
+        gbuffer->emission = CreateTexture2D(RENDERING_FORMAT_B10G11R11_UFLOAT_PACK32, width, height);
+        gbuffer->id       = CreateTexture2D(RENDERING_FORMAT_R32_SINT,                width, height);
+        gbuffer->depth    = CreateTexture2D(RENDERING_FORMAT_D32_SFLOAT,              width, height);
 
-        gbuffer.albedoView   = CreateTextureView(gbuffer.albedo,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-        gbuffer.normalView   = CreateTextureView(gbuffer.normal,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-        gbuffer.emissionView = CreateTextureView(gbuffer.emission, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-        gbuffer.idView       = CreateTextureView(gbuffer.id,       TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-        gbuffer.depthView    = CreateTextureView(gbuffer.depth,    TEXTURE_TYPE_2D, TEXTURE_ASPECT_DEPTH_BIT);
-
+        gbuffer->albedoView   = CreateTextureView(gbuffer->albedo,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer->normalView   = CreateTextureView(gbuffer->normal,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer->emissionView = CreateTextureView(gbuffer->emission, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer->idView       = CreateTextureView(gbuffer->id,       TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer->depthView    = CreateTextureView(gbuffer->depth,    TEXTURE_TYPE_2D, TEXTURE_ASPECT_DEPTH_BIT);
 
         RenderPassClearValue clearvalues[5] = {};
         Attachment           attachments[5] = {};
@@ -918,7 +928,7 @@ namespace Silex
             depth.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
             depth.storeOp       = ATTACHMENT_STORE_OP_STORE;
             depth.samples       = TEXTURE_SAMPLES_1;
-            depth.format        = RENDERING_FORMAT_D24_UNORM_S8_UINT;
+            depth.format        = RENDERING_FORMAT_D32_SFLOAT;
 
             AttachmentReference depthRef = {};
             depthRef.attachment = 4;
@@ -928,12 +938,12 @@ namespace Silex
             attachments[4] = depth;
             clearvalues[4].SetDepthStencil(1.0f, 0);
 
-            gbuffer.pass = api->CreateRenderPass(std::size(attachments), attachments, 1, &subpass, 0, nullptr, std::size(clearvalues), clearvalues);
+            gbuffer->pass = api->CreateRenderPass(std::size(attachments), attachments, 1, &subpass, 0, nullptr, std::size(clearvalues), clearvalues);
         }
 
         {
-            TextureHandle* attachments[] = { gbuffer.albedo, gbuffer.normal, gbuffer.emission, gbuffer.id, gbuffer.depth };
-            gbuffer.framebuffer = CreateFramebuffer(gbuffer.pass, std::size(attachments), attachments, width, height);
+            TextureHandle* attachments[] = { gbuffer->albedo, gbuffer->normal, gbuffer->emission, gbuffer->id, gbuffer->depth };
+            gbuffer->framebuffer = CreateFramebuffer(gbuffer->pass, std::size(attachments), attachments, width, height);
         }
 
         {
@@ -941,31 +951,30 @@ namespace Silex
             PipelineStateInfoBuilder builder;
             PipelineStateInfo pipelineInfo = builder
                 .InputLayout(1, &defaultLayout)
-                .Depth(true, true)
-                .Stencil(true, 1, COMPARE_OP_ALWAYS)
+                .Depth(true, true, COMPARE_OP_LESS)
                 .Blend(false, 4)
                 .Value();
 
             ShaderCompiledData compiledData;
             ShaderCompiler::Get()->Compile("Assets/Shaders/DeferredPrimitive.glsl", compiledData);
-            gbuffer.shader   = api->CreateShader(compiledData);
-            gbuffer.pipeline = api->CreateGraphicsPipeline(gbuffer.shader, &pipelineInfo, gbuffer.pass);
+            gbuffer->shader   = api->CreateShader(compiledData);
+            gbuffer->pipeline = api->CreateGraphicsPipeline(gbuffer->shader, &pipelineInfo, gbuffer->pass);
         }
 
         // ユニフォームバッファ
-        gbuffer.materialUBO  = CreateUniformBuffer(nullptr, sizeof(Test::MaterialUBO), &gbuffer.mappedMaterial);
-        gbuffer.transformUBO = CreateUniformBuffer(nullptr, sizeof(Test::Transform),   &gbuffer.mappedTransfrom);
+        gbuffer->materialUBO  = CreateUniformBuffer(nullptr, sizeof(Test::MaterialUBO), &gbuffer->mappedMaterial);
+        gbuffer->transformUBO = CreateUniformBuffer(nullptr, sizeof(Test::Transform),   &gbuffer->mappedTransfrom);
 
         // トランスフォーム
         DescriptorSetInfo transformInfo = {};
-        transformInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gbuffer.transformUBO);
-        gbuffer.transformSet = CreateDescriptorSet(gbuffer.shader, 0, transformInfo);
+        transformInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gbuffer->transformUBO);
+        gbuffer->transformSet = CreateDescriptorSet(gbuffer->shader, 0, transformInfo);
 
         // マテリアル
         DescriptorSetInfo materialInfo = {};
-        materialInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gbuffer.materialUBO);
+        materialInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gbuffer->materialUBO);
         materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, defaultTextureView, linearSampler);
-        gbuffer.materialSet  = CreateDescriptorSet(gbuffer.shader, 1, materialInfo);
+        gbuffer->materialSet  = CreateDescriptorSet(gbuffer->shader, 1, materialInfo);
     }
 
     void RHI::PrepareLightingBuffer(uint32 width, uint32 height)
@@ -1001,7 +1010,6 @@ namespace Silex
         PipelineStateInfoBuilder builder;
         PipelineStateInfo pipelineInfo = builder
             .Depth(false, false)
-            .Stencil(false)
             .Blend(false, 1)
             .Value();
 
@@ -1015,12 +1023,17 @@ namespace Silex
 
         // セット
         DescriptorSetInfo textureInfo = {};
-        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.albedoView,   linearSampler);
-        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.normalView,   linearSampler);
-        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.emissionView, linearSampler);
-        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.depthView,    linearSampler);
-        textureInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  shadow.depthView,     shadowSampler);
-        textureInfo.AddBuffer( 5, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
+        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->albedoView,   linearSampler);
+        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->normalView,   linearSampler);
+        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->emissionView, linearSampler);
+        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->depthView,    linearSampler);
+        textureInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  irradianceTextureView, linearSampler);
+        textureInfo.AddTexture(5, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  prefilterTextureView,  linearSampler);
+        textureInfo.AddTexture(6, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  brdflutTextureView,    linearSampler);
+        textureInfo.AddTexture(7, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  shadow.depthView,      shadowSampler);
+        textureInfo.AddBuffer( 8, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
+        textureInfo.AddBuffer( 9, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.cascadeUBO);
+        textureInfo.AddBuffer(10, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.lightTransformUBO);
 
         lighting.set = CreateDescriptorSet(lighting.shader, 0, textureInfo);
     }
@@ -1046,7 +1059,7 @@ namespace Silex
             depth.loadOp        = ATTACHMENT_LOAD_OP_LOAD;
             depth.storeOp       = ATTACHMENT_STORE_OP_STORE;
             depth.samples       = TEXTURE_SAMPLES_1;
-            depth.format        = RENDERING_FORMAT_D24_UNORM_S8_UINT;
+            depth.format        = RENDERING_FORMAT_D32_SFLOAT;
 
             AttachmentReference depthRef = {};
             depthRef.attachment = 1;
@@ -1063,7 +1076,7 @@ namespace Silex
             Attachment attachments[] = {color, depth};
             environment.pass = api->CreateRenderPass(std::size(attachments), attachments, 1, &subpass, 0, nullptr, 2, clear);
 
-            TextureHandle* textures[] = { lighting.color, gbuffer.depth };
+            TextureHandle* textures[] = { lighting.color, gbuffer->depth };
             environment.framebuffer = CreateFramebuffer(environment.pass, std::size(textures), textures, width, height);
         }
 
@@ -1072,8 +1085,7 @@ namespace Silex
             PipelineStateInfo pipelineInfo = builder
                 .InputLayout(1, &defaultLayout)
                 .Rasterizer(POLYGON_CULL_BACK, POLYGON_FRONT_FACE_CLOCKWISE)
-                .Depth(false, false)
-                .Stencil(true, 0, COMPARE_OP_EQUAL)
+                .Depth(true, false, COMPARE_OP_LESS_OR_EQUAL)
                 .Blend(false, 1)
                 .Value();
 
@@ -1086,9 +1098,6 @@ namespace Silex
             DescriptorSetInfo materialInfo = {};
             materialInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, environment.ubo);
             materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView,    linearSampler);
-            materialInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER, irradianceTextureView, linearSampler);
-            materialInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER, brdflutTextureView,    linearSampler);
-            materialInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER, prefilterTextureView,  linearSampler);
             environment.set = CreateDescriptorSet(environment.shader, 0, materialInfo);
         }
     }
@@ -1234,30 +1243,30 @@ namespace Silex
 
     void RHI::CleanupGBuffer()
     {
-        api->DestroyShader(gbuffer.shader);
-        api->DestroyPipeline(gbuffer.pipeline);
-        api->DestroyRenderPass(gbuffer.pass);
-        api->DestroyFramebuffer(gbuffer.framebuffer);
+        api->DestroyShader(gbuffer->shader);
+        api->DestroyPipeline(gbuffer->pipeline);
+        api->DestroyRenderPass(gbuffer->pass);
+        api->DestroyFramebuffer(gbuffer->framebuffer);
 
-        api->DestroyTexture(gbuffer.albedo);
-        api->DestroyTexture(gbuffer.normal);
-        api->DestroyTexture(gbuffer.emission);
-        api->DestroyTexture(gbuffer.id);
-        api->DestroyTexture(gbuffer.depth);
+        api->DestroyTexture(gbuffer->albedo);
+        api->DestroyTexture(gbuffer->normal);
+        api->DestroyTexture(gbuffer->emission);
+        api->DestroyTexture(gbuffer->id);
+        api->DestroyTexture(gbuffer->depth);
 
-        api->DestroyTextureView(gbuffer.albedoView);
-        api->DestroyTextureView(gbuffer.normalView);
-        api->DestroyTextureView(gbuffer.emissionView);
-        api->DestroyTextureView(gbuffer.idView);
-        api->DestroyTextureView(gbuffer.depthView);
+        api->DestroyTextureView(gbuffer->albedoView);
+        api->DestroyTextureView(gbuffer->normalView);
+        api->DestroyTextureView(gbuffer->emissionView);
+        api->DestroyTextureView(gbuffer->idView);
+        api->DestroyTextureView(gbuffer->depthView);
 
-        api->DestroyDescriptorSet(gbuffer.transformSet);
-        api->DestroyDescriptorSet(gbuffer.materialSet);
+        api->DestroyDescriptorSet(gbuffer->transformSet);
+        api->DestroyDescriptorSet(gbuffer->materialSet);
 
-        api->UnmapBuffer(gbuffer.materialUBO);
-        api->UnmapBuffer(gbuffer.transformUBO);
-        api->DestroyBuffer(gbuffer.materialUBO);
-        api->DestroyBuffer(gbuffer.transformUBO);
+        api->UnmapBuffer(gbuffer->materialUBO);
+        api->UnmapBuffer(gbuffer->transformUBO);
+        api->DestroyBuffer(gbuffer->materialUBO);
+        api->DestroyBuffer(gbuffer->transformUBO);
     }
 
     void RHI::CleanupLightingBuffer()
@@ -1290,34 +1299,34 @@ namespace Silex
 
     void RHI::ResizeGBuffer(uint32 width, uint32 height)
     {
-        DestroyTexture(gbuffer.albedo);
-        DestroyTexture(gbuffer.normal);
-        DestroyTexture(gbuffer.emission);
-        DestroyTexture(gbuffer.id);
-        DestroyTexture(gbuffer.depth);
+        DestroyTexture(gbuffer->albedo);
+        DestroyTexture(gbuffer->normal);
+        DestroyTexture(gbuffer->emission);
+        DestroyTexture(gbuffer->id);
+        DestroyTexture(gbuffer->depth);
 
-        DestroyTextureView(gbuffer.albedoView);
-        DestroyTextureView(gbuffer.normalView);
-        DestroyTextureView(gbuffer.emissionView);
-        DestroyTextureView(gbuffer.idView);
-        DestroyTextureView(gbuffer.depthView);
+        DestroyTextureView(gbuffer->albedoView);
+        DestroyTextureView(gbuffer->normalView);
+        DestroyTextureView(gbuffer->emissionView);
+        DestroyTextureView(gbuffer->idView);
+        DestroyTextureView(gbuffer->depthView);
 
-        DestroyFramebuffer(gbuffer.framebuffer);
+        DestroyFramebuffer(gbuffer->framebuffer);
 
-        gbuffer.albedo   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
-        gbuffer.normal   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
-        gbuffer.emission = CreateTexture2D(RENDERING_FORMAT_B10G11R11_UFLOAT_PACK32, width, height);
-        gbuffer.id       = CreateTexture2D(RENDERING_FORMAT_R32_SINT,                width, height);
-        gbuffer.depth    = CreateTexture2D(RENDERING_FORMAT_D24_UNORM_S8_UINT,       width, height);
+        gbuffer->albedo   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
+        gbuffer->normal   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
+        gbuffer->emission = CreateTexture2D(RENDERING_FORMAT_B10G11R11_UFLOAT_PACK32, width, height);
+        gbuffer->id       = CreateTexture2D(RENDERING_FORMAT_R32_SINT,                width, height);
+        gbuffer->depth    = CreateTexture2D(RENDERING_FORMAT_D32_SFLOAT,              width, height);
 
-        gbuffer.albedoView   = CreateTextureView(gbuffer.albedo,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-        gbuffer.normalView   = CreateTextureView(gbuffer.normal,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-        gbuffer.emissionView = CreateTextureView(gbuffer.emission, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-        gbuffer.idView       = CreateTextureView(gbuffer.id,       TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-        gbuffer.depthView    = CreateTextureView(gbuffer.depth,    TEXTURE_TYPE_2D, TEXTURE_ASPECT_DEPTH_BIT);
+        gbuffer->albedoView   = CreateTextureView(gbuffer->albedo,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer->normalView   = CreateTextureView(gbuffer->normal,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer->emissionView = CreateTextureView(gbuffer->emission, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer->idView       = CreateTextureView(gbuffer->id,       TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        gbuffer->depthView    = CreateTextureView(gbuffer->depth,    TEXTURE_TYPE_2D, TEXTURE_ASPECT_DEPTH_BIT);
 
-        TextureHandle* textures[] = {gbuffer.albedo, gbuffer.normal, gbuffer.emission, gbuffer.id, gbuffer.depth};
-        gbuffer.framebuffer = CreateFramebuffer(gbuffer.pass, std::size(textures), textures, width, height);
+        TextureHandle* textures[] = {gbuffer->albedo, gbuffer->normal, gbuffer->emission, gbuffer->id, gbuffer->depth};
+        gbuffer->framebuffer = CreateFramebuffer(gbuffer->pass, std::size(textures), textures, width, height);
     }
 
     void RHI::ResizeLightingBuffer(uint32 width, uint32 height)
@@ -1332,12 +1341,18 @@ namespace Silex
         lighting.framebuffer = CreateFramebuffer(lighting.pass, 1, &lighting.color, width, height);
 
         DescriptorSetInfo textureInfo = {};
-        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.albedoView,   linearSampler);
-        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.normalView,   linearSampler);
-        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.emissionView, linearSampler);
-        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer.depthView,    linearSampler);
-        textureInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  shadow.depthView,     linearSampler);
-        textureInfo.AddBuffer( 5, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
+        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->albedoView,   linearSampler);
+        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->normalView,   linearSampler);
+        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->emissionView, linearSampler);
+        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->depthView,    linearSampler);
+        textureInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  irradianceTextureView, linearSampler);
+        textureInfo.AddTexture(5, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  prefilterTextureView,  linearSampler);
+        textureInfo.AddTexture(6, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  brdflutTextureView,    linearSampler);
+        textureInfo.AddTexture(7, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  shadow.depthView,      shadowSampler);
+        textureInfo.AddBuffer( 8, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
+        textureInfo.AddBuffer( 9, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.cascadeUBO);
+        textureInfo.AddBuffer(10, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.lightTransformUBO);
+
         lighting.set = CreateDescriptorSet(lighting.shader, 0, textureInfo);
     }
 
@@ -1345,7 +1360,7 @@ namespace Silex
     {
         DestroyFramebuffer(environment.framebuffer);
 
-        TextureHandle* textures[] = { lighting.color, gbuffer.depth };
+        TextureHandle* textures[] = { lighting.color, gbuffer->depth };
         environment.framebuffer = CreateFramebuffer(environment.pass, std::size(textures), textures, width, height);
     }
 
@@ -1392,17 +1407,13 @@ namespace Silex
             sceneData.projection = camera->GetProjectionMatrix();
             sceneData.view       = camera->GetViewMatrix();
             sceneData.world      = glm::mat4(1.0);
-            std::memcpy(gbuffer.mappedTransfrom, &sceneData, sizeof(Test::Transform));
+            std::memcpy(gbuffer->mappedTransfrom, &sceneData, sizeof(Test::Transform));
         }
 
         {
             Test::ShadowTransformData shadowData;
             shadowData.world = glm::mat4(1.0);
             std::memcpy(shadow.transformMap, &shadowData, sizeof(Test::ShadowTransformData));
-
-            Test::LightSpaceTransformData lightData;
-            CalculateLightSapceMatrices(sceneLightDir, camera, lightData.cascade);
-            std::memcpy(shadow.lightTransformMap, &lightData, sizeof(Test::LightSpaceTransformData));
         }
 
         {
@@ -1418,18 +1429,36 @@ namespace Silex
             matData.albedo        = glm::vec3(1.0);
             matData.emission      = glm::vec3(0.0);
             matData.metallic      = 0.5f;
-            matData.roughness     = 0.4f;
+            matData.roughness     = 0.5f;
             matData.textureTiling = glm::vec2(1.0, 1.0);
-            std::memcpy(gbuffer.mappedMaterial, &matData, sizeof(Test::MaterialUBO));
+            std::memcpy(gbuffer->mappedMaterial, &matData, sizeof(Test::MaterialUBO));
         }
 
         {
+            std::array<glm::mat4, 4> outLightMatrices;
+            CalculateLightSapceMatrices(sceneLightDir, camera, outLightMatrices);
+
+            Test::LightSpaceTransformData lightData = {};
+            lightData.cascade[0] = outLightMatrices[0];
+            lightData.cascade[1] = outLightMatrices[1];
+            lightData.cascade[2] = outLightMatrices[2];
+            lightData.cascade[3] = outLightMatrices[3];
+            std::memcpy(shadow.lightTransformMap, &lightData, sizeof(Test::LightSpaceTransformData));
+
             Test::SceneUBO sceneUBO = {};
-            sceneUBO.lightColor        = glm::vec4(1.0, 1.0, 1.0, 1.0);
-            sceneUBO.lightDir          = glm::vec4(sceneLightDir, 1.0);
-            sceneUBO.cameraPosition    = glm::vec4(camera->GetPosition(), 0.0);
-            sceneUBO.invViewProjection = glm::inverse(camera->GetProjectionMatrix() * camera->GetViewMatrix());
+            sceneUBO.lightColor               = glm::vec4(1.0, 1.0, 1.0, 1.0);
+            sceneUBO.lightDir                 = glm::vec4(sceneLightDir, 1.0);
+            sceneUBO.cameraPosition           = glm::vec4(camera->GetPosition(), camera->GetFarPlane());
+            sceneUBO.view                     = camera->GetViewMatrix();
+            sceneUBO.invViewProjection        = glm::inverse(camera->GetProjectionMatrix() * camera->GetViewMatrix());
             std::memcpy(lighting.mappedScene, &sceneUBO, sizeof(Test::SceneUBO));
+
+            Test::CascadeData cascadeData;
+            cascadeData.cascadePlaneDistances[0].x = shadowCascadeLevels[0];
+            cascadeData.cascadePlaneDistances[1].x = shadowCascadeLevels[1];
+            cascadeData.cascadePlaneDistances[2].x = shadowCascadeLevels[2];
+            cascadeData.cascadePlaneDistances[3].x = shadowCascadeLevels[3];
+            std::memcpy(shadow.cascadeMap, &cascadeData, sizeof(Test::CascadeData));
         }
 
         {
@@ -1439,9 +1468,8 @@ namespace Silex
             std::memcpy(environment.map, &environmentUBO, sizeof(Test::EnvironmentUBO));
         }
 
-        api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
-        api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
-
+        api->SetViewport(frame.commandBuffer, 0, 0, shadowMapResolution, shadowMapResolution);
+        api->SetScissor(frame.commandBuffer,  0, 0, shadowMapResolution, shadowMapResolution);
 
         // シャドウパス
         if (1)
@@ -1465,14 +1493,17 @@ namespace Silex
             api->EndRenderPass(frame.commandBuffer);
         }
 
+        api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
+        api->SetScissor(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
+
         if (1) // メッシュパス
         {
-            TextureView* views[] = {gbuffer.albedoView, gbuffer.normalView, gbuffer.emissionView, gbuffer.idView, gbuffer.depthView };
-            api->BeginRenderPass(frame.commandBuffer, gbuffer.pass, gbuffer.framebuffer, 5, views);
+            TextureView* views[] = {gbuffer->albedoView, gbuffer->normalView, gbuffer->emissionView, gbuffer->idView, gbuffer->depthView };
+            api->BeginRenderPass(frame.commandBuffer, gbuffer->pass, gbuffer->framebuffer, 5, views);
             
-            api->BindPipeline(frame.commandBuffer, gbuffer.pipeline);
-            api->BindDescriptorSet(frame.commandBuffer, gbuffer.transformSet, 0);
-            api->BindDescriptorSet(frame.commandBuffer, gbuffer.materialSet,  1);
+            api->BindPipeline(frame.commandBuffer, gbuffer->pipeline);
+            api->BindDescriptorSet(frame.commandBuffer, gbuffer->transformSet, 0);
+            api->BindDescriptorSet(frame.commandBuffer, gbuffer->materialSet,  1);
 
             // スポンザ
             for (MeshSource* source : sponzaMesh->GetMeshSources())
@@ -1501,7 +1532,7 @@ namespace Silex
 
         if (1)
         {
-            TextureView* views[] = { lighting.view, gbuffer.depthView };
+            TextureView* views[] = { lighting.view, gbuffer->depthView };
             api->BeginRenderPass(frame.commandBuffer, environment.pass, environment.framebuffer, 2, views);
 
             if (1) // スカイ

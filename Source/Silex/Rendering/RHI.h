@@ -117,6 +117,8 @@ namespace Silex
         void*              transformMap      = nullptr;
         Buffer*            lightTransformUBO = nullptr;
         void*              lightTransformMap = nullptr;
+        Buffer*            cascadeUBO        = nullptr;
+        void*              cascadeMap        = nullptr;
         DescriptorSet*     set               = nullptr;
     };
 
@@ -251,7 +253,7 @@ namespace Silex
         void PrepareGBuffer(uint32 width, uint32 height);
         void ResizeGBuffer(uint32 width, uint32 height);
         void CleanupGBuffer();
-        GBufferData gbuffer;
+        GBufferData* gbuffer;
 
         // ライティング
         void PrepareLightingBuffer(uint32 width, uint32 height);

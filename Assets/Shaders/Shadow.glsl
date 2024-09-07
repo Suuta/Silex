@@ -4,11 +4,11 @@
 #pragma VERTEX
 #version 450
 
-layout (location = 0) in vec3 inPos;
-layout (location = 1) in vec3 inNormal;
-layout (location = 2) in vec2 inTexCoord;
-layout (location = 3) in vec3 inTangent;
-layout (location = 4) in vec3 inBitangent;
+layout(location = 0) in vec3 inPos;
+layout(location = 1) in vec3 inNormal;
+layout(location = 2) in vec2 inTexCoord;
+layout(location = 3) in vec3 inTangent;
+layout(location = 4) in vec3 inBitangent;
 
 
 //uniform mat4 model;
@@ -58,7 +58,7 @@ void main()
 layout(triangles,      invocations  = 4) in;
 layout(triangle_strip, max_vertices = 3) out;
 
-layout (set = 0, binding = 1) uniform LightSpaceMatrices
+layout(set = 0, binding = 1) uniform LightSpaceMatrices
 {
     mat4 lightSpaceMatrices[4];
 };

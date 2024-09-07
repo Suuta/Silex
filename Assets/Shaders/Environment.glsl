@@ -4,11 +4,11 @@
 #pragma VERTEX
 #version 450
 
-layout (location = 0) in vec3 inPos;
-layout (location = 1) in vec3 inNormal;
-layout (location = 2) in vec2 inTexCoord;
-layout (location = 3) in vec3 inTangent;
-layout (location = 4) in vec3 inBitangent;
+layout(location = 0) in vec3 inPos;
+layout(location = 1) in vec3 inNormal;
+layout(location = 2) in vec2 inTexCoord;
+layout(location = 3) in vec3 inTangent;
+layout(location = 4) in vec3 inBitangent;
 
 layout (location = 0) out vec3 outPosAsUV;
 
@@ -25,7 +25,9 @@ void main()
     mat4 rotView = mat4(mat3(view));
     vec4 clipPos = projection * rotView * vec4(outPosAsUV, 1.0);
 
-    gl_Position = clipPos;
+    // 透視除算として (xyz / w) が行われるので、除算後に'z'が 1.0(max_depth) になるように'z'ではなく'w'を渡す
+    gl_Position = clipPos.xyww;
+  //gl_Position = clipPos.xyzw;
 }
 
 //===================================================================================
@@ -37,10 +39,8 @@ void main()
 layout(location = 0)  in vec3 inPosAsUV;
 layout(location = 0) out vec4 outColor;
 
-layout (set = 0, binding = 1) uniform samplerCube environmentMap;
-layout (set = 0, binding = 2) uniform samplerCube irradianceMap;
-layout (set = 0, binding = 3) uniform sampler2D   brdfMap;
-layout (set = 0, binding = 4) uniform samplerCube prefilterMap;
+layout(set = 0, binding = 1) uniform samplerCube environmentMap;
+
 
 void main()
 {
