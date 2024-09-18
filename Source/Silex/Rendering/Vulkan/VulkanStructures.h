@@ -148,8 +148,7 @@ namespace Silex
     // シェーダー
     struct VulkanShader : public ShaderHandle
     {
-        VkShaderStageFlags                           stageFlags           = 0;
-        std::vector<VkPipelineShaderStageCreateInfo> stageCreateInfos     = {};
+        std::vector<VkPipelineShaderStageCreateInfo> stageInfos           = {};
         std::vector<VkDescriptorSetLayout>           descriptorsetLayouts = {};
         VkPipelineLayout                             pipelineLayout       = nullptr;
         ShaderReflectionData*                        reflection           = nullptr;

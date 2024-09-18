@@ -247,6 +247,7 @@ namespace Silex
     // ステージ間共有バッファ保存用変数  ※リフレクション時のバッファ複数回定義を防ぐ
     static std::unordered_map<_SetIndex, std::unordered_map<_Binding, ShaderBuffer>> ExistUniformBuffers;
     static std::unordered_map<_SetIndex, std::unordered_map<_Binding, ShaderBuffer>> ExistStorageBuffers;
+    static bool                                                                      IsExistPushConstant;
     static ShaderReflectionData                                                      ReflectionData;
 
     static const char* ShaderCacheDirectory = "Assets/Shaders/Cache/";
@@ -260,7 +261,16 @@ namespace Silex
     bool ShaderCompiler::Compile(const std::string& filePath, ShaderCompiledData& out_compiledData)
     {
         bool result = false;
-        
+        out_compiledData.reflection.descriptorSets.clear();
+        out_compiledData.reflection.pushConstantRanges.clear();
+        out_compiledData.reflection.pushConstants.clear();
+        out_compiledData.reflection.resources.clear();
+        out_compiledData.shaderBinaries.clear();
+
+        ExistUniformBuffers.clear();
+        ExistStorageBuffers.clear();
+        IsExistPushConstant = false;
+
         // ファイル読み込み
         std::string rawSource;
         result = ReadString(rawSource, filePath);
@@ -317,6 +327,10 @@ namespace Silex
         ReflectionData.pushConstantRanges.clear();
         ReflectionData.pushConstants.clear();
         ReflectionData.resources.clear();
+
+        ExistUniformBuffers.clear();
+        ExistStorageBuffers.clear();
+        IsExistPushConstant = false;
 
         return true;
     }
@@ -523,7 +537,6 @@ namespace Silex
             }
         }
 
-
         // イメージサンプラー
         for (const auto& resource : resources.sampled_images)
         {
@@ -671,30 +684,28 @@ namespace Silex
             uint32 memberCount     = bufferType.member_types.size();
             uint32 bufferOffset    = 0;
 
-            //==================================================================================
-            // NOTE: プッシュ定数のレイアウトについて
-            //==================================================================================
-            // 複数ステージで共有される際、プッシュ定数ブロック内のメンバ変数を分割宣言でき、
-            // 分割した場合に、先頭からのオフセット指定をする必要がある。
-            // 
-            // 現状はステージ間で同じデータレイアウト(同じメンバ変数)を宣言されている前提で
-            // 全てのステージのプッシュ定数ブロックは同じサイズでオフセットは 0 あることを要求する
-            // 
-            // ステージごとにオフセットを切り替えてバインドし直すのはコストがかかる？ ので
-            // ステージ間でデータレイアウトを共有する方が効率的か...
-            //==================================================================================
             //if (ReflectionData.pushConstantRanges.size())
             //     bufferOffset = ReflectionData.pushConstantRanges.back().offset + ReflectionData.pushConstantRanges.back().size;
 
-            auto& pushConstantRange  = ReflectionData.pushConstantRanges.emplace_back();
-            pushConstantRange.stage  = stage;
-            pushConstantRange.size   = bufferSize;
-            pushConstantRange.offset = bufferOffset;
+            // auto& pushConstantRange  = ReflectionData.pushConstantRanges.emplace_back();
 
-            if (name.empty())
-                continue;
+            //================================================================================================================
+            // 全シェーダーステージ間で同じレイアウトのプッシュ定数が定義されていることを前提とし、1つの定数レンジで SHADER_STAGE_ALL とする
+            // つまり、（ループで1つのデータを更新するので）一番最後にプッシュ定数宣言したステージのデータが全ステージで共有される
+            //================================================================================================================
+            if (!IsExistPushConstant)
+            {
+                PushConstantRange& range = ReflectionData.pushConstantRanges.emplace_back();
+                range.stage  = SHADER_STAGE_ALL;
+                range.size   = bufferSize;
+                range.offset = bufferOffset;
 
+                IsExistPushConstant = true;
+            }
+
+            //================================================================================================================
             // 以下、メンバー情報のデバッグ情報のため、実際には使用しない（※ステージ間で異なるレイアウトのリフレクションの取得を試みたが、出来なかった）
+            //================================================================================================================
             {
                 ShaderPushConstant& buffer = ReflectionData.pushConstants[name];
                 buffer.name = name;
@@ -720,6 +731,7 @@ namespace Silex
                     SL_LOG_TRACE("      offset({}), size({}): {}", offset, size, uniformName);
                 }
             }
+            //================================================================================================================
         }
     }
 }

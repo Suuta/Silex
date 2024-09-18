@@ -2,30 +2,41 @@
 // 頂点シェーダ
 //===================================================================================
 #pragma VERTEX
-#version 430 core
+#version 450
 
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec2 aTexCoords;
-
-out vec2 TexCoords;
+layout (location = 0) out vec2 outUV;
 
 void main()
 {
-    TexCoords = aTexCoords;
-    gl_Position = vec4(aPos, 1.0);
-}
+    // 三角形でフルスクリーン描画
+    // https://stackoverflow.com/questions/2588875/whats-the-best-way-to-draw-a-fullscreen-quad-in-opengl-3-2
 
+    const vec2 triangle[3] =
+    {
+        vec2(-1.0,  1.0), // 左上
+        vec2(-1.0, -3.0), // 左下
+        vec2( 3.0,  1.0), // 右上
+    };
+
+    vec4 pos = vec4(triangle[gl_VertexIndex], 0.0, 1.0);
+    vec2 uv = (0.5 * pos.xy) + vec2(0.5);
+
+    // uv 反転
+    uv.y = 1.0 - uv.y;
+
+    outUV       = uv;
+    gl_Position = pos;
+}
 
 //===================================================================================
 // フラグメントシェーダ
 //===================================================================================
 #pragma FRAGMENT
-#version 430 core
+#version 450
 
-out vec2 FragColor;
-in  vec2 TexCoords;
+layout (location = 0) in  vec2 inTexCoord;
+layout (location = 0) out vec2 outColor;
 
-const float PI = 3.14159265359;
 
 
 float RadicalInverse_VdC(uint bits) 
@@ -45,7 +56,8 @@ vec2 Hammersley(uint i, uint N)
 
 vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness)
 {
-	float a = roughness*roughness;
+    const float PI = 3.14159265359;
+    float a = roughness*roughness;
 	
 	float phi = 2.0 * PI * Xi.x;
 	float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a*a - 1.0) * Xi.y));
@@ -127,6 +139,6 @@ vec2 IntegrateBRDF(float NdotV, float roughness)
 
 void main() 
 {
-    vec2 integratedBRDF = IntegrateBRDF(TexCoords.x, TexCoords.y);
-    FragColor = integratedBRDF;
+    vec2 integratedBRDF = IntegrateBRDF(inTexCoord.x, inTexCoord.y);
+    outColor = integratedBRDF;
 }

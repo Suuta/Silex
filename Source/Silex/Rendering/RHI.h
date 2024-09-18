@@ -122,6 +122,39 @@ namespace Silex
         DescriptorSet*     set               = nullptr;
     };
 
+    struct BloomData
+    {
+        const uint32 numDefaultSampling = 6;
+        std::vector<Extent> resolutions = {};
+
+        RenderPass* pass = nullptr;
+
+        std::vector<FramebufferHandle*> samplingFB    = {};
+        std::vector<TextureHandle*>     sampling      = {};
+        std::vector<TextureView*>       samplingView  = {};
+        TextureHandle*                  prefilter     = {};
+        TextureView*                    prefilterView = {};
+        TextureHandle*                  bloom         = {};
+        TextureView*                    bloomView     = {};
+        FramebufferHandle*              bloomFB       = {};
+
+        Pipeline*          prefilterPipeline = nullptr;
+        ShaderHandle*      prefilterShader   = nullptr;
+        DescriptorSet*     prefilterSet      = nullptr;
+
+        Pipeline*                   downSamplingPipeline = nullptr;
+        ShaderHandle*               downSamplingShader   = nullptr;
+        std::vector<DescriptorSet*> downSamplingSet      = {};
+
+        Pipeline*                   upSamplingPipeline = nullptr;
+        ShaderHandle*               upSamplingShader   = nullptr;
+        std::vector<DescriptorSet*> upSamplingSet      = {};
+
+        Pipeline*          bloomPipeline = nullptr;
+        ShaderHandle*      bloomShader   = nullptr;
+        DescriptorSet*     bloomSet      = nullptr;
+    };
+
 
     // レンダーAPI抽象化
     class RHI : public Object
@@ -277,12 +310,17 @@ namespace Silex
         // シャドウマップ
         void PrepareShadowBuffer();
         void CleanupShadowBuffer();
-
         void CalculateLightSapceMatrices(glm::vec3 directionalLightDir, Camera* camera, std::array<glm::mat4, 4>& out_result);
         void GetFrustumCornersWorldSpace(const glm::mat4& projview, std::array<glm::vec4, 8>& out_result);
         glm::mat4 GetLightSpaceMatrix(glm::vec3 directionalLightDir, Camera* camera, const float nearPlane, const float farPlane);
-
         ShadowData shadow;
+
+        // ブルーム
+        std::vector<Extent> CalculateBlomSampling(uint32 width, uint32 height);
+        void PrepareBloomBuffer(uint32 width, uint32 height);
+        void ResizeBloomBuffer(uint32 width, uint32 height);
+        void CleanupBloomBuffer();
+        BloomData* bloom;
 
 
     public:

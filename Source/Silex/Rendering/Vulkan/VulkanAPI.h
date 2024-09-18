@@ -144,7 +144,7 @@ namespace Silex
         void CopyTextureToBuffer(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, Buffer* dstBuffer, uint32 numRegion, BufferTextureCopyRegion* regions) override;
         void BlitTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureBlitRegion* regions, SamplerFilter filter = SAMPLER_FILTER_LINEAR) override;
 
-        void PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData) override;
+        void PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, const void* data, uint32 numData, uint32 offsetIndex = 0) override;
         void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, uint32 numView, TextureView** views, CommandBufferType commandBufferType = COMMAND_BUFFER_TYPE_PRIMARY) override;
         void EndRenderPass(CommandBuffer* commandbuffer) override;
         void NextRenderSubpass(CommandBuffer* commandbuffer, CommandBufferType commandBufferType) override;

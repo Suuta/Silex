@@ -32,14 +32,14 @@ void main()
 #version 450
 
 layout (location = 0) in  vec2 uv;
-layout (location = 0) out vec4 piexl;
+layout (location = 0) out vec4 pixel;
 
 layout (set = 0, binding = 0) uniform sampler2D inputAttachment;
 
 
 // webgl-meincraft / FXAA shader
 // https://github.com/mitsuhiko/webgl-meincraft/blob/master/assets/shaders/fxaa.glsl
-vec4 FXAA(vec2 pixelSize)
+vec3 FXAA(vec2 pixelSize)
 {
     const float FXAA_REDUCE_MIN = 1.0 / 128.0;
     const float FXAA_REDUCE_MUL = 1.0 / 8.0;
@@ -87,30 +87,16 @@ vec4 FXAA(vec2 pixelSize)
 
     if((lumaB < minLuma) || (lumaB > maxLuma))
     {
-        return vec4(vec3(rgbA), 1.0);
+        return rgbA;
     }
     else
     {
-        return vec4(vec3(rgbB), 1.0);
+        return rgbB;
     }
 }
 
 // SEGA ACES Filmic トーンマップ
 // https://techblog.sega.jp/entry/ngs_hdr_techblog_202211
-
-// HDR: 最大輝度を指定する
-vec3 ACESFilmic_Luminance(vec3 color, float luminance)
-{
-    const float a = 3.0;
-    const float b = 0.03;
-    const float c = a / luminance;
-    const float d = 1.0;
-    const float e = 0.14;
-
-    return (color * (a * color + b)) / (color * (c * color + d) + e);
-}
-
-// SDR
 vec3 ACESFilmic(vec3 color)
 {
     const float a = 3.0;
@@ -122,6 +108,27 @@ vec3 ACESFilmic(vec3 color)
     return (color * (a * color + b)) / (color * (c * color + d) + e);
 }
 
+// GodotEngine
+// https://github.com/godotengine/godot/tree/4.3-stable/servers/rendering/renderer_rd/shaders/effects/tonemap.glsl
+vec3 Filmic(vec3 color, float white)
+{
+    // exposure bias: input scale (color *= bias, white *= bias) to make the brightness consistent with other tonemappers
+    // also useful to scale the input to the range that the tonemapper is designed for (some require very high input values)
+    // has no effect on the curve's general shape or visual properties
+    const float exposure_bias = 2.0f;
+    const float A = 0.22f * exposure_bias * exposure_bias; // bias baked into constants for performance
+    const float B = 0.30f * exposure_bias;
+    const float C = 0.10f;
+    const float D = 0.20f;
+    const float E = 0.01f;
+    const float F = 0.30f;
+
+    vec3  color_tonemapped = ((color * (A * color + C * B) + D * E) / (color * (A * color + B) + D * F)) - E / F;
+    float white_tonemapped = ((white * (A * white + C * B) + D * E) / (white * (A * white + B) + D * F)) - E / F;
+
+    return color_tonemapped / white_tonemapped;
+}
+
 vec3 Ganmma(vec3 color, float ganmma)
 {
     return pow(color, vec3(ganmma));
@@ -129,18 +136,14 @@ vec3 Ganmma(vec3 color, float ganmma)
 
 void main()
 {
-    // FXAA
-    vec2 pixelSize = 1.0 / textureSize(inputAttachment, 0);
-    vec4 color = FXAA(pixelSize);
+    float brightness = 1.0;
+    vec2  pixelSize  = 1.0 / textureSize(inputAttachment, 0);
+    float alpha      = texture(inputAttachment, uv).a;
 
-    // 露光？
-    //color.rgb = vec3(1.0) - exp(-color.rgb * 0.5);
+    vec3 color = FXAA(pixelSize);
+    color      *= brightness;
+    color      = Filmic(color, 1.0);
+    color      = Ganmma(color, 2.2);
 
-    // トーンマップ
-    color.rgb = ACESFilmic(color.rgb).rgb;
-
-    // ガンマ補正
-    color.rgb = Ganmma(color.rgb, 1 / 2.2);
-
-    piexl = color;
+    pixel = vec4(color, alpha);
 }

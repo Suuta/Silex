@@ -60,6 +60,7 @@ layout (location = 3) out int  outID;       // エンティティID
 // [2]: RG11B10F |              Emission             |
 // [3]: R32I     |   Entity  |
 
+
 //------------------------------------------------------------------
 // マテリアル
 //------------------------------------------------------------------
@@ -104,7 +105,7 @@ void main()
     albedomap.rgb *= albedo.rgb;
 
     // カラー・ラフネス
-    outAlbedo.rgb = Ganmma(albedomap.rgb, 2.2);
+    outAlbedo.rgb = albedomap.rgb; // Ganmma(albedomap.rgb, 2.2);
     outAlbedo.a   = u_material.roughness;
 
     //----------------------------------------------------------------------------
@@ -134,7 +135,7 @@ void main()
 
     // エミッション
     vec3 emission = u_material.emission;
-    outEmission = Ganmma(emission, 2.2);
+    outEmission   = emission; //Ganmma(emission, 2.2);
 
     //----------------------------------------------------------------------------
     // RT[3]

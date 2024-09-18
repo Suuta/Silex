@@ -111,8 +111,6 @@ void main()
     vec4 color = (grid(fragPos3D, 0.01, 1.0) + grid(fragPos3D, 0.1, lod_1) + grid(fragPos3D, 1.0, lod_0)) * float(t > 0);
     color.a *= fading;
 
-    if (color.a <= 0.0)
-        discard;
 
     outColor = color;
 }

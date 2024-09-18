@@ -29,6 +29,9 @@ namespace Silex
             {
                 resolutions[i] = { res.width, res.height };
                 res = { resolutions[i].width / 2, resolutions[i].height / 2 };
+
+                res.width  = res.width  == 0? 1 : res.width;
+                res.height = res.height == 0? 1 : res.height;
             }
 
             return resolutions;

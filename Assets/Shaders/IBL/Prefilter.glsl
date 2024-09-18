@@ -2,40 +2,82 @@
 // 頂点シェーダ
 //===================================================================================
 #pragma VERTEX
-#version 430 core
+#version 450
 
-layout (location = 0) in vec3 aPos;
+layout (location = 0) in vec3 inPos;
+layout (location = 1) in vec3 inNormal;
+layout (location = 2) in vec2 inTexCoord;
+layout (location = 3) in vec3 inTangent;
+layout (location = 4) in vec3 inBitangent;
 
-out vec3 LocalPos;
-
-uniform mat4 projection;
-uniform mat4 view;
+layout (location = 0) out vec3 outPosAsUV;
+layout (location = 1) out int  outInstanceIndex;
 
 void main()
 {
-    LocalPos    = aPos;
-    gl_Position = projection * view * vec4(LocalPos, 1.0);
+    outPosAsUV       = inPos;
+    outInstanceIndex = gl_InstanceIndex;
 }
 
+
+//===================================================================================
+// ジオメトリシェーダ
+//===================================================================================
+#pragma GEOMETRY
+#version 450
+
+layout (set = 0, binding = 0) uniform Transform
+{
+    mat4 cubeView[6];
+    mat4 cubeProj;
+};
+
+layout (location = 0) in vec3     inPos[];
+layout (location = 1) in flat int inInstanceIndex[];
+
+layout (location = 0) out vec3 outPosAsUV;
+layout (location = 1) out int  outInstanceIndex;
+
+layout(triangles                        ) in;
+layout(triangle_strip, max_vertices = 18) out;
+
+void main()
+{
+    for (int face = 0; face < 6; face++)
+    {
+        gl_Layer = face;
+
+        for (int i = 0; i < 3; i++)
+        {
+            outPosAsUV  = inPos[i];
+            gl_Position = cubeProj * cubeView[face] * vec4(inPos[i], 1.0);
+            EmitVertex();
+        }
+
+        EndPrimitive();
+    }
+
+    outInstanceIndex = inInstanceIndex[0];
+}
 
 //===================================================================================
 // フラグメントシェーダ
 //===================================================================================
 #pragma FRAGMENT
-#version 430 core
+#version 450
 
-out vec4 FragColor;
-in  vec3 LocalPos;
+layout (location = 0) in  vec3      inLocalPos;
+layout (location = 1) in  flat int  inInstanceIndex;
+layout (location = 0) out vec4      outColor;
 
-uniform samplerCube environmentMap;
-uniform float       roughness;
-
-const float PI = 3.14159265359;
+layout (set = 0, binding = 1) uniform samplerCube environmentCubeMap;
 
 
 float DistributionGGX(vec3 N, vec3 H, float roughness)
 {
-    float a = roughness*roughness;
+    const float PI = 3.14159265359;
+
+    float a  = roughness * roughness;
     float a2 = a*a;
     float NdotH = max(dot(N, H), 0.0);
     float NdotH2 = NdotH*NdotH;
@@ -46,7 +88,6 @@ float DistributionGGX(vec3 N, vec3 H, float roughness)
 
     return nom / denom;
 }
-
 
 float RadicalInverse_VdC(uint bits) 
 {
@@ -65,7 +106,8 @@ vec2 Hammersley(uint i, uint N)
 
 vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness)
 {
-	float a = roughness*roughness;
+    const float PI = 3.14159265359;
+	float a = roughness * roughness;
 	
 	float phi = 2.0 * PI * Xi.x;
 	float cosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a*a - 1.0) * Xi.y));
@@ -85,8 +127,9 @@ vec3 ImportanceSampleGGX(vec2 Xi, vec3 N, float roughness)
 }
 
 void main()
-{		
-    vec3 N = normalize(LocalPos);
+{
+    const float PI = 3.14159265359;
+    vec3 N = normalize(inLocalPos);
     
     vec3 R = N;
     vec3 V = R;
@@ -94,33 +137,40 @@ void main()
     const uint SAMPLE_COUNT = 4096u;
     vec3 prefilteredColor = vec3(0.0);
     float totalWeight = 0.0;
-    
-    for(uint i = 0u; i < SAMPLE_COUNT; ++i)
+
+    // GL : gl_InstanceID
+    // VK : gl_InstanceIndex
+
+    // firstInstance で 呼び分け
+    float ml = inInstanceIndex / 4.0;
+
+
+    for (uint i = 0u; i < SAMPLE_COUNT; ++i)
     {
         vec2 Xi = Hammersley(i, SAMPLE_COUNT);
-        vec3 H = ImportanceSampleGGX(Xi, N, roughness);
+        vec3 H = ImportanceSampleGGX(Xi, N, ml);
         vec3 L  = normalize(2.0 * dot(V, H) * H - V);
 
         float NdotL = max(dot(N, L), 0.0);
         if(NdotL > 0.0)
         {
-            float D   = DistributionGGX(N, H, roughness);
+            float D   = DistributionGGX(N, H, ml);
             float NdotH = max(dot(N, H), 0.0);
             float HdotV = max(dot(H, V), 0.0);
-            float pdf = D * NdotH / (4.0 * HdotV) + 0.0001; 
+            float pdf = D * NdotH / (4.0 * HdotV) + 0.0001;
 
             float resolution = 512.0;
             float saTexel  = 4.0 * PI / (6.0 * resolution * resolution);
             float saSample = 1.0 / (float(SAMPLE_COUNT) * pdf + 0.0001);
 
-            float mipLevel = roughness == 0.0 ? 0.0 : 0.5 * log2(saSample / saTexel); 
-            
-            prefilteredColor += textureLod(environmentMap, L, mipLevel).rgb * NdotL;
+            float mipLevel = ml == 0.0? 0.0 : 0.5 * log2(saSample / saTexel);
+
+            prefilteredColor += textureLod(environmentCubeMap, L, mipLevel).rgb * NdotL;
             totalWeight      += NdotL;
         }
     }
 
     prefilteredColor = prefilteredColor / totalWeight;
 
-    FragColor = vec4(prefilteredColor, 1.0);
+    outColor = vec4(prefilteredColor, 1.0);
 }

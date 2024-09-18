@@ -101,6 +101,27 @@ namespace Silex
         {
             float exposure;
         };
+
+
+        struct BloomPrefilterData
+        {
+            float threshold;
+        };
+
+        struct BloomDownSamplingData
+        {
+            glm::vec2 sourceResolution;
+        };
+
+        struct BloomUpSamplingData
+        {
+            float filterRadius;
+        };
+
+        struct BloomData
+        {
+            float intencity;
+        };
     }
 
     //======================================
@@ -137,8 +158,10 @@ namespace Silex
         CleanupGBuffer();
         CleanupLightingBuffer();
         CleanupEnvironmentBuffer();
+        CleanupBloomBuffer();
 
         sldelete(gbuffer);
+        sldelete(bloom);
 
         api->UnmapBuffer(gridUBO);
         api->DestroyBuffer(gridUBO);
@@ -286,7 +309,7 @@ namespace Silex
         cubeMesh   = MeshFactory::Cube();
         sponzaMesh = MeshFactory::Sponza();
 
-        sceneLightDir = glm::vec3(1, 1, 0);
+        sceneLightDir = glm::vec3(0.0, 1.0, 0.1);
 
         defaultLayout.Binding(0);
         defaultLayout.Attribute(0, VERTEX_BUFFER_FORMAT_R32G32B32);
@@ -295,31 +318,69 @@ namespace Silex
         defaultLayout.Attribute(3, VERTEX_BUFFER_FORMAT_R32G32B32);
         defaultLayout.Attribute(4, VERTEX_BUFFER_FORMAT_R32G32B32);
 
-        {
-            SamplerInfo linear = {};
-            linear.magFilter = SAMPLER_FILTER_LINEAR;
-            linear.minFilter = SAMPLER_FILTER_LINEAR;
-            linear.mipFilter = SAMPLER_FILTER_LINEAR;
-            linearSampler = api->CreateSampler(linear);
+        SamplerInfo linear = {};
+        linear.magFilter = SAMPLER_FILTER_LINEAR;
+        linear.minFilter = SAMPLER_FILTER_LINEAR;
+        linear.mipFilter = SAMPLER_FILTER_LINEAR;
+        linearSampler = api->CreateSampler(linear);
         
-            SamplerInfo shadow = {};
-            shadow.magFilter     = SAMPLER_FILTER_LINEAR;
-            shadow.minFilter     = SAMPLER_FILTER_LINEAR;
-            shadow.mipFilter     = SAMPLER_FILTER_LINEAR;
-            shadow.enableCompare = true;
-            shadow.compareOp     = COMPARE_OP_LESS;
-            shadowSampler = api->CreateSampler(shadow);
-        }
+        SamplerInfo shadow = {};
+        shadow.magFilter     = SAMPLER_FILTER_LINEAR;
+        shadow.minFilter     = SAMPLER_FILTER_LINEAR;
+        shadow.mipFilter     = SAMPLER_FILTER_LINEAR;
+        shadow.enableCompare = true;
+        shadow.compareOp     = COMPARE_OP_LESS;
+        shadowSampler = api->CreateSampler(shadow);
 
         TextureReader reader;
         byte* pixels;
 
-        pixels = reader.Read("Assets/Textures/gray.png");
+        pixels = reader.Read("Assets/Textures/default.png");
         defaultTexture = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
         defaultTextureView = CreateTextureView(defaultTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
         reader.Unload(pixels);
 
+        // IBL
+        PrepareIBL("Assets/Textures/cloud.png");
+
+        // シャドウマップ
+        PrepareShadowBuffer();
+
+        // Gバッファ
+        gbuffer = slnew(GBufferData);
+        PrepareGBuffer(size.x, size.y);
+
+        // ライティングバッファ
+        PrepareLightingBuffer(size.x, size.y);
+
+        // 環境マップ
+        PrepareEnvironmentBuffer(size.x, size.y);
+
+        // ブルーム
+        bloom = slnew(BloomData);
+        PrepareBloomBuffer(size.x, size.y);
+
         {
+            // グリッド
+            PipelineStateInfoBuilder builder;
+            PipelineStateInfo pipelineInfo = builder
+                .Depth(true, false)
+                .Blend(true, 1)
+                .Value();
+
+            ShaderCompiledData compiledData;
+            ShaderCompiler::Get()->Compile("Assets/Shaders/Grid.glsl", compiledData);
+            gridShader   = api->CreateShader(compiledData);
+            gridPipeline = api->CreateGraphicsPipeline(gridShader, &pipelineInfo, environment.pass);
+            gridUBO      = CreateUniformBuffer(nullptr, sizeof(Test::GridData), &mappedGridData);
+
+            DescriptorSetInfo gridinfo;
+            gridinfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gridUBO);
+            gridSet = CreateDescriptorSet(gridShader, 0, gridinfo);
+        }
+
+        {
+            // コンポジット
             Attachment color = {};
             color.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
             color.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -352,55 +413,17 @@ namespace Silex
             ShaderCompiler::Get()->Compile("Assets/Shaders/Composit.glsl", compiledData);
             compositShader   = api->CreateShader(compiledData);
             compositPipeline = api->CreateGraphicsPipeline(compositShader, &pipelineInfo, compositPass);
-        }
 
-        gridUBO = CreateUniformBuffer(nullptr, sizeof(Test::GridData), &mappedGridData);
-
-        // IBL
-        PrepareIBL("Assets/Textures/cloud.png");
-
-        // シャドウマップ
-        PrepareShadowBuffer();
-
-        // Gバッファ
-        gbuffer = slnew(GBufferData);
-        PrepareGBuffer(size.x, size.y);
-
-        // ライティングバッファ
-        PrepareLightingBuffer(size.x, size.y);
-
-        // 環境マップ
-        PrepareEnvironmentBuffer(size.x, size.y);
-
-        {
-            // グリッド
-            PipelineStateInfoBuilder builder;
-            PipelineStateInfo pipelineInfo = builder
-                .Depth(true, false)
-                .Blend(true, 1)
-                .Value();
-
-            ShaderCompiledData compiledData;
-            ShaderCompiler::Get()->Compile("Assets/Shaders/Grid.glsl", compiledData);
-            gridShader   = api->CreateShader(compiledData);
-            gridPipeline = api->CreateGraphicsPipeline(gridShader, &pipelineInfo, environment.pass);
-
-            DescriptorSetInfo gridinfo;
-            gridinfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gridUBO);
-            gridSet = CreateDescriptorSet(gridShader, 0, gridinfo);
-        }
-
-        {
             DescriptorSetInfo blitinfo;
-            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  lighting.view, linearSampler);
+            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
             compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
         }
 
-        {
-            DescriptorSetInfo imageinfo;
-            imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTextureView, linearSampler);
-            imageSet = CreateDescriptorSet(compositShader, 0, imageinfo);
-        }
+
+        // ImGui ビューポート用 デスクリプターセット
+        DescriptorSetInfo imageinfo;
+        imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTextureView, linearSampler);
+        imageSet = CreateDescriptorSet(compositShader, 0, imageinfo);
     }
 
     void RHI::PrepareIBL(const char* environmentTexturePath)
@@ -434,11 +457,12 @@ namespace Silex
 
         // シェーダー
         ShaderCompiledData compiledData;
-        ShaderCompiler::Get()->Compile("Assets/Shaders/EquirectangularToCubeMap.glsl", compiledData);
+        ShaderCompiler::Get()->Compile("Assets/Shaders/IBL/EquirectangularToCubeMap.glsl", compiledData);
         equirectangularShader = api->CreateShader(compiledData);
 
         // キューブマップ
-        cubemapTexture     = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, 1024, 1024, true);
+        const uint32 envResolution = 2048;
+        cubemapTexture     = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, envResolution, envResolution, true);
         cubemapTextureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT);
 
         // 一時ビュー
@@ -471,7 +495,7 @@ namespace Silex
         info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, envTextureView, linearSampler);
         equirectangularSet = CreateDescriptorSet(equirectangularShader, 0, info);
 
-        IBLProcessFB = CreateFramebuffer(IBLProcessPass, 1, &cubemapTexture, 1024, 1024);
+        IBLProcessFB = CreateFramebuffer(IBLProcessPass, 1, &cubemapTexture, envResolution, envResolution);
 
         // キューブマップ書き込み
         api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
@@ -488,8 +512,8 @@ namespace Silex
 
             MeshSource* ms = cubeMesh->GetMeshSource();
 
-            api->SetViewport(cmd, 0, 0, 1024, 1024);
-            api->SetScissor(cmd,  0, 0, 1024, 1024);
+            api->SetViewport(cmd, 0, 0, envResolution, envResolution);
+            api->SetScissor(cmd,  0, 0, envResolution, envResolution);
 
             api->BeginRenderPass(cmd, IBLProcessPass, IBLProcessFB, 1, &captureView);
             api->BindPipeline(cmd, equirectangularPipeline);
@@ -508,7 +532,7 @@ namespace Silex
             info.newLayout    = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
             api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
 
-            _GenerateMipmaps(cmd, cubemapTexture, 1024, 1024, 1, 6, TEXTURE_ASPECT_COLOR_BIT);
+            _GenerateMipmaps(cmd, cubemapTexture, envResolution, envResolution, 1, 6, TEXTURE_ASPECT_COLOR_BIT);
 
             info.oldLayout = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
             info.newLayout = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -529,7 +553,7 @@ namespace Silex
 
         // シェーダー
         ShaderCompiledData compiledData;
-        ShaderCompiler::Get()->Compile("Assets/Shaders/Irradiance.glsl", compiledData);
+        ShaderCompiler::Get()->Compile("Assets/Shaders/IBL/Irradiance.glsl", compiledData);
         irradianceShader = api->CreateShader(compiledData);
 
         PipelineStateInfoBuilder builder;
@@ -582,7 +606,7 @@ namespace Silex
 
         // シェーダー
         ShaderCompiledData compiledData;
-        ShaderCompiler::Get()->Compile("Assets/Shaders/Prefilter.glsl", compiledData);
+        ShaderCompiler::Get()->Compile("Assets/Shaders/IBL/Prefilter.glsl", compiledData);
         prefilterShader = api->CreateShader(compiledData);
 
         PipelineStateInfoBuilder builder;
@@ -635,7 +659,9 @@ namespace Silex
                 api->BindPipeline(cmd, prefilterPipeline);
                 api->BindDescriptorSet(cmd, prefilterSet, 0);
 
+                //-------------------------------------------------------
                 // firstInstance でミップレベルを指定（シェーダー内でラフネス計算）
+                //-------------------------------------------------------
                 api->DrawIndexed(cmd, ms->GetIndexCount(), 1, 0, 0, i);
 
                 api->EndRenderPass(cmd);
@@ -656,7 +682,7 @@ namespace Silex
         const uint32 brdfResolution = 512;
 
         ShaderCompiledData compiledData;
-        ShaderCompiler::Get()->Compile("Assets/Shaders/BRDF.glsl", compiledData);
+        ShaderCompiler::Get()->Compile("Assets/Shaders/IBL/BRDF.glsl", compiledData);
         brdflutShader = api->CreateShader(compiledData);
 
         PipelineStateInfoBuilder builder;
@@ -1364,6 +1390,284 @@ namespace Silex
         environment.framebuffer = CreateFramebuffer(environment.pass, std::size(textures), textures, width, height);
     }
 
+    std::vector<Extent> RHI::CalculateBlomSampling(uint32 width, uint32 height)
+    {
+        // 解像度に変化し、上限で6回サンプリングする
+        auto miplevels = RenderingUtility::CalculateMipmap(width, height);
+        if (miplevels.size() - 1 > bloom->numDefaultSampling + 1)
+        {
+            miplevels.resize(bloom->numDefaultSampling + 1);
+        }
+
+        miplevels.erase(miplevels.begin());
+        return miplevels;
+    }
+
+    void RHI::PrepareBloomBuffer(uint32 width, uint32 height)
+    {
+        {
+            Attachment color = {};
+            color.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
+            color.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            color.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
+            color.storeOp       = ATTACHMENT_STORE_OP_STORE;
+            color.samples       = TEXTURE_SAMPLES_1;
+            color.format        = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
+
+            AttachmentReference colorRef = {};
+            colorRef.attachment = 0;
+            colorRef.layout     = TEXTURE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+            Subpass subpass = {};
+            subpass.colorReferences.push_back(colorRef);
+
+            RenderPassClearValue clear;
+            clear.SetFloat(0, 0, 0, 1);
+
+            // レンダーパス
+            bloom->pass = api->CreateRenderPass(1, &color, 1, &subpass, 0, nullptr, 1, &clear);
+        }
+
+        bloom->resolutions.clear();
+        bloom->resolutions = CalculateBlomSampling(width, height);
+        bloom->sampling.resize(bloom->resolutions.size());
+        bloom->samplingView.resize(bloom->resolutions.size());
+        bloom->samplingFB.resize(bloom->resolutions.size());
+        bloom->downSamplingSet.resize(bloom->resolutions.size());
+        bloom->upSamplingSet.resize(bloom->resolutions.size() - 1);
+
+        // サンプリングイメージ
+        for (uint32 i = 0; i < bloom->resolutions.size(); i++)
+        {
+            const Extent extent = bloom->resolutions[i];
+            bloom->sampling[i]     = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, extent.width, extent.height);
+            bloom->samplingView[i] = CreateTextureView(bloom->sampling[i], TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+            bloom->samplingFB[i]   = CreateFramebuffer(bloom->pass, 1, &bloom->sampling[i], extent.width, extent.height);
+        }
+
+        // ブルーム プリフィルター/ブレンド イメージ
+        bloom->prefilter     = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, width, height);
+        bloom->prefilterView = CreateTextureView(bloom->prefilter, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        bloom->bloom         = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, width, height);
+        bloom->bloomView     = CreateTextureView(bloom->bloom, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+
+        // フレームバッファ
+        bloom->bloomFB = CreateFramebuffer(bloom->pass, 1, &bloom->bloom, width, height);
+
+
+        // パイプライン
+        ShaderCompiledData compiledData;
+        PipelineStateInfoBuilder builder;
+
+        PipelineStateInfo pipelineInfo = builder
+            .Depth(false, false)
+            .Blend(false, 1) // ブレンド 無し
+            .Value();
+
+        PipelineStateInfo pipelineInfoUpSampling = builder
+            .Depth(false, false)
+            .Blend(true, 1) // ブレンド 有り
+            .Value();
+
+        ShaderCompiler::Get()->Compile("Assets/Shaders/Bloom.glsl", compiledData);
+        bloom->bloomShader   = api->CreateShader(compiledData);
+        bloom->bloomPipeline = api->CreateGraphicsPipeline(bloom->bloomShader, &pipelineInfo, bloom->pass);
+
+        ShaderCompiler::Get()->Compile("Assets/Shaders/BloomPrefiltering.glsl", compiledData);
+        bloom->prefilterShader   = api->CreateShader(compiledData);
+        bloom->prefilterPipeline = api->CreateGraphicsPipeline(bloom->prefilterShader, &pipelineInfo, bloom->pass);
+
+        ShaderCompiler::Get()->Compile("Assets/Shaders/BloomDownSampling.glsl", compiledData);
+        bloom->downSamplingShader   = api->CreateShader(compiledData);
+        bloom->downSamplingPipeline = api->CreateGraphicsPipeline(bloom->downSamplingShader, &pipelineInfo, bloom->pass);
+
+        ShaderCompiler::Get()->Compile("Assets/Shaders/BloomUpSampling.glsl", compiledData);
+        bloom->upSamplingShader   = api->CreateShader(compiledData);
+        bloom->upSamplingPipeline = api->CreateGraphicsPipeline(bloom->upSamplingShader, &pipelineInfoUpSampling, bloom->pass);
+
+
+        // プリフィルター
+        DescriptorSetInfo prefilterInfo = {};
+        prefilterInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
+        bloom->prefilterSet = CreateDescriptorSet(bloom->prefilterShader, 0, prefilterInfo);
+
+        // ダウンサンプリング (source)  - (target)
+        // prefilter - sample[0]
+        // sample[0] - sample[1]
+        // sample[1] - sample[2]
+        // sample[2] - sample[3]
+        // sample[3] - sample[4]
+        // sample[4] - sample[5]
+        DescriptorSetInfo downSamplingInfo = {};
+        downSamplingInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->prefilterView, linearSampler);
+        bloom->downSamplingSet[0] = CreateDescriptorSet(bloom->downSamplingShader, 0, downSamplingInfo);
+
+        for (uint32 i = 1; i < bloom->downSamplingSet.size(); i++)
+        {
+            DescriptorSetInfo info = {};
+            info.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[i - 1], linearSampler);
+            bloom->downSamplingSet[i] = CreateDescriptorSet(bloom->downSamplingShader, 0, info);
+        }
+
+        // アップサンプリング (source)  - (target)
+        // sample[5] - sample[4]
+        // sample[4] - sample[3]
+        // sample[3] - sample[2]
+        // sample[2] - sample[1]
+        // sample[1] - sample[0]
+        uint32 upSamplingIndex = bloom->upSamplingSet.size();
+        for (uint32 i = 0; i < bloom->upSamplingSet.size(); i++)
+        {
+            DescriptorSetInfo upSamplingInfo = {};
+            upSamplingInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[upSamplingIndex], linearSampler);
+            bloom->upSamplingSet[i] = CreateDescriptorSet(bloom->upSamplingShader, 0, upSamplingInfo);
+            upSamplingIndex--;
+        }
+
+        // ブルームコンポジット
+        DescriptorSetInfo bloomInfo = {};
+        bloomInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view,          linearSampler);
+        bloomInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[0], linearSampler);
+        bloom->bloomSet = CreateDescriptorSet(bloom->bloomShader, 0, bloomInfo);
+    }
+
+    void RHI::ResizeBloomBuffer(uint32 width, uint32 height)
+    {
+        for (uint32 i = 0; i < bloom->resolutions.size(); i++)
+        {
+            DestroyTexture(bloom->sampling[i]);
+            DestroyTextureView(bloom->samplingView[i]);
+            DestroyFramebuffer(bloom->samplingFB[i]);
+        }
+
+        DestroyFramebuffer(bloom->bloomFB);
+        DestroyTexture(bloom->prefilter);
+        DestroyTextureView(bloom->prefilterView);
+        DestroyDescriptorSet(bloom->prefilterSet);
+        DestroyTexture(bloom->bloom);
+        DestroyTextureView(bloom->bloomView);
+        DestroyDescriptorSet(bloom->bloomSet);
+
+        for (uint32 i = 0; i < bloom->upSamplingSet.size(); i++)
+        {
+            DestroyDescriptorSet(bloom->upSamplingSet[i]);
+        }
+
+        for (uint32 i = 0; i < bloom->downSamplingSet.size(); i++)
+        {
+            DestroyDescriptorSet(bloom->downSamplingSet[i]);
+        }
+
+        bloom->resolutions.clear();
+        bloom->resolutions = CalculateBlomSampling(width, height);
+        bloom->sampling.resize(bloom->resolutions.size());
+        bloom->samplingView.resize(bloom->resolutions.size());
+        bloom->samplingFB.resize(bloom->resolutions.size());
+        bloom->downSamplingSet.resize(bloom->resolutions.size());
+        bloom->upSamplingSet.resize(bloom->resolutions.size() - 1);
+
+        // イメージ
+        for (uint32 i = 0; i < bloom->resolutions.size(); i++)
+        {
+            const Extent extent = bloom->resolutions[i];
+            bloom->sampling[i]     = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, extent.width, extent.height);
+            bloom->samplingView[i] = CreateTextureView(bloom->sampling[i], TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+            bloom->samplingFB[i]   = CreateFramebuffer(bloom->pass,         1, &bloom->sampling[i], extent.width, extent.height);
+        }
+
+        bloom->prefilter     = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, width, height);
+        bloom->prefilterView = CreateTextureView(bloom->prefilter, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        bloom->bloom         = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, width, height);
+        bloom->bloomView     = CreateTextureView(bloom->bloom, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+        bloom->bloomFB       = CreateFramebuffer(bloom->pass, 1, &bloom->bloom, width, height);
+
+
+        // プリフィルター
+        DescriptorSetInfo prefilterInfo = {};
+        prefilterInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
+        bloom->prefilterSet = CreateDescriptorSet(bloom->prefilterShader, 0, prefilterInfo);
+
+        // ダウンサンプリング (source)  - (target)
+        // prefilter - sample[0]
+        // sample[0] - sample[1]
+        // sample[1] - sample[2]
+        // sample[2] - sample[3]
+        // sample[3] - sample[4]
+        // sample[4] - sample[5]
+        DescriptorSetInfo downSamplingInfo = {};
+        downSamplingInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->prefilterView, linearSampler);
+        bloom->downSamplingSet[0] = CreateDescriptorSet(bloom->downSamplingShader, 0, downSamplingInfo);
+
+        for (uint32 i = 1; i < bloom->downSamplingSet.size(); i++)
+        {
+            DescriptorSetInfo info = {};
+            info.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[i - 1], linearSampler);
+            bloom->downSamplingSet[i] = CreateDescriptorSet(bloom->downSamplingShader, 0, info);
+        }
+
+        // アップサンプリング (source)  - (target)
+        // sample[5] - sample[4]
+        // sample[4] - sample[3]
+        // sample[3] - sample[2]
+        // sample[2] - sample[1]
+        // sample[1] - sample[0]
+        uint32 upSamplingIndex = bloom->upSamplingSet.size();
+        for (uint32 i = 0; i < bloom->upSamplingSet.size(); i++)
+        {
+            DescriptorSetInfo upSamplingInfo = {};
+            upSamplingInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[upSamplingIndex], linearSampler);
+            bloom->upSamplingSet[i] = CreateDescriptorSet(bloom->upSamplingShader, 0, upSamplingInfo);
+            upSamplingIndex--;
+        }
+
+        DescriptorSetInfo bloomInfo = {};
+        bloomInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  lighting.view,          linearSampler);
+        bloomInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  bloom->samplingView[0], linearSampler);
+        bloom->bloomSet = CreateDescriptorSet(bloom->bloomShader, 0, bloomInfo);
+    }
+
+    void RHI::CleanupBloomBuffer()
+    {
+        api->DestroyRenderPass(bloom->pass);
+
+        for (uint32 i = 0; i < bloom->resolutions.size(); i++)
+        {
+            api->DestroyFramebuffer(bloom->samplingFB[i]);
+            api->DestroyTextureView(bloom->samplingView[i]);
+            api->DestroyTexture(bloom->sampling[i]);
+        }
+
+        for (uint32 i = 0; i < bloom->upSamplingSet.size(); i++)
+        {
+            api->DestroyDescriptorSet(bloom->upSamplingSet[i]);
+        }
+
+        for (uint32 i = 0; i < bloom->downSamplingSet.size(); i++)
+        {
+            api->DestroyDescriptorSet(bloom->downSamplingSet[i]);
+        }
+
+        api->DestroyTexture(bloom->bloom);
+        api->DestroyTexture(bloom->prefilter);
+        api->DestroyTextureView(bloom->bloomView);
+        api->DestroyTextureView(bloom->prefilterView);
+        api->DestroyFramebuffer(bloom->bloomFB);
+
+        api->DestroyShader(bloom->bloomShader);
+        api->DestroyPipeline(bloom->bloomPipeline);
+        api->DestroyShader(bloom->prefilterShader);
+        api->DestroyPipeline(bloom->prefilterPipeline);
+        api->DestroyShader(bloom->downSamplingShader);
+        api->DestroyPipeline(bloom->downSamplingPipeline);
+        api->DestroyShader(bloom->upSamplingShader);
+        api->DestroyPipeline(bloom->upSamplingPipeline);
+
+        api->DestroyDescriptorSet(bloom->bloomSet);
+        api->DestroyDescriptorSet(bloom->prefilterSet);
+    }
+
+
+
     void RHI::RESIZE(uint32 width, uint32 height)
     {
         if (width == 0 || height == 0)
@@ -1372,6 +1676,7 @@ namespace Silex
         ResizeGBuffer(width, height);
         ResizeLightingBuffer(width, height);
         ResizeEnvironmentBuffer(width, height);
+        ResizeBloomBuffer(width, height);
 
         {
             DestroyDescriptorSet(compositSet);
@@ -1382,6 +1687,7 @@ namespace Silex
             compositTexture     = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM, width, height);
             compositTextureView = CreateTextureView(compositTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
             compositFB          = CreateFramebuffer(compositPass, 1, &compositTexture, width, height);
+
             DescriptorSetInfo blitinfo;
             blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
             compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
@@ -1556,9 +1862,94 @@ namespace Silex
             api->EndRenderPass(frame.commandBuffer);
         }
 
+        if (1) // ブルーム
+        {
+            // プリフィルタリング
+            if (1)
+            {
+                api->BindPipeline(frame.commandBuffer, bloom->prefilterPipeline);
+                api->BeginRenderPass(frame.commandBuffer, bloom->pass, bloom->bloomFB, 1, &bloom->prefilterView);
+
+                float threshold = 0.25f;
+                api->PushConstants(frame.commandBuffer, bloom->prefilterShader, &threshold, 1);
+                api->BindDescriptorSet(frame.commandBuffer, bloom->prefilterSet, 0);
+                api->Draw(frame.commandBuffer, 3, 1, 0, 0);
+
+                api->EndRenderPass(frame.commandBuffer);
+            }
+
+            // ダウンサンプリング
+            if (1)
+            {
+                api->BindPipeline(frame.commandBuffer, bloom->downSamplingPipeline);
+
+                for (uint32 i = 0; i < bloom->downSamplingSet.size(); i++)
+                {
+                    api->BeginRenderPass(frame.commandBuffer, bloom->pass, bloom->samplingFB[i], 1, &bloom->samplingView[i]);
+                    
+                    // ミップレベルがズレているので2倍している（シーンビューサイズが含まれていないので2倍した数値で扱う）
+                    glm::vec2 srcResolution = { bloom->resolutions[i].width * 2, bloom->resolutions[i].height * 2 };
+                    api->PushConstants(frame.commandBuffer, bloom->downSamplingShader, &srcResolution, sizeof(srcResolution) / sizeof(uint32));
+                    
+                    api->SetViewport(frame.commandBuffer, 0, 0, bloom->resolutions[i].width, bloom->resolutions[i].height);
+                    api->SetScissor(frame.commandBuffer,  0, 0, bloom->resolutions[i].width, bloom->resolutions[i].height);
+                    
+                    api->BindDescriptorSet(frame.commandBuffer, bloom->downSamplingSet[i], 0);
+                    api->Draw(frame.commandBuffer, 3, 1, 0, 0);
+
+                    api->EndRenderPass(frame.commandBuffer);
+                }
+            }
+
+            // アップサンプリング
+            if (1)
+            {
+                api->BindPipeline(frame.commandBuffer, bloom->upSamplingPipeline);
+
+                float filterRadius = 1.0f;
+                api->PushConstants(frame.commandBuffer, bloom->upSamplingShader, &filterRadius, 1);
+
+                uint32 upSamplingIndex = bloom->upSamplingSet.size();
+                for (uint32 i = 0; i < bloom->upSamplingSet.size(); i++)
+                {
+                    api->BeginRenderPass(frame.commandBuffer, bloom->pass, bloom->samplingFB[upSamplingIndex - 1], 1, &bloom->samplingView[upSamplingIndex - 1]);
+
+                    api->SetViewport(frame.commandBuffer, 0, 0, bloom->resolutions[upSamplingIndex - 1].width, bloom->resolutions[upSamplingIndex - 1].height);
+                    api->SetScissor(frame.commandBuffer,  0, 0, bloom->resolutions[upSamplingIndex - 1].width, bloom->resolutions[upSamplingIndex - 1].height);
+
+                    api->BindDescriptorSet(frame.commandBuffer, bloom->upSamplingSet[i], 0);
+                    api->Draw(frame.commandBuffer, 3, 1, 0, 0);
+
+                    api->EndRenderPass(frame.commandBuffer);
+                    upSamplingIndex--;
+                }
+            }
+
+            // マージ
+            if (1)
+            {
+                api->BindPipeline(frame.commandBuffer, bloom->bloomPipeline);
+                api->BeginRenderPass(frame.commandBuffer, bloom->pass, bloom->bloomFB, 1, &bloom->bloomView);
+                api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
+                api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
+
+                float intencity = 1.0f;
+                api->PushConstants(frame.commandBuffer, bloom->bloomShader, &intencity, 1);
+
+                api->BindDescriptorSet(frame.commandBuffer, bloom->bloomSet, 0);
+                api->Draw(frame.commandBuffer, 3, 1, 0, 0);
+
+                api->EndRenderPass(frame.commandBuffer);
+            }
+
+        }
+
         if (1) // コンポジットパス
         {
             api->BeginRenderPass(frame.commandBuffer, compositPass, compositFB, 1, &compositTextureView);
+
+            api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
+            api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
 
             api->BindPipeline(frame.commandBuffer, compositPipeline);
             api->BindDescriptorSet(frame.commandBuffer, compositSet, 0);

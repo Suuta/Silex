@@ -1680,12 +1680,17 @@ namespace Silex
         vkCmdBlitImage(cmd->commandBuffer, srctex->image, (VkImageLayout)srcTextureLayout, dsttex->image, (VkImageLayout)dstTextureLayout, numRegion, blitRegions, (VkFilter)filter);
     }
 
-    void VulkanAPI::PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, uint32 firstIndex, uint32* data, uint32 numData)
+    void VulkanAPI::PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, const void* data, uint32 numData, uint32 offsetIndex)
     {
-        VulkanShader* vkshader = (VulkanShader*)shader;
-
+        VulkanShader*   vkshader = (VulkanShader*)shader;
         VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
-        vkCmdPushConstants(cmd->commandBuffer, vkshader->pipelineLayout, vkshader->stageFlags, firstIndex * sizeof(uint32), numData * sizeof(uint32), data);
+
+        // UniformBuffer と同様に プッシュ定数もステージ間で共有する
+        vkCmdPushConstants(cmd->commandBuffer, vkshader->pipelineLayout, VK_SHADER_STAGE_ALL, offsetIndex * sizeof(uint32), numData * sizeof(uint32), data);
+    
+        // ID3D12GraphicsCommandList* list;
+        // list->SetGraphicsRoot32BitConstants(0, numData, data, offsetIndex);
+        // list->SetGraphicsRoot32BitConstant(0, *(uint32*)data, offsetIndex);
     }
 
     void VulkanAPI::BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, uint32 numView, TextureView** views, CommandBufferType commandBufferType)
@@ -2082,9 +2087,8 @@ namespace Silex
         // Vulkanデータ生成
         VulkanShader* vkshader = slnew(VulkanShader);
         vkshader->descriptorsetLayouts = layouts;
-        vkshader->stageFlags           = stageFlags;
         vkshader->pipelineLayout       = vkpipelineLayout;
-        vkshader->stageCreateInfos     = shaderStages;
+        vkshader->stageInfos           = shaderStages;
         vkshader->reflection           = reflectionData;
 
         return vkshader;
@@ -2104,9 +2108,9 @@ namespace Silex
 
             vkDestroyPipelineLayout(device, vkshader->pipelineLayout, nullptr);
 
-            for (uint32 i = 0; i < vkshader->stageCreateInfos.size(); i++)
+            for (uint32 i = 0; i < vkshader->stageInfos.size(); i++)
             {
-                vkDestroyShaderModule(device, vkshader->stageCreateInfos[i].module, nullptr);
+                vkDestroyShaderModule(device, vkshader->stageInfos[i].module, nullptr);
             }
 
             sldelete(vkshader);
@@ -2543,10 +2547,10 @@ namespace Silex
 
         // ===== シェーダーステージ =====
         const VulkanShader* vkshader = (VulkanShader*)shader;
-        VkPipelineShaderStageCreateInfo* pipelineStages = SL_STACK(VkPipelineShaderStageCreateInfo, vkshader->stageCreateInfos.size());
-        for (uint32 i = 0; i < vkshader->stageCreateInfos.size(); i++)
+        VkPipelineShaderStageCreateInfo* pipelineStages = SL_STACK(VkPipelineShaderStageCreateInfo, vkshader->stageInfos.size());
+        for (uint32 i = 0; i < vkshader->stageInfos.size(); i++)
         {
-            pipelineStages[i] = vkshader->stageCreateInfos[i];
+            pipelineStages[i] = vkshader->stageInfos[i];
         }
 
 
@@ -2554,7 +2558,7 @@ namespace Silex
         VkGraphicsPipelineCreateInfo pipelineCreateInfo = {};
         pipelineCreateInfo.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineCreateInfo.pNext               = nullptr;
-        pipelineCreateInfo.stageCount          = vkshader->stageCreateInfos.size();
+        pipelineCreateInfo.stageCount          = vkshader->stageInfos.size();
         pipelineCreateInfo.pStages             = pipelineStages;
         pipelineCreateInfo.pVertexInputState   = &vertexInputStateCreateInfo;
         pipelineCreateInfo.pInputAssemblyState = &inputAssemblyCreateInfo;
@@ -2586,7 +2590,7 @@ namespace Silex
         VkComputePipelineCreateInfo pipelineCreateInfo = {};
         pipelineCreateInfo.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
         pipelineCreateInfo.pNext  = nullptr;
-        pipelineCreateInfo.stage  = vkshader->stageCreateInfos[0];
+        pipelineCreateInfo.stage  = vkshader->stageInfos[0];
         pipelineCreateInfo.layout = vkshader->pipelineLayout;
 
         VkPipeline vkpipeline = nullptr;
