@@ -1587,7 +1587,7 @@ namespace Silex
 
     void VulkanAPI::CopyBufferToTexture(CommandBuffer* commandbuffer, Buffer* srcBuffer, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, BufferTextureCopyRegion* regions)
     {
-        //[ERROR] Validation Error: [ VUID-VkImageSubresourceLayers-layerCount-09243 ] 
+        //[ERROR] Validation Error: [ VUID-VkImageSubresourceLayers-layerCount-09243 ]
         // Object 0: handle = 0x1a5e4aa82c0, type = VK_OBJECT_TYPE_COMMAND_BUFFER; | MessageID = 0xd8445716 | vkCmdCopyBufferToImage():
         // pRegions[0].imageSubresource.layerCount is VK_REMAINING_ARRAY_LAYERS. The Vulkan spec states:
         // If the maintenance5 feature is not enabled, layerCount must not be VK_REMAINING_ARRAY_LAYERS

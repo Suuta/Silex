@@ -85,7 +85,7 @@ vec4 grid(vec3 fragPos3D, float scale, float fadingFactor)
     float minimumx   = min(derivative.x, 1);
 
     float a = 1.0 - min(line, 1.0);
-    vec4 color = vec4(0.3, 0.3, 0.3, a * fadingFactor);
+    vec4 color = vec4(0.2, 0.2, 0.2, a * fadingFactor);
 
     return color;
 }

@@ -165,6 +165,8 @@ namespace Silex
 
         api->UnmapBuffer(gridUBO);
         api->DestroyBuffer(gridUBO);
+        api->UnmapBuffer(pixelIDBuffer);
+        api->DestroyBuffer(pixelIDBuffer);
         api->DestroyTexture(defaultTexture);
         api->DestroyTexture(compositTexture);
         api->DestroyTextureView(defaultTextureView);
@@ -335,10 +337,13 @@ namespace Silex
         TextureReader reader;
         byte* pixels;
 
-        pixels = reader.Read("Assets/Textures/default.png");
+        pixels = reader.Read("Assets/Textures/gray.png");
         defaultTexture = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
         defaultTextureView = CreateTextureView(defaultTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
         reader.Unload(pixels);
+
+        // ID リードバック
+        pixelIDBuffer = _CreateAndMapBuffer(0, nullptr, sizeof(int32), &mappedPixelID);
 
         // IBL
         PrepareIBL("Assets/Textures/cloud.png");
@@ -415,10 +420,9 @@ namespace Silex
             compositPipeline = api->CreateGraphicsPipeline(compositShader, &pipelineInfo, compositPass);
 
             DescriptorSetInfo blitinfo;
-            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
+            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->bloomView, linearSampler);
             compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
         }
-
 
         // ImGui ビューポート用 デスクリプターセット
         DescriptorSetInfo imageinfo;
@@ -465,7 +469,7 @@ namespace Silex
         cubemapTexture     = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, envResolution, envResolution, true);
         cubemapTextureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT);
 
-        // 一時ビュー
+        // 一時ビュー (キューブマップがミップレベルをもつため、コピー操作時に単一ミップを対象としたビューが別途必要)
         TextureView* captureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT, 0, 6, 0, 1);
 
         // キューブマップ UBO
@@ -500,7 +504,7 @@ namespace Silex
         // キューブマップ書き込み
         api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
         {
-            // イメージレイアウトを read_only に移行させる（現状、mip[0]しか移行していない）
+            // イメージレイアウトを read_only に移行させる
             TextureBarrierInfo info = {};
             info.texture      = cubemapTexture;
             info.subresources = {};
@@ -509,6 +513,19 @@ namespace Silex
             info.oldLayout    = TEXTURE_LAYOUT_UNDEFINED;
             info.newLayout    = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+
+            //-------------------------------------------------------------------------------------------------------------------------
+            // このレイアウト移行を実行しない場合、shader_read_only に移行していなので、リソースの利用時に バリデーションエラーが発生するはずだが、
+            // レンダーパスとして mip[0] のみを使用した場合はその例外となる状態が発生した。（mip[0]を書き込みに使用し、残りのレベルは Blitでコピー）
+            //-------------------------------------------------------------------------------------------------------------------------
+            // 移行しない場合、イメージのすべてのサブリソースが undefine 状態であり、その状態で書き込み後のレイアウト遷移では shader_read_only を期待している
+            // ので、すべてのミップレベルでレイアウトに起因するバリデーションエラーが発生するはずだが、mip[0] のみ エラーが発生しなかった。
+            // また、レイアウトを mip[1~N] のように mip[0] を除いて移行したとしても、エラーは発生しなかった。
+            // 
+            // つまり、mip[0] が暗黙的に shader_read_only に移行しているのか、どこかで移行しているのを見逃しているかもしれないし
+            // ドライバーが暗黙的に移行させているのかもしれない。（AMDなら検証できるのかも？）
+            //-------------------------------------------------------------------------------------------------------------------------
+
 
             MeshSource* ms = cubeMesh->GetMeshSource();
 
@@ -531,9 +548,9 @@ namespace Silex
             info.oldLayout    = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             info.newLayout    = TEXTURE_LAYOUT_TRANSFER_DST_OPTIMAL;
             api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
-
+            
             _GenerateMipmaps(cmd, cubemapTexture, envResolution, envResolution, 1, 6, TEXTURE_ASPECT_COLOR_BIT);
-
+            
             info.oldLayout = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
             info.newLayout = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
@@ -865,7 +882,7 @@ namespace Silex
         gbuffer->albedo   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
         gbuffer->normal   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
         gbuffer->emission = CreateTexture2D(RENDERING_FORMAT_B10G11R11_UFLOAT_PACK32, width, height);
-        gbuffer->id       = CreateTexture2D(RENDERING_FORMAT_R32_SINT,                width, height);
+        gbuffer->id       = CreateTexture2D(RENDERING_FORMAT_R32_SINT,                width, height, false, TEXTURE_USAGE_COPY_SRC_BIT);
         gbuffer->depth    = CreateTexture2D(RENDERING_FORMAT_D32_SFLOAT,              width, height);
 
         gbuffer->albedoView   = CreateTextureView(gbuffer->albedo,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
@@ -1131,6 +1148,14 @@ namespace Silex
     void RHI::Update(Camera* camera)
     {
         bool isUsingCamera = Engine::Get()->GetEditor()->IsUsingEditorCamera();
+        if (Input::IsMouseButtonReleased(Mouse::Left) && Input::IsKeyDown(Keys::P))
+        {
+            glm::ivec2 pos = Input::GetCursorPosition();
+            int32 id = ReadPixelObjectID(pos.x, pos.y);
+
+            SL_LOG_DEBUG("Clicked: ID({})", id);
+        }
+
 
         ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(viewport->Pos);
@@ -1342,7 +1367,7 @@ namespace Silex
         gbuffer->albedo   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
         gbuffer->normal   = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM,          width, height);
         gbuffer->emission = CreateTexture2D(RENDERING_FORMAT_B10G11R11_UFLOAT_PACK32, width, height);
-        gbuffer->id       = CreateTexture2D(RENDERING_FORMAT_R32_SINT,                width, height);
+        gbuffer->id       = CreateTexture2D(RENDERING_FORMAT_R32_SINT,                width, height, false, TEXTURE_USAGE_COPY_SRC_BIT);
         gbuffer->depth    = CreateTexture2D(RENDERING_FORMAT_D32_SFLOAT,              width, height);
 
         gbuffer->albedoView   = CreateTextureView(gbuffer->albedo,   TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
@@ -1666,7 +1691,34 @@ namespace Silex
         api->DestroyDescriptorSet(bloom->prefilterSet);
     }
 
+    int32 RHI::ReadPixelObjectID(uint32 x, uint32 y)
+    {
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        {
+            TextureBarrierInfo info = {};
+            info.texture      = gbuffer->id;
+            info.subresources = {};
+            info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.oldLayout    = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            info.newLayout    = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
 
+            BufferTextureCopyRegion region = {};
+            region.bufferOffset        = 0;
+            region.textureSubresources = {};
+            region.textureRegionSize   = {1, 1, 1};
+            region.textureOffset       = {1, 1, 0}; // 読み取り先
+
+            api->CopyTextureToBuffer(cmd, gbuffer->id, TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL, pixelIDBuffer, 1, &region);
+
+            info.oldLayout = TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+            info.newLayout = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+        });
+
+        return *(int32*)mappedPixelID;
+    }
 
     void RHI::RESIZE(uint32 width, uint32 height)
     {
@@ -1689,7 +1741,7 @@ namespace Silex
             compositFB          = CreateFramebuffer(compositPass, 1, &compositTexture, width, height);
 
             DescriptorSetInfo blitinfo;
-            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
+            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->bloomView, linearSampler);
             compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
         }
 
@@ -1941,7 +1993,6 @@ namespace Silex
 
                 api->EndRenderPass(frame.commandBuffer);
             }
-
         }
 
         if (1) // コンポジットパス
@@ -1965,7 +2016,7 @@ namespace Silex
     TextureHandle* RHI::CreateTextureFromMemory(const uint8* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap)
     {
         // RGBA8_UNORM フォーマットテクスチャ
-        TextureHandle* gpuTexture = _CreateTexture(TEXTURE_DIMENSION_2D, TEXTURE_TYPE_2D, RENDERING_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, genMipmap, 0);
+        TextureHandle* gpuTexture = _CreateTexture(TEXTURE_DIMENSION_2D, TEXTURE_TYPE_2D, RENDERING_FORMAT_R8G8B8A8_UNORM, width, height, 1, 1, genMipmap, TEXTURE_USAGE_COPY_DST_BIT);
         _SubmitTextureData(gpuTexture, width, height, genMipmap, pixelData, dataSize);
 
         return gpuTexture;
@@ -1974,25 +2025,25 @@ namespace Silex
     TextureHandle* RHI::CreateTextureFromMemory(const float* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap)
     {
         // RGBA16_SFLOAT フォーマットテクスチャ
-        TextureHandle* gpuTexture = _CreateTexture(TEXTURE_DIMENSION_2D, TEXTURE_TYPE_2D, RENDERING_FORMAT_R16G16B16A16_SFLOAT, width, height, 1, 1, genMipmap, 0);
+        TextureHandle* gpuTexture = _CreateTexture(TEXTURE_DIMENSION_2D, TEXTURE_TYPE_2D, RENDERING_FORMAT_R16G16B16A16_SFLOAT, width, height, 1, 1, genMipmap, TEXTURE_USAGE_COPY_DST_BIT);
         _SubmitTextureData(gpuTexture, width, height, genMipmap, pixelData, dataSize);
 
         return gpuTexture;
     }
 
-    TextureHandle* RHI::CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap)
+    TextureHandle* RHI::CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap, TextureUsageFlags additionalFlags)
     {
-        return _CreateTexture(TEXTURE_DIMENSION_2D, TEXTURE_TYPE_2D, format, width, height, 1, 1, genMipmap, 0);
+        return _CreateTexture(TEXTURE_DIMENSION_2D, TEXTURE_TYPE_2D, format, width, height, 1, 1, genMipmap, additionalFlags);
     }
 
-    TextureHandle* RHI::CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap)
+    TextureHandle* RHI::CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags)
     {
-        return _CreateTexture(TEXTURE_DIMENSION_2D, TEXTURE_TYPE_2D_ARRAY, format, width, height, 1, array, genMipmap, 0);
+        return _CreateTexture(TEXTURE_DIMENSION_2D, TEXTURE_TYPE_2D_ARRAY, format, width, height, 1, array, genMipmap, additionalFlags);
     }
 
-    TextureHandle* RHI::CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap)
+    TextureHandle* RHI::CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap, TextureUsageFlags additionalFlags)
     {
-        return _CreateTexture(TEXTURE_DIMENSION_2D, TEXTURE_TYPE_CUBE, format, width, height, 1, 6, genMipmap, 0);
+        return _CreateTexture(TEXTURE_DIMENSION_2D, TEXTURE_TYPE_CUBE, format, width, height, 1, 6, genMipmap, additionalFlags);
     }
 
     void RHI::DestroyTexture(TextureHandle* texture)
@@ -2022,9 +2073,9 @@ namespace Silex
 
     TextureHandle* RHI::_CreateTexture(TextureDimension dimension, TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 depth, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags)
     {
-        int32 usage = TEXTURE_USAGE_SAMPLING_BIT | TEXTURE_USAGE_COPY_DST_BIT;
+        int32 usage = TEXTURE_USAGE_SAMPLING_BIT;
         usage |= RenderingUtility::IsDepthFormat(format)? TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT : TEXTURE_USAGE_COLOR_ATTACHMENT_BIT;
-        usage |= genMipmap? TEXTURE_USAGE_COPY_SRC_BIT : 0;
+        usage |= genMipmap? TEXTURE_USAGE_COPY_SRC_BIT | TEXTURE_USAGE_COPY_DST_BIT : 0;
         usage |= additionalFlags;
 
         auto mipmaps = RenderingUtility::CalculateMipmap(width, height);
@@ -2203,7 +2254,7 @@ namespace Silex
         frame.pendingResources->buffer.push_back(buffer);
     }
 
-    Buffer* RHI::_CreateAndMapBuffer(BufferUsageBits type, const void* data, uint64 dataSize, void** outMappedAdress)
+    Buffer* RHI::_CreateAndMapBuffer(BufferUsageFlags type, const void* data, uint64 dataSize, void** outMappedAdress)
     {
         Buffer* buffer   = api->CreateBuffer(dataSize, type | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_CPU);
         *outMappedAdress = api->MapBuffer(buffer);
@@ -2214,7 +2265,7 @@ namespace Silex
         return buffer;
     }
 
-    Buffer* RHI::_CreateAndSubmitBufferData(BufferUsageBits type, const void* data, uint64 dataSize)
+    Buffer* RHI::_CreateAndSubmitBufferData(BufferUsageFlags type, const void* data, uint64 dataSize)
     {
         Buffer* buffer  = api->CreateBuffer(dataSize, type | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_GPU);
         Buffer* staging = api->CreateBuffer(dataSize, type | BUFFER_USAGE_TRANSFER_SRC_BIT, MEMORY_ALLOCATION_TYPE_CPU);

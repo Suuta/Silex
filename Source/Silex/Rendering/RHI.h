@@ -205,9 +205,9 @@ namespace Silex
         TextureHandle* CreateTextureFromMemory(const float* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
 
         // レンダーテクスチャ
-        TextureHandle* CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap = false);
-        TextureHandle* CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap = false);
-        TextureHandle* CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap = false);
+        TextureHandle* CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap = false, TextureUsageFlags additionalFlags = 0);
+        TextureHandle* CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap = false, TextureUsageFlags additionalFlags = 0);
+        TextureHandle* CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap = false, TextureUsageFlags additionalFlags = 0);
         void           DestroyTexture(TextureHandle* texture);
 
         // テクスチャビュー
@@ -239,8 +239,8 @@ namespace Silex
     
     private:
 
-        Buffer*        _CreateAndMapBuffer(BufferUsageBits type, const void* data, uint64 dataSize, void** outMappedAdress);
-        Buffer*        _CreateAndSubmitBufferData(BufferUsageBits type, const void* data, uint64 dataSize);
+        Buffer*        _CreateAndMapBuffer(BufferUsageFlags type, const void* data, uint64 dataSize, void** outMappedAdress);
+        Buffer*        _CreateAndSubmitBufferData(BufferUsageFlags type, const void* data, uint64 dataSize);
 
         TextureHandle* _CreateTexture(TextureDimension dimension, TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 depth, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags);
         void           _SubmitTextureData(TextureHandle* texture, uint32 width, uint32 height, bool genMipmap, const void* pixelData, uint64 dataSize);
@@ -322,6 +322,10 @@ namespace Silex
         void CleanupBloomBuffer();
         BloomData* bloom;
 
+        // オブジェクトID リードバック
+        int32 ReadPixelObjectID(uint32 x, uint32 y);
+        Buffer* pixelIDBuffer = nullptr;
+        void*   mappedPixelID = nullptr;
 
     public:
 

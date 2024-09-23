@@ -46,7 +46,6 @@ namespace Silex
 
         bool IsUsingEditorCamera() const;
 
-
     private:
 
         // ヒエラルキー選択イベント
@@ -67,7 +66,7 @@ namespace Silex
         glm::ivec2 m_RelativeViewportRect[2];
         glm::ivec2 m_PrevCursorPosition;
 
-        bool  bUsingEditorCamera = false;
+        bool bUsingEditorCamera = false;
 
         // カメラ
         Camera m_EditorCamera = { glm::vec3(0.0f, 1.0f, 10.0f) };

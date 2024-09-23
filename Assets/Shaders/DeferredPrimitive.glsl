@@ -33,7 +33,7 @@ void main()
     outNormalMatrix = mat3(transpose(inverse(world)));
     outNormal       = outNormalMatrix * inNormal;
     outTexCoord     = inTexCoord;
-    outID           = 1;
+    outID           = 9999;
 
     gl_Position = projection * view * worldPos;
 }
