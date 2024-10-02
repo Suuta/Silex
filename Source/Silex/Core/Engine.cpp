@@ -57,9 +57,6 @@ namespace Silex
         OS::Get()->Finalize();
     }
 
-
-
-
     //=========================================
     // Engine
     //=========================================
@@ -67,7 +64,6 @@ namespace Silex
     {
         return engine;
     }
-
 
     bool Engine::Initialize()
     {

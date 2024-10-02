@@ -272,7 +272,7 @@ namespace Silex
                 //-------------------------------------------------
                 // VkImage 自体は swapchain が管理しているので破棄しない
                 //-------------------------------------------------
-                VulkanTexture* vktex = (VulkanTexture*)swapchain->textures[i];
+                VulkanTexture* vktex = VulkanCast(swapchain->textures[i]);
                 sldelete(vktex);
             }
 
@@ -625,7 +625,7 @@ namespace Silex
             // VkQueue に解放処理はない
             //...
 
-            VulkanCommandQueue* vkqueue = (VulkanCommandQueue*)queue;
+            VulkanCommandQueue* vkqueue = VulkanCast(queue);
             sldelete(vkqueue);
         }
     }
@@ -660,9 +660,9 @@ namespace Silex
 
     bool VulkanAPI::SubmitQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* present, Semaphore* render)
     {
-        VulkanCommandQueue*  vkqueue          = (VulkanCommandQueue*)queue;
-        VulkanCommandBuffer* vkcommandBuffer  = (VulkanCommandBuffer*)commandbuffer;
-        VulkanFence*         vkfence          = (VulkanFence*)fence;
+        VulkanCommandQueue*  vkqueue          = VulkanCast(queue);
+        VulkanCommandBuffer* vkcommandBuffer  = VulkanCast(commandbuffer);
+        VulkanFence*         vkfence          = VulkanCast(fence);
 
         VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
@@ -673,9 +673,9 @@ namespace Silex
         submitInfo.commandBufferCount   = 1;
         submitInfo.pCommandBuffers      = &vkcommandBuffer->commandBuffer;
         submitInfo.waitSemaphoreCount   = 1;
-        submitInfo.pWaitSemaphores      = &((VulkanSemaphore*)present)->semaphore;
+        submitInfo.pWaitSemaphores      = &(VulkanCast(present))->semaphore;
         submitInfo.signalSemaphoreCount = 1;
-        submitInfo.pSignalSemaphores    = &((VulkanSemaphore*)render)->semaphore;
+        submitInfo.pSignalSemaphores    = &(VulkanCast(render))->semaphore;
 
         VkResult result = vkQueueSubmit(vkqueue->queue, 1, &submitInfo, vkfence->fence);
         SL_CHECK_VKRESULT(result, false);
@@ -712,7 +712,7 @@ namespace Silex
     {
         if (pool)
         {
-            VulkanCommandPool* vkpool = (VulkanCommandPool*)pool;
+            VulkanCommandPool* vkpool = VulkanCast(pool);
             vkDestroyCommandPool(device, vkpool->commandPool, nullptr);
 
             sldelete(vkpool);
@@ -724,7 +724,7 @@ namespace Silex
     //==================================================================================
     CommandBuffer* VulkanAPI::CreateCommandBuffer(CommandPool* pool)
     {
-        VulkanCommandPool* vkpool = (VulkanCommandPool*)pool;
+        VulkanCommandPool* vkpool = VulkanCast(pool);
 
         VkCommandBufferAllocateInfo createInfo = {};
         createInfo.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -749,7 +749,7 @@ namespace Silex
             // VkCommandBuffer は コマンドプールが対応するので 解放処理しない
             //...
 
-            VulkanCommandBuffer* vkcommandBuffer = (VulkanCommandBuffer*)commandBuffer;
+            VulkanCommandBuffer* vkcommandBuffer = VulkanCast(commandBuffer);
             sldelete(vkcommandBuffer);
         }
     }
@@ -761,7 +761,7 @@ namespace Silex
         // また、このフラグで生成されていないプールから割り当てられたバッファは vkResetCommandBuffer 呼び出しをしてはいけない
         // https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkCommandPoolCreateFlagBits.html
 
-        VulkanCommandBuffer* vkcmdBuffer = (VulkanCommandBuffer*)commandBuffer;
+        VulkanCommandBuffer* vkcmdBuffer = VulkanCast(commandBuffer);
 
         VkResult result = vkResetCommandBuffer(vkcmdBuffer->commandBuffer, 0);
         SL_CHECK_VKRESULT(result, false);
@@ -778,7 +778,7 @@ namespace Silex
 
     bool VulkanAPI::EndCommandBuffer(CommandBuffer* commandBuffer)
     {
-        VulkanCommandBuffer* vkcmdBuffer = (VulkanCommandBuffer*)commandBuffer;
+        VulkanCommandBuffer* vkcmdBuffer = VulkanCast(commandBuffer);
 
         VkResult result = vkEndCommandBuffer((VkCommandBuffer)vkcmdBuffer->commandBuffer);
         SL_CHECK_VKRESULT(result, false);
@@ -809,7 +809,7 @@ namespace Silex
     {
         if (semaphore)
         {
-            VulkanSemaphore* vkSemaphore = (VulkanSemaphore*)semaphore;
+            VulkanSemaphore* vkSemaphore = VulkanCast(semaphore);
             vkDestroySemaphore(device, vkSemaphore->semaphore, nullptr);
 
             sldelete(vkSemaphore);
@@ -840,7 +840,7 @@ namespace Silex
     {
         if (fence)
         {
-            VulkanFence* vkfence = (VulkanFence*)fence;
+            VulkanFence* vkfence = VulkanCast(fence);
             vkDestroyFence(device, vkfence->fence, nullptr);
 
             sldelete(vkfence);
@@ -849,7 +849,7 @@ namespace Silex
 
     bool VulkanAPI::WaitFence(Fence* fence)
     {
-        VulkanFence* vkfence = (VulkanFence*)fence;
+        VulkanFence* vkfence = VulkanCast(fence);
         VkResult result = vkWaitForFences(device, 1, &vkfence->fence, true, UINT64_MAX);
         SL_CHECK_VKRESULT(result, false);
 
@@ -871,11 +871,11 @@ namespace Silex
         }
 
         SwapChainCapability queryResult;
-        SL_CHECK(!_QuerySwapChainCapability(((VulkanSurface*)surface)->surface, width, height, requestFramebufferCount, (VkPresentModeKHR)mode, queryResult), nullptr);
+        SL_CHECK(!_QuerySwapChainCapability(VulkanCast(surface)->surface, width, height, requestFramebufferCount, (VkPresentModeKHR)mode, queryResult), nullptr);
 
         VulkanSwapChain* swapchain = slnew(VulkanSwapChain);
         swapchain->renderpass = _CreateSwapChainRenderPass(queryResult.format);
-        swapchain->surface    = (VulkanSurface*)surface;
+        swapchain->surface    = VulkanCast(surface);
         swapchain->format     = queryResult.format;
         swapchain->colorspace = queryResult.colorspace;
 
@@ -893,7 +893,7 @@ namespace Silex
         }
 
         SL_LOG_TRACE("Resize Swapchain: {}, {}", width, height);
-        VulkanSwapChain* vkSwapchain = (VulkanSwapChain*)swapchain;
+        VulkanSwapChain* vkSwapchain = VulkanCast(swapchain);
         VulkanSurface*   vkSurface   = vkSwapchain->surface;
 
         // GPU待機
@@ -915,9 +915,9 @@ namespace Silex
 
     std::pair<FramebufferHandle*, TextureView*> VulkanAPI::GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present)
     {
-        VulkanSwapChain* vkswapchain = (VulkanSwapChain*)swapchain;
+        VulkanSwapChain* vkswapchain = VulkanCast(swapchain);
 
-        VkResult result = AcquireNextImageKHR(device, vkswapchain->swapchain, UINT64_MAX, ((VulkanSemaphore*)present)->semaphore, nullptr, &vkswapchain->imageIndex);
+        VkResult result = AcquireNextImageKHR(device, vkswapchain->swapchain, UINT64_MAX, VulkanCast(present)->semaphore, nullptr, &vkswapchain->imageIndex);
         SL_CHECK_VKRESULT(result, std::make_pair(nullptr, nullptr));
 
         FramebufferHandle* fb = vkswapchain->framebuffers[vkswapchain->imageIndex];
@@ -928,13 +928,13 @@ namespace Silex
 
     bool VulkanAPI::Present(CommandQueue* queue, SwapChain* swapchain, Semaphore* render)
     {
-        VulkanSwapChain*     vkswapchain      = (VulkanSwapChain*)swapchain;
-        VulkanCommandQueue*  vkqueue          = (VulkanCommandQueue*)queue;
+        VulkanSwapChain*     vkswapchain = VulkanCast(swapchain);
+        VulkanCommandQueue*  vkqueue     = VulkanCast(queue);
 
         VkPresentInfoKHR presentInfo = {};
         presentInfo.sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
         presentInfo.waitSemaphoreCount  = 1;
-        presentInfo.pWaitSemaphores     = &((VulkanSemaphore*)render)->semaphore;
+        presentInfo.pWaitSemaphores     = &VulkanCast(render)->semaphore;
         presentInfo.swapchainCount      = 1;
         presentInfo.pSwapchains         = &vkswapchain->swapchain;
         presentInfo.pImageIndices       = &vkswapchain->imageIndex;
@@ -947,13 +947,13 @@ namespace Silex
 
     RenderPass* VulkanAPI::GetSwapChainRenderPass(SwapChain* swapchain)
     {
-        VulkanSwapChain* vkswapchain = (VulkanSwapChain*)swapchain;
+        VulkanSwapChain* vkswapchain = VulkanCast(swapchain);
         return vkswapchain->renderpass;
     }
 
     RenderingFormat VulkanAPI::GetSwapChainFormat(SwapChain* swapchain)
     {
-        VulkanSwapChain* vkswapchain = (VulkanSwapChain*)swapchain;
+        VulkanSwapChain* vkswapchain = VulkanCast(swapchain);
         return RenderingFormat(vkswapchain->format);
     }
 
@@ -961,7 +961,7 @@ namespace Silex
     {
         if (swapchain)
         {
-            VulkanSwapChain* vkSwapchain = (VulkanSwapChain*)swapchain;
+            VulkanSwapChain* vkSwapchain = VulkanCast(swapchain);
 
             // GPU待機
             VkResult result = vkDeviceWaitIdle(device);
@@ -1037,7 +1037,7 @@ namespace Silex
     {
         if (buffer)
         {
-            VulkanBuffer* vkbuffer = (VulkanBuffer*)buffer;
+            VulkanBuffer* vkbuffer = VulkanCast(buffer);
             if (vkbuffer->view)
             {
                 vkDestroyBufferView(device, vkbuffer->view, nullptr);
@@ -1050,7 +1050,7 @@ namespace Silex
 
     void* VulkanAPI::MapBuffer(Buffer* buffer)
     {
-        VulkanBuffer* vkbuffer = (VulkanBuffer*)buffer;
+        VulkanBuffer* vkbuffer = VulkanCast(buffer);
 
         void* mappedPtr = nullptr;
         VkResult result = vmaMapMemory(allocator, vkbuffer->allocationHandle, &mappedPtr);
@@ -1061,7 +1061,7 @@ namespace Silex
 
     void VulkanAPI::UnmapBuffer(Buffer* buffer)
     {
-        VulkanBuffer* vkbuffer = (VulkanBuffer*)buffer;
+        VulkanBuffer* vkbuffer = VulkanCast(buffer);
         vmaUnmapMemory(allocator, vkbuffer->allocationHandle);
     }
 
@@ -1128,7 +1128,7 @@ namespace Silex
     {
         if (texture)
         {
-            VulkanTexture* vktexture = (VulkanTexture*)texture;
+            VulkanTexture* vktexture = VulkanCast(texture);
             vmaDestroyImage(allocator, vktexture->image, vktexture->allocationHandle);
 
             sldelete(vktexture);
@@ -1141,7 +1141,7 @@ namespace Silex
     //==================================================================================
     TextureView* VulkanAPI::CreateTextureView(TextureHandle* texture, const TextureViewInfo& info)
     {
-        VulkanTexture* vktex = (VulkanTexture*)texture;
+        VulkanTexture* vktex = VulkanCast(texture);
         bool isDepthStencil = vktex->usageflags & TEXTURE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
         //-------------------------------------------------------------------------------------
@@ -1182,7 +1182,7 @@ namespace Silex
     {
         if (view)
         {
-            VulkanTextureView* vkview = (VulkanTextureView*)view;
+            VulkanTextureView* vkview = VulkanCast(view);
             vkDestroyImageView(device, vkview->view, nullptr);
 
             sldelete(vkview);
@@ -1241,7 +1241,7 @@ namespace Silex
     //==================================================================================
     FramebufferHandle* VulkanAPI::CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height)
     {
-        VulkanTexture** tex = (VulkanTexture**)textures;
+        VulkanTexture** tex = VulkanCast(textures);
 
         //----------------------------------------------------------------------------------------
         // VK_KHR_imageless_framebuffer (vulkan 1.2)
@@ -1277,7 +1277,7 @@ namespace Silex
         createInfo.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         createInfo.flags           = VK_FRAMEBUFFER_CREATE_IMAGELESS_BIT;
         createInfo.pNext           = &framebufferAttachments;
-        createInfo.renderPass      = ((VulkanRenderPass*)renderpass)->renderpass;
+        createInfo.renderPass      = VulkanCast(renderpass)->renderpass;
         createInfo.attachmentCount = numTexture;
         createInfo.width           = width;
         createInfo.height          = height;
@@ -1302,7 +1302,7 @@ namespace Silex
     {
         if (framebuffer)
         {
-            VulkanFramebuffer* vkfb = (VulkanFramebuffer*)framebuffer;
+            VulkanFramebuffer* vkfb = VulkanCast(framebuffer);
             vkDestroyFramebuffer(device, vkfb->framebuffer, nullptr);
 
             sldelete(vkfb);
@@ -1427,7 +1427,7 @@ namespace Silex
     {
         if (renderpass)
         {
-            VulkanRenderPass* vkRenderpass = (VulkanRenderPass*)renderpass;
+            VulkanRenderPass* vkRenderpass = VulkanCast(renderpass);
             vkDestroyRenderPass(device, vkRenderpass->renderpass, nullptr);
 
             sldelete(vkRenderpass);
@@ -1457,7 +1457,7 @@ namespace Silex
             bufferBarriers[i].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
             bufferBarriers[i].srcAccessMask       = (VkAccessFlags)bufferBarrier[i].srcAccess;
             bufferBarriers[i].dstAccessMask       = (VkAccessFlags)bufferBarrier[i].dstAccess;
-            bufferBarriers[i].buffer              = ((VulkanBuffer*)bufferBarrier[i].buffer)->buffer;
+            bufferBarriers[i].buffer              = VulkanCast(bufferBarrier[i].buffer)->buffer;
             bufferBarriers[i].offset              = bufferBarrier[i].offset;
             bufferBarriers[i].size                = bufferBarrier[i].size;
         }
@@ -1465,7 +1465,7 @@ namespace Silex
         VkImageMemoryBarrier* imageBarriers = SL_STACK(VkImageMemoryBarrier, numTextureBarrier);
         for (uint32 i = 0; i < numTextureBarrier; i++)
         {
-            VulkanTexture* vktexture = (VulkanTexture*)(textureBarrier[i].texture);
+            VulkanTexture* vktexture = VulkanCast(textureBarrier[i].texture);
             imageBarriers[i] = {};
             imageBarriers[i].sType                           = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
             imageBarriers[i].srcAccessMask                   = (VkAccessFlags)textureBarrier[i].srcAccess;
@@ -1483,7 +1483,7 @@ namespace Silex
         }
 
         vkCmdPipelineBarrier(
-            ((VulkanCommandBuffer*)commanddBuffer)->commandBuffer,
+            VulkanCast(commanddBuffer)->commandBuffer,
             (VkPipelineStageFlags)srcStage,
             (VkPipelineStageFlags)dstStage,
             (VkDependencyFlags)0,
@@ -1498,18 +1498,18 @@ namespace Silex
 
     void VulkanAPI::ClearBuffer(CommandBuffer* commandbuffer, Buffer* buffer, uint64 offset, uint64 size)
     {
-        VulkanBuffer* vkbuffer = (VulkanBuffer*)buffer;
+        VulkanBuffer* vkbuffer = VulkanCast(buffer);
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdFillBuffer(cmd->commandBuffer, vkbuffer->buffer, offset, size, 0); // 0で埋める
     }
 
     void VulkanAPI::CopyBuffer(CommandBuffer* commandbuffer, Buffer* srcBuffer, Buffer* dstBuffer, uint32 numRegion, BufferCopyRegion* regions)
     {
-        VulkanBuffer* src = (VulkanBuffer*)srcBuffer;
-        VulkanBuffer* dst = (VulkanBuffer*)dstBuffer;
+        VulkanBuffer* src = VulkanCast(srcBuffer);
+        VulkanBuffer* dst = VulkanCast(dstBuffer);
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdCopyBuffer(cmd->commandBuffer, src->buffer, dst->buffer, numRegion, (VkBufferCopy*)regions);
     }
 
@@ -1538,17 +1538,17 @@ namespace Silex
             copyRegion[i].extent.depth                  = regions[i].size.depth;
         }
 
-        VulkanTexture* src = (VulkanTexture*)srcTexture;
-        VulkanTexture* dst = (VulkanTexture*)dstTexture;
+        VulkanTexture* src = VulkanCast(srcTexture);
+        VulkanTexture* dst = VulkanCast(dstTexture);
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdCopyImage(cmd->commandBuffer, src->image, (VkImageLayout)srcTextureLayout, dst->image, (VkImageLayout)dstTextureLayout, numRegion, copyRegion);
     }
 
     void VulkanAPI::ResolveTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, uint32 srcLayer, uint32 srcMipmap, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 dstLayer, uint32 dstMipmap)
     {
-        VulkanTexture* src = (VulkanTexture*)srcTexture;
-        VulkanTexture* dst = (VulkanTexture*)dstTexture;
+        VulkanTexture* src = VulkanCast(srcTexture);
+        VulkanTexture* dst = VulkanCast(dstTexture);
 
         VkImageResolve resolve = {};
         resolve.srcSubresource.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -1563,13 +1563,13 @@ namespace Silex
         resolve.extent.height                 = std::max(1u, src->extent.height >> srcMipmap);
         resolve.extent.depth                  = std::max(1u, src->extent.depth  >> srcMipmap);
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdResolveImage(cmd->commandBuffer, src->image, (VkImageLayout)srcTextureLayout, dst->image, (VkImageLayout)dstTextureLayout, 1, &resolve);
     }
 
     void VulkanAPI::ClearColorTexture(CommandBuffer* commandbuffer, TextureHandle* texture, TextureLayout textureLayout, const glm::vec4& color, const TextureSubresourceRange& subresources)
     {
-        VulkanTexture* vktexture = (VulkanTexture*)texture;
+        VulkanTexture* vktexture = VulkanCast(texture);
 
         VkClearColorValue clearColor = {};
         memcpy(&clearColor.float32, &color, sizeof(VkClearColorValue::float32));
@@ -1581,7 +1581,7 @@ namespace Silex
         vkSubresources.layerCount     = subresources.layerCount;
         vkSubresources.baseArrayLayer = subresources.baseLayer;
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdClearColorImage(cmd->commandBuffer, vktexture->image, (VkImageLayout)textureLayout, &clearColor, 1, &vkSubresources);
     }
 
@@ -1612,10 +1612,10 @@ namespace Silex
             copyRegion[i].imageSubresource.mipLevel       = regions[i].textureSubresources.mipLevel;
         }
 
-        VulkanBuffer*  src = (VulkanBuffer*)srcBuffer;
-        VulkanTexture* dst = (VulkanTexture*)dstTexture;
+        VulkanBuffer*  src = VulkanCast(srcBuffer);
+        VulkanTexture* dst = VulkanCast(dstTexture);
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdCopyBufferToImage(cmd->commandBuffer, src->buffer, dst->image, (VkImageLayout)dstTextureLayout, numRegion, copyRegion);
     }
 
@@ -1638,18 +1638,18 @@ namespace Silex
             copyRegion[i].imageSubresource.mipLevel       = regions[i].textureSubresources.mipLevel;
         }
 
-        VulkanTexture* src = (VulkanTexture*)srcTexture;
-        VulkanBuffer*  dst = (VulkanBuffer*)dstBuffer;
+        VulkanTexture* src = VulkanCast(srcTexture);
+        VulkanBuffer*  dst = VulkanCast(dstBuffer);
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdCopyImageToBuffer(cmd->commandBuffer, src->image, (VkImageLayout)srcTextureLayout, dst->buffer, numRegion, copyRegion);
     }
 
     void VulkanAPI::BlitTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureBlitRegion* regions, SamplerFilter filter)
     {
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
-        VulkanTexture* srctex    = (VulkanTexture*)srcTexture;
-        VulkanTexture* dsttex    = (VulkanTexture*)dstTexture;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
+        VulkanTexture* srctex    = VulkanCast(srcTexture);
+        VulkanTexture* dsttex    = VulkanCast(dstTexture);
 
         VkImageBlit* blitRegions = SL_STACK(VkImageBlit, numRegion);
         for (uint32 i = 0; i < numRegion; i++)
@@ -1682,8 +1682,8 @@ namespace Silex
 
     void VulkanAPI::PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, const void* data, uint32 numData, uint32 offsetIndex)
     {
-        VulkanShader*   vkshader = (VulkanShader*)shader;
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanShader*   vkshader = VulkanCast(shader);
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
 
         // UniformBuffer と同様に プッシュ定数もステージ間で共有する
         vkCmdPushConstants(cmd->commandBuffer, vkshader->pipelineLayout, VK_SHADER_STAGE_ALL, offsetIndex * sizeof(uint32), numData * sizeof(uint32), data);
@@ -1695,8 +1695,8 @@ namespace Silex
 
     void VulkanAPI::BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, uint32 numView, TextureView** views, CommandBufferType commandBufferType)
     {
-        VulkanFramebuffer*  vkframebuffer = (VulkanFramebuffer*)framebuffer;
-        VulkanTextureView** vkviews       = (VulkanTextureView**)views;
+        VulkanFramebuffer*  vkframebuffer = VulkanCast(framebuffer);
+        VulkanTextureView** vkviews       = VulkanCast(views);
 
         VkImageView* imageViews = SL_STACK(VkImageView, numView);
         for (uint32 i = 0; i < numView; i++)
@@ -1713,22 +1713,22 @@ namespace Silex
         VkRenderPassBeginInfo begineInfo = {};
         begineInfo.sType                    = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         begineInfo.pNext                    = &attachmentInfo;
-        begineInfo.renderPass               = (VkRenderPass)((VulkanRenderPass*)(renderpass))->renderpass;
+        begineInfo.renderPass               = VulkanCast(renderpass)->renderpass;
         begineInfo.framebuffer              = vkframebuffer->framebuffer;
         begineInfo.renderArea.offset.x      = vkframebuffer->rect.x;
         begineInfo.renderArea.offset.y      = vkframebuffer->rect.y;
         begineInfo.renderArea.extent.width  = vkframebuffer->rect.width;
         begineInfo.renderArea.extent.height = vkframebuffer->rect.height;
-        begineInfo.clearValueCount          = ((VulkanRenderPass*)(renderpass))->clearValue.size();
-        begineInfo.pClearValues             = (VkClearValue*)((VulkanRenderPass*)(renderpass))->clearValue.data();
+        begineInfo.clearValueCount          = VulkanCast(renderpass)->clearValue.size();
+        begineInfo.pClearValues             = (VkClearValue*)VulkanCast(renderpass)->clearValue.data();
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdBeginRenderPass(cmd->commandBuffer, &begineInfo, commandBufferType == COMMAND_BUFFER_TYPE_PRIMARY? VK_SUBPASS_CONTENTS_INLINE : VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
     }
 
     void VulkanAPI::EndRenderPass(CommandBuffer* commandbuffer)
     {
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdEndRenderPass(cmd->commandBuffer);
     }
 
@@ -1736,7 +1736,7 @@ namespace Silex
     {
         VkSubpassContents vksubpassContents = commandBufferType == COMMAND_BUFFER_TYPE_PRIMARY? VK_SUBPASS_CONTENTS_INLINE : VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS;
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdNextSubpass(cmd->commandBuffer, vksubpassContents);
     }
 
@@ -1761,7 +1761,7 @@ namespace Silex
         viewport.minDepth = 0.0f;
         viewport.maxDepth = 1.0f;
 #endif
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdSetViewport(cmd->commandBuffer, 0, 1, &viewport);
     }
 
@@ -1771,7 +1771,7 @@ namespace Silex
         rect.offset = { (int32)x, (int32)y };
         rect.extent = { width, height};
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdSetScissor(cmd->commandBuffer, 0, 1, &rect);
     }
 
@@ -1795,35 +1795,35 @@ namespace Silex
         vkrects.baseArrayLayer     = 0;
         vkrects.layerCount         = 1;
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdClearAttachments(cmd->commandBuffer, numAttachmentClear, vkclears, 1, &vkrects);
     }
 
     void VulkanAPI::BindPipeline(CommandBuffer* commandbuffer, Pipeline* pipeline)
     {
-        VulkanPipeline* vkpipeline = (VulkanPipeline*)pipeline;
+        VulkanPipeline* vkpipeline = VulkanCast(pipeline);
+        VulkanCommandBuffer* cmd   = VulkanCast(commandbuffer);
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
         vkCmdBindPipeline(cmd->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkpipeline->pipeline);
     }
 
     void VulkanAPI::BindDescriptorSet(CommandBuffer* commandbuffer, DescriptorSet* descriptorset, uint32 setIndex)
     {
-        VulkanDescriptorSet* vkdescriptorset = (VulkanDescriptorSet*)descriptorset;
+        VulkanDescriptorSet* vkdescriptorset = VulkanCast(descriptorset);
+        VulkanCommandBuffer* cmd             = VulkanCast(commandbuffer);
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
         vkCmdBindDescriptorSets(cmd->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, vkdescriptorset->pipelineLayout, setIndex, 1, &vkdescriptorset->descriptorSet, 0, nullptr);
     }
 
     void VulkanAPI::Draw(CommandBuffer* commandbuffer, uint32 vertexCount, uint32 instanceCount, uint32 baseVertex, uint32 firstInstance)
     {
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdDraw(cmd->commandBuffer, vertexCount, instanceCount, firstInstance, firstInstance);
     }
 
     void VulkanAPI::DrawIndexed(CommandBuffer* commandbuffer, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance)
     {
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdDrawIndexed(cmd->commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
     }
 
@@ -1832,28 +1832,28 @@ namespace Silex
         VkBuffer* vkbuffers = SL_STACK(VkBuffer, bindingCount);
         for (uint32 i = 0; i < bindingCount; i++)
         {
-            VulkanBuffer* buf = ((VulkanBuffer*)buffers[i]);
+            VulkanBuffer* buf = VulkanCast(buffers[i]);
             vkbuffers[i] = buf->buffer;
         }
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdBindVertexBuffers(cmd->commandBuffer, 0, bindingCount, vkbuffers, offsets);
     }
 
     void VulkanAPI::BindVertexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, uint64 offset)
     {
         uint64 offsets[]  = { offset };
-        VkBuffer vkbuffer = ((VulkanBuffer*)buffer)->buffer;
+        VkBuffer vkbuffer = VulkanCast(buffer)->buffer;
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdBindVertexBuffers(cmd->commandBuffer, 0, 1, &vkbuffer, offsets);
     }
 
     void VulkanAPI::BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset)
     {
-        VulkanBuffer* buf = (VulkanBuffer*)buffer;
+        VulkanBuffer* buf = VulkanCast(buffer);
 
-        VulkanCommandBuffer* cmd = (VulkanCommandBuffer*)commandbuffer;
+        VulkanCommandBuffer* cmd = VulkanCast(commandbuffer);
         vkCmdBindIndexBuffer(cmd->commandBuffer, buf->buffer, offset, format == INDEX_BUFFER_FORMAT_UINT16? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32);
     }
 
@@ -1862,9 +1862,9 @@ namespace Silex
     //==================================================================================
     bool VulkanAPI::ImmidiateCommands(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<void(CommandBuffer*)>&& func)
     {
-        VkCommandBuffer vkcmd   = ((VulkanCommandBuffer*)commandBuffer)->commandBuffer;
-        VkQueue         vkqueue = ((VulkanCommandQueue*)queue)->queue;
-        VkFence         vkfence = ((VulkanFence*)fence)->fence;
+        VkCommandBuffer vkcmd   = VulkanCast(commandBuffer)->commandBuffer;
+        VkQueue         vkqueue = VulkanCast(queue)->queue;
+        VkFence         vkfence = VulkanCast(fence)->fence;
 
         VkResult vkresult = vkResetFences(device, 1, &vkfence);
         SL_CHECK_VKRESULT(vkresult, false);
@@ -2098,7 +2098,7 @@ namespace Silex
     {
         if (shader)
         {
-            VulkanShader* vkshader = (VulkanShader*)shader;
+            VulkanShader* vkshader = VulkanCast(shader);
             sldelete(vkshader->reflection);
 
             for (uint32 i = 0; i < vkshader->descriptorsetLayouts.size(); i++)
@@ -2122,7 +2122,7 @@ namespace Silex
     //==================================================================================
     DescriptorSet* VulkanAPI::CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex)
     {
-        VulkanShader* vkShader = (VulkanShader*)shader;
+        VulkanShader* vkShader = VulkanCast(shader);
 
         // 同一シグネチャ（型と数の一致）のプールを識別するキー ※同一プールは デフォルトで64個まで確保され、超えた場合は別プールが確保される
         DescriptorSetPoolKey key = {};
@@ -2146,7 +2146,7 @@ namespace Silex
                 {
                     VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
 
-                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0].buffer;
+                    VulkanBuffer* buffer = VulkanCast(descriptor.handles[0].buffer);
                     *bufferInfo = {};
                     bufferInfo->buffer = buffer->buffer;
                     bufferInfo->range  = buffer->size;
@@ -2162,7 +2162,7 @@ namespace Silex
                 {
                     VkDescriptorBufferInfo* bufferInfo = SL_STACK(VkDescriptorBufferInfo, 1);
 
-                    VulkanBuffer* buffer = (VulkanBuffer*)descriptor.handles[0].buffer;
+                    VulkanBuffer* buffer = VulkanCast(descriptor.handles[0].buffer);
                     *bufferInfo = {};
                     bufferInfo->buffer = buffer->buffer;
                     bufferInfo->range  = buffer->size;
@@ -2181,7 +2181,7 @@ namespace Silex
 
                     for (uint32 j = 0; j < numHandles; j++)
                     {
-                        VulkanSampler* sampler = (VulkanSampler*)descriptor.handles[j].sampler;
+                        VulkanSampler* sampler = VulkanCast(descriptor.handles[j].sampler);
 
                         imgInfos[j] = {};
                         imgInfos[j].sampler     = sampler->sampler;
@@ -2203,7 +2203,7 @@ namespace Silex
 
                     for (uint32 j = 0; j < numHandles; j++)
                     {
-                        VulkanTextureView* view = (VulkanTextureView*)descriptor.handles[j].imageView;
+                        VulkanTextureView* view = VulkanCast(descriptor.handles[j].imageView);
                         bool isDepth = view->subresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT;
 
                         imageInfos[j] = {};
@@ -2226,8 +2226,8 @@ namespace Silex
 
                     for (uint32 j = 0; j < numHandles; j++)
                     {
-                        VulkanSampler*     sampler = (VulkanSampler*)descriptor.handles[j].sampler;
-                        VulkanTextureView* view    = (VulkanTextureView*)descriptor.handles[j].imageView;
+                        VulkanSampler*     sampler = VulkanCast(descriptor.handles[j].sampler);
+                        VulkanTextureView* view    = VulkanCast(descriptor.handles[j].imageView);
                         bool isDepth = view->subresource.aspectMask & VK_IMAGE_ASPECT_DEPTH_BIT;
 
                         imageInfos[j] = {};
@@ -2250,7 +2250,7 @@ namespace Silex
 
                     for (uint32 j = 0; j < numHandles; j++)
                     {
-                        VulkanTextureView* view = (VulkanTextureView*)descriptor.handles[j].imageView;
+                        VulkanTextureView* view = VulkanCast(descriptor.handles[j].imageView);
 
                         imageInfos[j] = {};
                         imageInfos[j].imageView   = view->view;
@@ -2335,7 +2335,7 @@ namespace Silex
     {
         if (descriptorset)
         {
-            VulkanDescriptorSet* vkdescriptorset = (VulkanDescriptorSet*)descriptorset;
+            VulkanDescriptorSet* vkdescriptorset = VulkanCast(descriptorset);
             vkFreeDescriptorSets(device, vkdescriptorset->descriptorPool, 1, &vkdescriptorset->descriptorSet);
 
             // 同一キーのデスクリプタプールの参照カウントを減らす(参照カウントが0ならデスクリプタプールを破棄)
@@ -2546,7 +2546,7 @@ namespace Silex
 
 
         // ===== シェーダーステージ =====
-        const VulkanShader* vkshader = (VulkanShader*)shader;
+        const VulkanShader* vkshader = VulkanCast(shader);
         VkPipelineShaderStageCreateInfo* pipelineStages = SL_STACK(VkPipelineShaderStageCreateInfo, vkshader->stageInfos.size());
         for (uint32 i = 0; i < vkshader->stageInfos.size(); i++)
         {
@@ -2570,7 +2570,7 @@ namespace Silex
         pipelineCreateInfo.pColorBlendState    = &colorBlendStateCreateInfo;
         pipelineCreateInfo.pDynamicState       = &dynamicStateCreateInfo;
         pipelineCreateInfo.layout              = vkshader->pipelineLayout;
-        pipelineCreateInfo.renderPass          = (VkRenderPass)((VulkanRenderPass*)(renderpass))->renderpass;
+        pipelineCreateInfo.renderPass          = VulkanCast(renderpass)->renderpass;
         pipelineCreateInfo.subpass             = renderSubpass;
 
         VkPipeline vkpipeline = nullptr;
@@ -2585,7 +2585,7 @@ namespace Silex
 
     Pipeline* VulkanAPI::CreateComputePipeline(ShaderHandle* shader)
     {
-        VulkanShader* vkshader = (VulkanShader*)shader;
+        VulkanShader* vkshader = VulkanCast(shader);
 
         VkComputePipelineCreateInfo pipelineCreateInfo = {};
         pipelineCreateInfo.sType  = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
@@ -2607,7 +2607,7 @@ namespace Silex
     {
         if (pipeline)
         {
-            VulkanPipeline* vkpipeline = (VulkanPipeline*)pipeline;
+            VulkanPipeline* vkpipeline = VulkanCast(pipeline);
             vkDestroyPipeline(device, vkpipeline->pipeline, nullptr);
 
             sldelete(vkpipeline);

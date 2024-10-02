@@ -38,7 +38,6 @@ namespace Silex
     SL_HANDLE(ShaderHandle);
 
 
-
     //================================================
     // ビューポート
     //================================================
@@ -727,9 +726,9 @@ namespace Silex
 
     struct DescriptorHandle
     {
-        Handle* buffer    = nullptr;
-        Handle* imageView = nullptr;
-        Handle* sampler   = nullptr;
+        Buffer*      buffer    = nullptr;
+        TextureView* imageView = nullptr;
+        Sampler*     sampler   = nullptr;
     };
 
     struct DescriptorInfo

@@ -38,9 +38,15 @@
 #define SL_ARG3(_1, _2, _3, ...) _3
 
 // インターフェース抽象化ハンドル
-#define SL_HANDLE(name) using name = Handle;
+#define SL_HANDLE(name) class name : public Handle {};
 
-// プラットフォーム固有 (Windowsオンリーなので実質、分岐はしない)
+
+// C++20 からは STLでも 分岐予測のヒントが可能になった
+// __builtin_expect とは 式の配置位置が異なるので、単純に置き換えはできない
+#define SL_LIKELY   [[likely]]
+#define SL_UNLIKELY [[unlikely]]
+
+
 #if _MSC_VER
     #define SL_DEBUG_BREAK() __debugbreak();
     #define SL_FORCEINLINE   __forceinline
@@ -52,6 +58,7 @@
     #define SL_FUNCNAME      __FUNCTION__
     #define SL_FUNCSIG       __PRETTY_FUNCTION__
 #endif
+
 
 
 //===========================================================================================================================

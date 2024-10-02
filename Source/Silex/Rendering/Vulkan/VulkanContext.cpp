@@ -300,7 +300,7 @@ namespace Silex
 
     bool VulkanContext::QueueHasPresent(Surface* surface, uint32 queueIndex) const
     {
-        VkSurfaceKHR vkSurface = ((VulkanSurface*)surface)->surface;
+        VkSurfaceKHR vkSurface = VulkanCast(surface)->surface;
         VkBool32 supported = false;
 
         VkResult result = extensionFunctions.GetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueIndex, vkSurface, &supported);

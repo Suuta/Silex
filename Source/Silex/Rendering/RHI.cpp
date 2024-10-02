@@ -1253,6 +1253,16 @@ namespace Silex
 
         ImGui::Begin("Info", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
         ImGui::Text("FPS: %d", Engine::Get()->GetFrameRate());
+        ImGui::SeparatorText("");
+        ImGui::Text("framebuffer: %d, %d", sceneFramebufferSize.x, sceneFramebufferSize.y);
+
+        int _1259 = 0;
+        for (auto& res : bloom->resolutions)
+        {
+            ImGui::Text("bloom[%d] %d, %d", _1259, res.width, res.height);
+            _1259++;
+        }
+
         ImGui::End();
 
         ImGui::PopStyleVar(2);
@@ -1597,7 +1607,7 @@ namespace Silex
             const Extent extent = bloom->resolutions[i];
             bloom->sampling[i]     = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, extent.width, extent.height);
             bloom->samplingView[i] = CreateTextureView(bloom->sampling[i], TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-            bloom->samplingFB[i]   = CreateFramebuffer(bloom->pass,         1, &bloom->sampling[i], extent.width, extent.height);
+            bloom->samplingFB[i]   = CreateFramebuffer(bloom->pass, 1, &bloom->sampling[i], extent.width, extent.height);
         }
 
         bloom->prefilter     = CreateTexture2D(RENDERING_FORMAT_R16G16B16A16_SFLOAT, width, height);
@@ -1717,7 +1727,8 @@ namespace Silex
             api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
         });
 
-        return *(int32*)mappedPixelID;
+        int32* outID = (int32*)mappedPixelID;
+        return *outID;
     }
 
     void RHI::RESIZE(uint32 width, uint32 height)
@@ -1741,6 +1752,7 @@ namespace Silex
             compositFB          = CreateFramebuffer(compositPass, 1, &compositTexture, width, height);
 
             DescriptorSetInfo blitinfo;
+            
             blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->bloomView, linearSampler);
             compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
         }
@@ -1940,9 +1952,9 @@ namespace Silex
                     api->BeginRenderPass(frame.commandBuffer, bloom->pass, bloom->samplingFB[i], 1, &bloom->samplingView[i]);
                     
                     // ミップレベルがズレているので2倍している（シーンビューサイズが含まれていないので2倍した数値で扱う）
-                    glm::vec2 srcResolution = { bloom->resolutions[i].width * 2, bloom->resolutions[i].height * 2 };
+                    glm::ivec2 srcResolution = { bloom->resolutions[i].width * 2, bloom->resolutions[i].height * 2 };
                     api->PushConstants(frame.commandBuffer, bloom->downSamplingShader, &srcResolution, sizeof(srcResolution) / sizeof(uint32));
-                    
+
                     api->SetViewport(frame.commandBuffer, 0, 0, bloom->resolutions[i].width, bloom->resolutions[i].height);
                     api->SetScissor(frame.commandBuffer,  0, 0, bloom->resolutions[i].width, bloom->resolutions[i].height);
                     

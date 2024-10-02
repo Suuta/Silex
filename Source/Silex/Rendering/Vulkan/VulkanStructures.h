@@ -32,7 +32,6 @@ namespace Silex
         VkPresentModeKHR              presentMode;
     };
 
-
     //=============================================
     // Vulkan 構造体
     //=============================================
@@ -52,7 +51,7 @@ namespace Silex
     };
 
     // コマンドプール
-    struct VulkanCommandPool : public CommandQueue
+    struct VulkanCommandPool : public CommandPool
     {
         VkCommandPool     commandPool = nullptr;
         CommandBufferType type = COMMAND_BUFFER_TYPE_PRIMARY;
@@ -171,4 +170,53 @@ namespace Silex
     {
         VkPipeline pipeline = nullptr;
     };
+
+
+
+    //=============================================
+    // Vulkan 型キャスト
+    //=============================================
+    template<class T> struct VulkanTypeTraits {};
+
+    template<> struct VulkanTypeTraits<Buffer>            { using Internal = VulkanBuffer;        };
+    template<> struct VulkanTypeTraits<TextureHandle>     { using Internal = VulkanTexture;       };
+    template<> struct VulkanTypeTraits<TextureView>       { using Internal = VulkanTextureView;   };
+    template<> struct VulkanTypeTraits<Sampler>           { using Internal = VulkanSampler;       };
+    template<> struct VulkanTypeTraits<ShaderHandle>      { using Internal = VulkanShader;        };
+    template<> struct VulkanTypeTraits<FramebufferHandle> { using Internal = VulkanFramebuffer;   };
+    template<> struct VulkanTypeTraits<CommandQueue>      { using Internal = VulkanCommandQueue;  };
+    template<> struct VulkanTypeTraits<CommandBuffer>     { using Internal = VulkanCommandBuffer; };
+    template<> struct VulkanTypeTraits<CommandPool>       { using Internal = VulkanCommandPool;   };
+    template<> struct VulkanTypeTraits<Fence>             { using Internal = VulkanFence;         };
+    template<> struct VulkanTypeTraits<Semaphore>         { using Internal = VulkanSemaphore;     };
+    template<> struct VulkanTypeTraits<DescriptorSet>     { using Internal = VulkanDescriptorSet; };
+    template<> struct VulkanTypeTraits<Pipeline>          { using Internal = VulkanPipeline;      };
+    template<> struct VulkanTypeTraits<RenderPass>        { using Internal = VulkanRenderPass;    };
+    template<> struct VulkanTypeTraits<Surface>           { using Internal = VulkanSurface;       };
+    template<> struct VulkanTypeTraits<SwapChain>         { using Internal = VulkanSwapChain;     };
+
+
+    template<typename T>
+    SL_FORCEINLINE typename VulkanTypeTraits<T>::Internal* VulkanCast(T* type)
+    {
+        return static_cast<typename VulkanTypeTraits<T>::Internal*>(type);
+    }
+
+    template<typename T>
+    SL_FORCEINLINE typename VulkanTypeTraits<T>::Internal* VulkanCast(const T* type)
+    {
+        return static_cast<const typename VulkanTypeTraits<T>::Internal*>(type);
+    }
+
+    template<typename T>
+    SL_FORCEINLINE typename VulkanTypeTraits<T>::Internal** VulkanCast(T** type)
+    {
+        return reinterpret_cast<typename VulkanTypeTraits<T>::Internal**>(type);
+    }
+
+    template<typename T>
+    SL_FORCEINLINE typename VulkanTypeTraits<T>::Internal** VulkanCast(const T** type)
+    {
+        return reinterpret_cast<const typename VulkanTypeTraits<T>::Internal**>(type);
+    }
 }
