@@ -271,6 +271,12 @@ namespace Silex
         ExistStorageBuffers.clear();
         IsExistPushConstant = false;
 
+        // キャッシュファイルが無ければ生成
+        if (!std::filesystem::exists(ShaderCacheDirectory))
+        {
+            std::filesystem::create_directory(ShaderCacheDirectory);
+        }
+
         // ファイル読み込み
         std::string rawSource;
         result = ReadString(rawSource, filePath);

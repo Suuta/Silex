@@ -311,7 +311,7 @@ namespace Silex
         cubeMesh   = MeshFactory::Cube();
         sponzaMesh = MeshFactory::Sponza();
 
-        sceneLightDir = glm::vec3(0.0, 1.0, 0.1);
+        sceneLightDir = glm::vec3(0.5, 0.7, 0.1);
 
         defaultLayout.Binding(0);
         defaultLayout.Attribute(0, VERTEX_BUFFER_FORMAT_R32G32B32);
@@ -680,11 +680,23 @@ namespace Silex
                 // firstInstance でミップレベルを指定（シェーダー内でラフネス計算）
                 //-------------------------------------------------------
                 api->DrawIndexed(cmd, ms->GetIndexCount(), 1, 0, 0, i);
-
                 api->EndRenderPass(cmd);
             }
-        });
 
+            //==========================================================================================
+            // ミップ 0~4 は 'SHADER_READ_ONLY' (移行済み) なので、oldLayout は 'UNDEFINED' ではないが
+            // 現状は 再度 0~ALL に対して 'UNDEFINED' -> 'SHADER_READ_ONLY' を実行しても 検証エラーが出ないので
+            // このままにしておく。 Vulkan の仕様なのか、NVIDIA だから問題ないのかは 現状不明
+            //==========================================================================================
+            TextureBarrierInfo info = {};
+            info.texture      = prefilterTexture;
+            info.subresources = {};
+            info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            info.oldLayout    = TEXTURE_LAYOUT_UNDEFINED;
+            info.newLayout    = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+        });
 
         // テンポラリオブジェクト破棄
         for (uint32 i = 0; i < prefilterMipCount; i++)
@@ -771,7 +783,7 @@ namespace Silex
             .Value();
 
         ShaderCompiledData compiledData;
-        ShaderCompiler::Get()->Compile("Assets/Shaders/Shadow.glsl", compiledData);
+        ShaderCompiler::Get()->Compile("Assets/Shaders/DirectionalLight.glsl", compiledData);
         shadow.shader   = api->CreateShader(compiledData);
         shadow.pipeline = api->CreateGraphicsPipeline(shadow.shader, &pipelineInfo, shadow.pass);
 
@@ -1798,8 +1810,8 @@ namespace Silex
             Test::MaterialUBO matData = {};
             matData.albedo        = glm::vec3(1.0);
             matData.emission      = glm::vec3(0.0);
-            matData.metallic      = 0.5f;
-            matData.roughness     = 0.5f;
+            matData.metallic      = 0.0f;
+            matData.roughness     = 0.2f;
             matData.textureTiling = glm::vec2(1.0, 1.0);
             std::memcpy(gbuffer->mappedMaterial, &matData, sizeof(Test::MaterialUBO));
         }
