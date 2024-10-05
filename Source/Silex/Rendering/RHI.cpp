@@ -311,8 +311,6 @@ namespace Silex
         cubeMesh   = MeshFactory::Cube();
         sponzaMesh = MeshFactory::Sponza();
 
-        sceneLightDir = glm::vec3(0.5, 0.7, 0.1);
-
         defaultLayout.Binding(0);
         defaultLayout.Attribute(0, VERTEX_BUFFER_FORMAT_R32G32B32);
         defaultLayout.Attribute(1, VERTEX_BUFFER_FORMAT_R32G32B32);
@@ -1267,14 +1265,6 @@ namespace Silex
         ImGui::Text("FPS: %d", Engine::Get()->GetFrameRate());
         ImGui::SeparatorText("");
         ImGui::Text("framebuffer: %d, %d", sceneFramebufferSize.x, sceneFramebufferSize.y);
-
-        int _1259 = 0;
-        for (auto& res : bloom->resolutions)
-        {
-            ImGui::Text("bloom[%d] %d, %d", _1259, res.width, res.height);
-            _1259++;
-        }
-
         ImGui::End();
 
         ImGui::PopStyleVar(2);
@@ -1455,8 +1445,8 @@ namespace Silex
         {
             Attachment color = {};
             color.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
-            color.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             color.loadOp        = ATTACHMENT_LOAD_OP_CLEAR;
+            color.finalLayout   = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
             color.storeOp       = ATTACHMENT_STORE_OP_STORE;
             color.samples       = TEXTURE_SAMPLES_1;
             color.format        = RENDERING_FORMAT_R16G16B16A16_SFLOAT;
@@ -1468,11 +1458,19 @@ namespace Silex
             Subpass subpass = {};
             subpass.colorReferences.push_back(colorRef);
 
+            SubpassDependency dep = {};
+            dep.srcSubpass = RENDER_AUTO_ID;
+            dep.dstSubpass = 0;
+            dep.srcStages  = PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            dep.dstStages  = PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            dep.srcAccess  = BARRIER_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            dep.dstAccess  = BARRIER_ACCESS_SHADER_READ_BIT;
+
             RenderPassClearValue clear;
             clear.SetFloat(0, 0, 0, 1);
 
             // レンダーパス
-            bloom->pass = api->CreateRenderPass(1, &color, 1, &subpass, 0, nullptr, 1, &clear);
+            bloom->pass = api->CreateRenderPass(1, &color, 1, &subpass, 1, &dep, 1, &clear);
         }
 
         bloom->resolutions.clear();
@@ -1668,8 +1666,8 @@ namespace Silex
         }
 
         DescriptorSetInfo bloomInfo = {};
-        bloomInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  lighting.view,          linearSampler);
-        bloomInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  bloom->samplingView[0], linearSampler);
+        bloomInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view,          linearSampler);
+        bloomInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[0], linearSampler);
         bloom->bloomSet = CreateDescriptorSet(bloom->bloomShader, 0, bloomInfo);
     }
 
@@ -1764,7 +1762,6 @@ namespace Silex
             compositFB          = CreateFramebuffer(compositPass, 1, &compositTexture, width, height);
 
             DescriptorSetInfo blitinfo;
-            
             blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->bloomView, linearSampler);
             compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
         }
@@ -1943,10 +1940,10 @@ namespace Silex
             // プリフィルタリング
             if (1)
             {
-                api->BindPipeline(frame.commandBuffer, bloom->prefilterPipeline);
                 api->BeginRenderPass(frame.commandBuffer, bloom->pass, bloom->bloomFB, 1, &bloom->prefilterView);
+                api->BindPipeline(frame.commandBuffer, bloom->prefilterPipeline);
 
-                float threshold = 0.25f;
+                float threshold = 1.0f;
                 api->PushConstants(frame.commandBuffer, bloom->prefilterShader, &threshold, 1);
                 api->BindDescriptorSet(frame.commandBuffer, bloom->prefilterSet, 0);
                 api->Draw(frame.commandBuffer, 3, 1, 0, 0);
@@ -1957,18 +1954,17 @@ namespace Silex
             // ダウンサンプリング
             if (1)
             {
-                api->BindPipeline(frame.commandBuffer, bloom->downSamplingPipeline);
-
                 for (uint32 i = 0; i < bloom->downSamplingSet.size(); i++)
                 {
                     api->BeginRenderPass(frame.commandBuffer, bloom->pass, bloom->samplingFB[i], 1, &bloom->samplingView[i]);
+                    api->BindPipeline(frame.commandBuffer, bloom->downSamplingPipeline);
                     
-                    // ミップレベルがズレているので2倍している（シーンビューサイズが含まれていないので2倍した数値で扱う）
-                    glm::ivec2 srcResolution = { bloom->resolutions[i].width * 2, bloom->resolutions[i].height * 2 };
-                    api->PushConstants(frame.commandBuffer, bloom->downSamplingShader, &srcResolution, sizeof(srcResolution) / sizeof(uint32));
-
                     api->SetViewport(frame.commandBuffer, 0, 0, bloom->resolutions[i].width, bloom->resolutions[i].height);
                     api->SetScissor(frame.commandBuffer,  0, 0, bloom->resolutions[i].width, bloom->resolutions[i].height);
+
+                    glm::ivec2 srcResolution = i == 0? sceneFramebufferSize : glm::ivec2(bloom->resolutions[i - 1].width, bloom->resolutions[i - 1].height);
+                    api->PushConstants(frame.commandBuffer, bloom->downSamplingShader, &srcResolution[0], sizeof(srcResolution) / sizeof(uint32));
+
                     
                     api->BindDescriptorSet(frame.commandBuffer, bloom->downSamplingSet[i], 0);
                     api->Draw(frame.commandBuffer, 3, 1, 0, 0);
@@ -1980,18 +1976,17 @@ namespace Silex
             // アップサンプリング
             if (1)
             {
-                api->BindPipeline(frame.commandBuffer, bloom->upSamplingPipeline);
-
-                float filterRadius = 1.0f;
-                api->PushConstants(frame.commandBuffer, bloom->upSamplingShader, &filterRadius, 1);
-
                 uint32 upSamplingIndex = bloom->upSamplingSet.size();
                 for (uint32 i = 0; i < bloom->upSamplingSet.size(); i++)
                 {
                     api->BeginRenderPass(frame.commandBuffer, bloom->pass, bloom->samplingFB[upSamplingIndex - 1], 1, &bloom->samplingView[upSamplingIndex - 1]);
-
+                    api->BindPipeline(frame.commandBuffer, bloom->upSamplingPipeline);
+                    
                     api->SetViewport(frame.commandBuffer, 0, 0, bloom->resolutions[upSamplingIndex - 1].width, bloom->resolutions[upSamplingIndex - 1].height);
                     api->SetScissor(frame.commandBuffer,  0, 0, bloom->resolutions[upSamplingIndex - 1].width, bloom->resolutions[upSamplingIndex - 1].height);
+                    
+                    float filterRadius = 0.01f;
+                    api->PushConstants(frame.commandBuffer, bloom->upSamplingShader, &filterRadius, 1);
 
                     api->BindDescriptorSet(frame.commandBuffer, bloom->upSamplingSet[i], 0);
                     api->Draw(frame.commandBuffer, 3, 1, 0, 0);
@@ -2004,8 +1999,9 @@ namespace Silex
             // マージ
             if (1)
             {
-                api->BindPipeline(frame.commandBuffer, bloom->bloomPipeline);
                 api->BeginRenderPass(frame.commandBuffer, bloom->pass, bloom->bloomFB, 1, &bloom->bloomView);
+                api->BindPipeline(frame.commandBuffer, bloom->bloomPipeline);
+
                 api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
                 api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
 

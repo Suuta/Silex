@@ -39,7 +39,7 @@ layout (location = 0) out vec4 pixel;
 
 layout (push_constant) uniform Constant
 {
-    vec2 srcResolution;
+    ivec2 srcResolution;
 };
 
 layout (set = 0, binding = 0) uniform sampler2D srcTexture;

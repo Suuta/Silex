@@ -402,7 +402,7 @@ namespace Silex
         InputLayout defaultLayout;
 
         // ライト
-        glm::vec3 sceneLightDir;
+        glm::vec3 sceneLightDir = { 0.5, 0.7, 0.1 };
 
     public:
 
