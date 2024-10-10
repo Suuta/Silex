@@ -78,6 +78,7 @@ namespace Silex
         virtual void DestroyBuffer(Buffer* buffer) = 0;
         virtual void* MapBuffer(Buffer* buffer) = 0;
         virtual void UnmapBuffer(Buffer* buffer) = 0;
+        virtual bool UpdateBufferData(Buffer* buffer, const void* data, uint64 dataByte) = 0;
 
         //--------------------------------------------------
         // テクスチャ

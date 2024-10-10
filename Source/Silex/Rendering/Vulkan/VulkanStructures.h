@@ -103,7 +103,6 @@ namespace Silex
         VulkanSurface*                  surface      = nullptr;
         VulkanRenderPass*               renderpass   = nullptr;
 
-
         VkSemaphore present = nullptr;
         VkSemaphore render  = nullptr;
     };
@@ -115,6 +114,9 @@ namespace Silex
         VkBufferView  view             = nullptr;
         uint64        size             = 0;
         VmaAllocation allocationHandle = nullptr;
+
+        bool  mapped  = false;
+        void* pointer = nullptr;
     };
 
     // テクスチャ
@@ -175,6 +177,8 @@ namespace Silex
 
     //=============================================
     // Vulkan 型キャスト
+    //---------------------------------------------
+    // 抽象型からAPI型への 型安全キャスト
     //=============================================
     template<class T> struct VulkanTypeTraits {};
 

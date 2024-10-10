@@ -24,6 +24,7 @@ namespace Silex
     // シャドウマップ
     static const uint32  shadowMapResolution = 2048;
     std::array<float, 4> shadowCascadeLevels = { 10.0f, 40.0f, 100.0f, 200.0f };
+    int32 debugSleep = 0;
 
     namespace Test
     {
@@ -168,18 +169,18 @@ namespace Silex
         api->UnmapBuffer(pixelIDBuffer);
         api->DestroyBuffer(pixelIDBuffer);
         api->DestroyTexture(defaultTexture);
-        api->DestroyTexture(compositTexture);
+        api->DestroyTexture(compositeTexture);
         api->DestroyTextureView(defaultTextureView);
-        api->DestroyTextureView(compositTextureView);
+        api->DestroyTextureView(compositeTextureView);
         api->DestroyShader(gridShader);
-        api->DestroyShader(compositShader);
+        api->DestroyShader(compositeShader);
         api->DestroyDescriptorSet(gridSet);
-        api->DestroyDescriptorSet(compositSet);
+        api->DestroyDescriptorSet(compositeSet);
         api->DestroyDescriptorSet(imageSet);
         api->DestroyPipeline(gridPipeline);
-        api->DestroyPipeline(compositPipeline);
-        api->DestroyRenderPass(compositPass);
-        api->DestroyFramebuffer(compositFB);
+        api->DestroyPipeline(compositePipeline);
+        api->DestroyRenderPass(compositePass);
+        api->DestroyFramebuffer(compositeFB);
         api->DestroySampler(linearSampler);
         api->DestroySampler(shadowSampler);
 
@@ -262,13 +263,14 @@ namespace Silex
 
     bool RHI::BeginFrame()
     {
-        SwapChain* swapchain = Window::Get()->GetSwapChain();
-        FrameData& frame     = frameData[frameIndex];
-        bool result          = false;
+        bool result = false;
+        FrameData& frame = frameData[frameIndex];
 
         // GPU 待機
         if (frameData[frameIndex].waitingSignal)
         {
+            SL_SCOPE_PROFILE("WaitFence")
+
             result = api->WaitFence(frame.fence);
             SL_CHECK(!result, false);
 
@@ -279,28 +281,28 @@ namespace Silex
         _DestroyPendingResources(frameIndex);
 
         // 描画先スワップチェインバッファを取得
-        auto [fb, view] = api->GetCurrentBackBuffer(swapchain, frame.presentSemaphore);
+        auto [fb, view] = api->GetCurrentBackBuffer(Window::Get()->GetSwapChain(), frame.presentSemaphore);
         currentSwapchainFramebuffer = fb;
         currentSwapchainView        = view;
 
         // コマンドバッファ開始
-        result = api->BeginCommandBuffer(frame.commandBuffer);
-        SL_CHECK(!result, false);
+        //result = api->BeginCommandBuffer(frame.commandBuffer);
+        //SL_CHECK(!result, false);
 
         return true;
     }
 
     bool RHI::EndFrame()
     {
-        SwapChain* swapchain = Window::Get()->GetSwapChain();
-        FrameData& frame     = frameData[frameIndex];
-  
-        api->EndCommandBuffer(frame.commandBuffer);
+        bool result = false;
 
-        api->SubmitQueue(graphicsQueue, frame.commandBuffer, frame.fence, frame.presentSemaphore, frame.renderSemaphore);
+        FrameData& frame = frameData[frameIndex];
+        result = api->EndCommandBuffer(frame.commandBuffer);
+
+        result = api->SubmitQueue(graphicsQueue, frame.commandBuffer, frame.fence, frame.presentSemaphore, frame.renderSemaphore);
         frameData[frameIndex].waitingSignal = true;
 
-        return true;
+        return result;
     }
 
     void RHI::TEST()
@@ -329,7 +331,7 @@ namespace Silex
         shadow.minFilter     = SAMPLER_FILTER_LINEAR;
         shadow.mipFilter     = SAMPLER_FILTER_LINEAR;
         shadow.enableCompare = true;
-        shadow.compareOp     = COMPARE_OP_LESS;
+        shadow.compareOp     = COMPARE_OP_LESS_OR_EQUAL;
         shadowSampler = api->CreateSampler(shadow);
 
         TextureReader reader;
@@ -375,10 +377,10 @@ namespace Silex
             ShaderCompiler::Get()->Compile("Assets/Shaders/Grid.glsl", compiledData);
             gridShader   = api->CreateShader(compiledData);
             gridPipeline = api->CreateGraphicsPipeline(gridShader, &pipelineInfo, environment.pass);
-            gridUBO      = CreateUniformBuffer(nullptr, sizeof(Test::GridData), &mappedGridData);
+            gridUBO      = CreateUniformBuffer(nullptr, sizeof(Test::GridData));
 
             DescriptorSetInfo gridinfo;
-            gridinfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gridUBO);
+            gridinfo.BindBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gridUBO);
             gridSet = CreateDescriptorSet(gridShader, 0, gridinfo);
         }
 
@@ -402,10 +404,10 @@ namespace Silex
             RenderPassClearValue clear = {};
             clear.SetFloat(0, 0, 0, 1);
 
-            compositPass        = api->CreateRenderPass(1, &color, 1, &subpass, 0, nullptr, 1, &clear);
-            compositTexture     = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM, size.x, size.y);
-            compositTextureView = CreateTextureView(compositTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-            compositFB          = CreateFramebuffer(compositPass, 1, &compositTexture, size.x, size.y);
+            compositePass        = api->CreateRenderPass(1, &color, 1, &subpass, 0, nullptr, 1, &clear);
+            compositeTexture     = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM, size.x, size.y);
+            compositeTextureView = CreateTextureView(compositeTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+            compositeFB          = CreateFramebuffer(compositePass, 1, &compositeTexture, size.x, size.y);
 
             PipelineStateInfoBuilder builder;
             PipelineStateInfo pipelineInfo = builder
@@ -414,18 +416,18 @@ namespace Silex
 
             ShaderCompiledData compiledData;
             ShaderCompiler::Get()->Compile("Assets/Shaders/Composit.glsl", compiledData);
-            compositShader   = api->CreateShader(compiledData);
-            compositPipeline = api->CreateGraphicsPipeline(compositShader, &pipelineInfo, compositPass);
+            compositeShader   = api->CreateShader(compiledData);
+            compositePipeline = api->CreateGraphicsPipeline(compositeShader, &pipelineInfo, compositePass);
 
             DescriptorSetInfo blitinfo;
-            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->bloomView, linearSampler);
-            compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
+            blitinfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->bloomView, linearSampler);
+            compositeSet = CreateDescriptorSet(compositeShader, 0, blitinfo);
         }
 
         // ImGui ビューポート用 デスクリプターセット
         DescriptorSetInfo imageinfo;
-        imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTextureView, linearSampler);
-        imageSet = CreateDescriptorSet(compositShader, 0, imageinfo);
+        imageinfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositeTextureView, linearSampler);
+        imageSet = CreateDescriptorSet(compositeShader, 0, imageinfo);
     }
 
     void RHI::PrepareIBL(const char* environmentTexturePath)
@@ -479,7 +481,7 @@ namespace Silex
         data.view[3]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  1.0f,  0.0f), glm::vec3( 0.0f,  0.0f, -1.0f));
         data.view[4]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f,  1.0f), glm::vec3( 0.0f, -1.0f,  0.0f));
         data.view[5]    = glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3( 0.0f,  0.0f, -1.0f), glm::vec3( 0.0f, -1.0f,  0.0f));
-        equirectangularUBO = CreateUniformBuffer(&data, sizeof(Test::EquirectangularData), &mappedEquirectanguler);
+        equirectangularUBO = CreateUniformBuffer(&data, sizeof(Test::EquirectangularData));
 
         PipelineStateInfoBuilder builder;
         PipelineStateInfo pipelineInfo = builder
@@ -493,8 +495,8 @@ namespace Silex
 
         // デスクリプタ
         DescriptorSetInfo info;
-        info.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
-        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, envTextureView, linearSampler);
+        info.BindBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
+        info.BindTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, envTextureView, linearSampler);
         equirectangularSet = CreateDescriptorSet(equirectangularShader, 0, info);
 
         IBLProcessFB = CreateFramebuffer(IBLProcessPass, 1, &cubemapTexture, envResolution, envResolution);
@@ -591,8 +593,8 @@ namespace Silex
 
         // デスクリプタ
         DescriptorSetInfo info;
-        info.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
-        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView, linearSampler);
+        info.BindBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
+        info.BindTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView, linearSampler);
         irradianceSet = CreateDescriptorSet(irradianceShader, 0, info);
 
         // キューブマップ書き込み
@@ -654,8 +656,8 @@ namespace Silex
 
         // デスクリプタ
         DescriptorSetInfo info;
-        info.AddBuffer( 0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
-        info.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  cubemapTextureView, linearSampler);
+        info.BindBuffer( 0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, equirectangularUBO);
+        info.BindTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  cubemapTextureView, linearSampler);
         prefilterSet = CreateDescriptorSet(prefilterShader, 0, info);
 
         // キューブマップ書き込み
@@ -745,7 +747,6 @@ namespace Silex
 
     void RHI::PrepareShadowBuffer()
     {
-        // 環境マップ変換 レンダーパス
         Attachment depth = {};
         depth.initialLayout = TEXTURE_LAYOUT_UNDEFINED;
         depth.finalLayout   = TEXTURE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
@@ -761,22 +762,31 @@ namespace Silex
         Subpass subpass = {};
         subpass.depthstencilReference = depthRef;
 
+        SubpassDependency dep = {};
+        dep.srcSubpass = RENDER_AUTO_ID;
+        dep.dstSubpass = 0;
+        dep.srcStages  = PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        dep.dstStages  = PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+        dep.srcAccess  = BARRIER_ACCESS_SHADER_READ_BIT;
+        dep.dstAccess  = BARRIER_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
         RenderPassClearValue clear;
         clear.SetDepthStencil(1.0f, 0);
-        shadow.pass = api->CreateRenderPass(1, &depth, 1, &subpass, 0, nullptr, 1, &clear);
+        shadow.pass = api->CreateRenderPass(1, &depth, 1, &subpass, 1, &dep, 1, &clear);
 
         shadow.depth             = CreateTexture2DArray(RENDERING_FORMAT_D32_SFLOAT, shadowMapResolution, shadowMapResolution, 4);
         shadow.depthView         = CreateTextureView(shadow.depth, TEXTURE_TYPE_2D_ARRAY, TEXTURE_ASPECT_DEPTH_BIT);
         shadow.framebuffer       = CreateFramebuffer(shadow.pass, 1, &shadow.depth, shadowMapResolution, shadowMapResolution);
-        shadow.transformUBO      = CreateUniformBuffer(nullptr, sizeof(Test::ShadowTransformData), &shadow.transformMap);
-        shadow.lightTransformUBO = CreateUniformBuffer(nullptr, sizeof(Test::LightSpaceTransformData), &shadow.lightTransformMap);
-        shadow.cascadeUBO        = CreateUniformBuffer(nullptr, sizeof(Test::CascadeData), &shadow.cascadeMap);
+        shadow.transformUBO      = CreateUniformBuffer(nullptr, sizeof(Test::ShadowTransformData));
+        shadow.lightTransformUBO = CreateUniformBuffer(nullptr, sizeof(Test::LightSpaceTransformData));
+        shadow.cascadeUBO        = CreateUniformBuffer(nullptr, sizeof(Test::CascadeData));
 
         // パイプライン
         PipelineStateInfoBuilder builder;
         PipelineStateInfo pipelineInfo = builder
             .InputLayout(1, &defaultLayout)
             .Depth(true, true)
+            .RasterizerDepthBias(true, 1.0, 2.0)
             .Blend(false, 1)
             .Value();
 
@@ -787,8 +797,8 @@ namespace Silex
 
         // デスクリプター
         DescriptorSetInfo setInfo = {};
-        setInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.transformUBO);
-        setInfo.AddBuffer(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.lightTransformUBO);
+        setInfo.BindBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.transformUBO);
+        setInfo.BindBuffer(1, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.lightTransformUBO);
         shadow.set = CreateDescriptorSet(shadow.shader, 0, setInfo);
     }
 
@@ -1015,18 +1025,18 @@ namespace Silex
         }
 
         // ユニフォームバッファ
-        gbuffer->materialUBO  = CreateUniformBuffer(nullptr, sizeof(Test::MaterialUBO), &gbuffer->mappedMaterial);
-        gbuffer->transformUBO = CreateUniformBuffer(nullptr, sizeof(Test::Transform),   &gbuffer->mappedTransfrom);
+        gbuffer->materialUBO  = CreateUniformBuffer(nullptr, sizeof(Test::MaterialUBO));
+        gbuffer->transformUBO = CreateUniformBuffer(nullptr, sizeof(Test::Transform));
 
         // トランスフォーム
         DescriptorSetInfo transformInfo = {};
-        transformInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gbuffer->transformUBO);
+        transformInfo.BindBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gbuffer->transformUBO);
         gbuffer->transformSet = CreateDescriptorSet(gbuffer->shader, 0, transformInfo);
 
         // マテリアル
         DescriptorSetInfo materialInfo = {};
-        materialInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gbuffer->materialUBO);
-        materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, defaultTextureView, linearSampler);
+        materialInfo.BindBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gbuffer->materialUBO);
+        materialInfo.BindTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, defaultTextureView, linearSampler);
         gbuffer->materialSet  = CreateDescriptorSet(gbuffer->shader, 1, materialInfo);
     }
 
@@ -1072,21 +1082,21 @@ namespace Silex
         lighting.pipeline = api->CreateGraphicsPipeline(lighting.shader, &pipelineInfo, lighting.pass);
 
         // UBO
-        lighting.sceneUBO = CreateUniformBuffer(nullptr, sizeof(Test::SceneUBO), &lighting.mappedScene);
+        lighting.sceneUBO = CreateUniformBuffer(nullptr, sizeof(Test::SceneUBO));
 
         // セット
         DescriptorSetInfo textureInfo = {};
-        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->albedoView,   linearSampler);
-        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->normalView,   linearSampler);
-        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->emissionView, linearSampler);
-        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->depthView,    linearSampler);
-        textureInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  irradianceTextureView, linearSampler);
-        textureInfo.AddTexture(5, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  prefilterTextureView,  linearSampler);
-        textureInfo.AddTexture(6, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  brdflutTextureView,    linearSampler);
-        textureInfo.AddTexture(7, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  shadow.depthView,      shadowSampler);
-        textureInfo.AddBuffer( 8, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
-        textureInfo.AddBuffer( 9, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.cascadeUBO);
-        textureInfo.AddBuffer(10, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.lightTransformUBO);
+        textureInfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->albedoView,   linearSampler);
+        textureInfo.BindTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->normalView,   linearSampler);
+        textureInfo.BindTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->emissionView, linearSampler);
+        textureInfo.BindTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->depthView,    linearSampler);
+        textureInfo.BindTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  irradianceTextureView, linearSampler);
+        textureInfo.BindTexture(5, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  prefilterTextureView,  linearSampler);
+        textureInfo.BindTexture(6, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  brdflutTextureView,    linearSampler);
+        textureInfo.BindTexture(7, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  shadow.depthView,      shadowSampler);
+        textureInfo.BindBuffer( 8, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
+        textureInfo.BindBuffer( 9, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.cascadeUBO);
+        textureInfo.BindBuffer(10, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.lightTransformUBO);
 
         lighting.set = CreateDescriptorSet(lighting.shader, 0, textureInfo);
     }
@@ -1146,128 +1156,13 @@ namespace Silex
             ShaderCompiler::Get()->Compile("Assets/Shaders/Environment.glsl", compiledData);
             environment.shader   = api->CreateShader(compiledData);
             environment.pipeline = api->CreateGraphicsPipeline(environment.shader, &pipelineInfo, environment.pass);
-            environment.ubo      = CreateUniformBuffer(nullptr, sizeof(Test::EnvironmentUBO), &environment.map);
+            environment.ubo      = CreateUniformBuffer(nullptr, sizeof(Test::EnvironmentUBO));
 
             DescriptorSetInfo materialInfo = {};
-            materialInfo.AddBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, environment.ubo);
-            materialInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView,    linearSampler);
+            materialInfo.BindBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, environment.ubo);
+            materialInfo.BindTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, cubemapTextureView,    linearSampler);
             environment.set = CreateDescriptorSet(environment.shader, 0, materialInfo);
         }
-    }
-
-    void RHI::Update(Camera* camera)
-    {
-        bool isUsingCamera = Engine::Get()->GetEditor()->IsUsingEditorCamera();
-        if (Input::IsMouseButtonReleased(Mouse::Left) && Input::IsKeyDown(Keys::P))
-        {
-            glm::ivec2 pos = Input::GetCursorPosition();
-            int32 id = ReadPixelObjectID(pos.x, pos.y);
-
-            SL_LOG_DEBUG("Clicked: ID({})", id);
-        }
-
-
-        ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->Pos);
-        ImGui::SetNextWindowSize(viewport->Size);
-        ImGui::SetNextWindowViewport(viewport->ID);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-
-        ImGuiWindowFlags windowFlags = 0;
-        windowFlags |= ImGuiWindowFlags_NoDocking;
-        windowFlags |= ImGuiWindowFlags_NoTitleBar;
-        windowFlags |= ImGuiWindowFlags_NoMove;
-        windowFlags |= ImGuiWindowFlags_NoResize;
-        windowFlags |= ImGuiWindowFlags_NoCollapse;
-        windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
-        windowFlags |= ImGuiWindowFlags_NoNavFocus;
-        windowFlags |= ImGuiWindowFlags_MenuBar;
-        windowFlags |= isUsingCamera? ImGuiWindowFlags_NoInputs : 0;
-
-        {
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-            ImGui::Begin("DockSpace", nullptr, windowFlags);
-            ImGui::PopStyleVar();
-
-            ImGuiDockNodeFlags docapaceFlag = ImGuiDockNodeFlags_NoWindowMenuButton;
-            docapaceFlag |= isUsingCamera? ImGuiDockNodeFlags_NoResize : 0;
-
-            ImGuiID dockspaceID = ImGui::GetID("Dockspace");
-            ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), docapaceFlag);
-
-            //============================
-            // メニューバー
-            //============================
-            if (ImGui::BeginMenuBar())
-            {
-                if (ImGui::BeginMenu("編集"))
-                {
-                    if (ImGui::MenuItem("終了", "Alt+F4")) Engine::Get()->Close();
-
-                    ImGui::EndMenu();
-                }
-
-                ImGui::EndMenuBar();
-            }
-
-            ImGui::End();
-        }
-
-        // シーンプロパティ
-        //m_ScenePropertyPanel.Render(&bShowOutliner, &bShowProperty);
-
-        // アセットプロパティ
-        //m_AssetBrowserPanel.Render(&bShowAssetBrowser, &bShowMaterial);
-
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-        ImGui::Begin("シーン", nullptr, isUsingCamera? ImGuiWindowFlags_NoInputs : 0);
-
-        // ビューポートへのホバー
-        bool bHoveredViewport = ImGui::IsWindowHovered();
-
-        // ウィンドウ内のコンテンツサイズ（タブやパディングは含めないので、ImGui::GetWindowSize関数は使わない）
-        ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
-        ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
-        ImVec2 content    = { contentMax.x - contentMin.x, contentMax.y - contentMin.y };
-
-        // ウィンドウ左端からのオフセット
-        ImVec2 viewportOffset = ImGui::GetWindowPos();
-
-        // ImGuizmo用 相対ウィンドウ座標
-        ImVec2 relativeViewportRect[2] =
-        {
-            { contentMin.x + viewportOffset.x, contentMin.y + viewportOffset.y },
-            { contentMax.x + viewportOffset.x, contentMax.y + viewportOffset.y }
-        };
-
-        // シーン描画
-        {
-            // エディターが有効な状態では、シーンビューポートサイズがフレームバッファサイズになる
-            if ((content.x > 0.0f && content.y > 0.0f) && (content.x != sceneFramebufferSize.x || content.y != sceneFramebufferSize.y))
-            {
-                sceneFramebufferSize.x = content.x;
-                sceneFramebufferSize.y = content.y;
-                camera->SetViewportSize(sceneFramebufferSize.x, sceneFramebufferSize.y);
-
-                SL_LOG_TRACE("Resize SceneFramebuffer: {}, {}", sceneFramebufferSize.x, sceneFramebufferSize.y);
-                RESIZE(sceneFramebufferSize.x, sceneFramebufferSize.y);
-            }
-
-            // シーン描画
-            GUI::Image(imageSet, content.x, content.y);
-        }
-
-        ImGui::End();
-        ImGui::PopStyleVar();
-
-        ImGui::Begin("Info", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
-        ImGui::Text("FPS: %d", Engine::Get()->GetFrameRate());
-        ImGui::SeparatorText("");
-        ImGui::Text("framebuffer: %d, %d", sceneFramebufferSize.x, sceneFramebufferSize.y);
-        ImGui::End();
-
-        ImGui::PopStyleVar(2);
     }
 
     void RHI::CleanupIBL()
@@ -1404,17 +1299,17 @@ namespace Silex
         lighting.framebuffer = CreateFramebuffer(lighting.pass, 1, &lighting.color, width, height);
 
         DescriptorSetInfo textureInfo = {};
-        textureInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->albedoView,   linearSampler);
-        textureInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->normalView,   linearSampler);
-        textureInfo.AddTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->emissionView, linearSampler);
-        textureInfo.AddTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->depthView,    linearSampler);
-        textureInfo.AddTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  irradianceTextureView, linearSampler);
-        textureInfo.AddTexture(5, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  prefilterTextureView,  linearSampler);
-        textureInfo.AddTexture(6, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  brdflutTextureView,    linearSampler);
-        textureInfo.AddTexture(7, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  shadow.depthView,      shadowSampler);
-        textureInfo.AddBuffer( 8, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
-        textureInfo.AddBuffer( 9, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.cascadeUBO);
-        textureInfo.AddBuffer(10, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.lightTransformUBO);
+        textureInfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->albedoView,   linearSampler);
+        textureInfo.BindTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->normalView,   linearSampler);
+        textureInfo.BindTexture(2, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->emissionView, linearSampler);
+        textureInfo.BindTexture(3, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  gbuffer->depthView,    linearSampler);
+        textureInfo.BindTexture(4, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  irradianceTextureView, linearSampler);
+        textureInfo.BindTexture(5, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  prefilterTextureView,  linearSampler);
+        textureInfo.BindTexture(6, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  brdflutTextureView,    linearSampler);
+        textureInfo.BindTexture(7, DESCRIPTOR_TYPE_IMAGE_SAMPLER,  shadow.depthView,      shadowSampler);
+        textureInfo.BindBuffer( 8, DESCRIPTOR_TYPE_UNIFORM_BUFFER, lighting.sceneUBO);
+        textureInfo.BindBuffer( 9, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.cascadeUBO);
+        textureInfo.BindBuffer(10, DESCRIPTOR_TYPE_UNIFORM_BUFFER, shadow.lightTransformUBO);
 
         lighting.set = CreateDescriptorSet(lighting.shader, 0, textureInfo);
     }
@@ -1533,7 +1428,7 @@ namespace Silex
 
         // プリフィルター
         DescriptorSetInfo prefilterInfo = {};
-        prefilterInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
+        prefilterInfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
         bloom->prefilterSet = CreateDescriptorSet(bloom->prefilterShader, 0, prefilterInfo);
 
         // ダウンサンプリング (source)  - (target)
@@ -1544,13 +1439,13 @@ namespace Silex
         // sample[3] - sample[4]
         // sample[4] - sample[5]
         DescriptorSetInfo downSamplingInfo = {};
-        downSamplingInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->prefilterView, linearSampler);
+        downSamplingInfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->prefilterView, linearSampler);
         bloom->downSamplingSet[0] = CreateDescriptorSet(bloom->downSamplingShader, 0, downSamplingInfo);
 
         for (uint32 i = 1; i < bloom->downSamplingSet.size(); i++)
         {
             DescriptorSetInfo info = {};
-            info.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[i - 1], linearSampler);
+            info.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[i - 1], linearSampler);
             bloom->downSamplingSet[i] = CreateDescriptorSet(bloom->downSamplingShader, 0, info);
         }
 
@@ -1564,15 +1459,15 @@ namespace Silex
         for (uint32 i = 0; i < bloom->upSamplingSet.size(); i++)
         {
             DescriptorSetInfo upSamplingInfo = {};
-            upSamplingInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[upSamplingIndex], linearSampler);
+            upSamplingInfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[upSamplingIndex], linearSampler);
             bloom->upSamplingSet[i] = CreateDescriptorSet(bloom->upSamplingShader, 0, upSamplingInfo);
             upSamplingIndex--;
         }
 
         // ブルームコンポジット
         DescriptorSetInfo bloomInfo = {};
-        bloomInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view,          linearSampler);
-        bloomInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[0], linearSampler);
+        bloomInfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view,          linearSampler);
+        bloomInfo.BindTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[0], linearSampler);
         bloom->bloomSet = CreateDescriptorSet(bloom->bloomShader, 0, bloomInfo);
     }
 
@@ -1629,7 +1524,7 @@ namespace Silex
 
         // プリフィルター
         DescriptorSetInfo prefilterInfo = {};
-        prefilterInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
+        prefilterInfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
         bloom->prefilterSet = CreateDescriptorSet(bloom->prefilterShader, 0, prefilterInfo);
 
         // ダウンサンプリング (source)  - (target)
@@ -1640,13 +1535,13 @@ namespace Silex
         // sample[3] - sample[4]
         // sample[4] - sample[5]
         DescriptorSetInfo downSamplingInfo = {};
-        downSamplingInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->prefilterView, linearSampler);
+        downSamplingInfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->prefilterView, linearSampler);
         bloom->downSamplingSet[0] = CreateDescriptorSet(bloom->downSamplingShader, 0, downSamplingInfo);
 
         for (uint32 i = 1; i < bloom->downSamplingSet.size(); i++)
         {
             DescriptorSetInfo info = {};
-            info.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[i - 1], linearSampler);
+            info.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[i - 1], linearSampler);
             bloom->downSamplingSet[i] = CreateDescriptorSet(bloom->downSamplingShader, 0, info);
         }
 
@@ -1660,14 +1555,14 @@ namespace Silex
         for (uint32 i = 0; i < bloom->upSamplingSet.size(); i++)
         {
             DescriptorSetInfo upSamplingInfo = {};
-            upSamplingInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[upSamplingIndex], linearSampler);
+            upSamplingInfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[upSamplingIndex], linearSampler);
             bloom->upSamplingSet[i] = CreateDescriptorSet(bloom->upSamplingShader, 0, upSamplingInfo);
             upSamplingIndex--;
         }
 
         DescriptorSetInfo bloomInfo = {};
-        bloomInfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view,          linearSampler);
-        bloomInfo.AddTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[0], linearSampler);
+        bloomInfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view,          linearSampler);
+        bloomInfo.BindTexture(1, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->samplingView[0], linearSampler);
         bloom->bloomSet = CreateDescriptorSet(bloom->bloomShader, 0, bloomInfo);
     }
 
@@ -1728,7 +1623,7 @@ namespace Silex
             region.bufferOffset        = 0;
             region.textureSubresources = {};
             region.textureRegionSize   = {1, 1, 1};
-            region.textureOffset       = {1, 1, 0}; // 読み取り先
+            region.textureOffset       = {x, y, 0};
 
             api->CopyTextureToBuffer(cmd, gbuffer->id, TEXTURE_LAYOUT_TRANSFER_SRC_OPTIMAL, pixelIDBuffer, 1, &region);
 
@@ -1752,55 +1647,44 @@ namespace Silex
         ResizeBloomBuffer(width, height);
 
         {
-            DestroyDescriptorSet(compositSet);
-            DestroyFramebuffer(compositFB);
-            DestroyTexture(compositTexture);
-            DestroyTextureView(compositTextureView);
+            DestroyDescriptorSet(compositeSet);
+            DestroyFramebuffer(compositeFB);
+            DestroyTexture(compositeTexture);
+            DestroyTextureView(compositeTextureView);
 
-            compositTexture     = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM, width, height);
-            compositTextureView = CreateTextureView(compositTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
-            compositFB          = CreateFramebuffer(compositPass, 1, &compositTexture, width, height);
+            compositeTexture     = CreateTexture2D(RENDERING_FORMAT_R8G8B8A8_UNORM, width, height);
+            compositeTextureView = CreateTextureView(compositeTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
+            compositeFB          = CreateFramebuffer(compositePass, 1, &compositeTexture, width, height);
 
             DescriptorSetInfo blitinfo;
-            blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->bloomView, linearSampler);
-            compositSet = CreateDescriptorSet(compositShader, 0, blitinfo);
+            blitinfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->bloomView, linearSampler);
+            //blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
+            compositeSet = CreateDescriptorSet(compositeShader, 0, blitinfo);
         }
 
         {
             DestroyDescriptorSet(imageSet);
 
             DescriptorSetInfo imageinfo;
-            imageinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositTextureView, linearSampler);
-            imageSet = CreateDescriptorSet(compositShader, 0, imageinfo);
+            imageinfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, compositeTextureView, linearSampler);
+            imageSet = CreateDescriptorSet(compositeShader, 0, imageinfo);
         }
     }
 
-    void RHI::Render(Camera* camera, float dt)
+    void RHI::UpdateUBO(Camera* camera)
     {
-        FrameData& frame = frameData[frameIndex];
-        const auto& windowSize   = Window::Get()->GetSize();
-        const auto& viewportSize = camera->GetViewportSize();
+        {
+            Test::ShadowTransformData shadowData;
+            shadowData.world = glm::mat4(1.0);
+            UpdateBufferData(shadow.transformUBO, &shadowData, sizeof(Test::ShadowTransformData));
+        }
 
         {
             Test::Transform sceneData;
             sceneData.projection = camera->GetProjectionMatrix();
             sceneData.view       = camera->GetViewMatrix();
             sceneData.world      = glm::mat4(1.0);
-            std::memcpy(gbuffer->mappedTransfrom, &sceneData, sizeof(Test::Transform));
-        }
-
-        {
-            Test::ShadowTransformData shadowData;
-            shadowData.world = glm::mat4(1.0);
-            std::memcpy(shadow.transformMap, &shadowData, sizeof(Test::ShadowTransformData));
-        }
-
-        {
-            Test::GridData gridData;
-            gridData.projection = camera->GetProjectionMatrix();
-            gridData.view       = camera->GetViewMatrix();
-            gridData.pos        = glm::vec4(camera->GetPosition(), camera->GetFarPlane());
-            std::memcpy(mappedGridData, &gridData, sizeof(Test::GridData));
+            UpdateBufferData(gbuffer->transformUBO, &sceneData, sizeof(Test::Transform));
         }
 
         {
@@ -1810,7 +1694,15 @@ namespace Silex
             matData.metallic      = 0.0f;
             matData.roughness     = 0.2f;
             matData.textureTiling = glm::vec2(1.0, 1.0);
-            std::memcpy(gbuffer->mappedMaterial, &matData, sizeof(Test::MaterialUBO));
+            UpdateBufferData(gbuffer->materialUBO, &matData, sizeof(Test::MaterialUBO));
+        }
+
+        {
+            Test::GridData gridData;
+            gridData.projection = camera->GetProjectionMatrix();
+            gridData.view       = camera->GetViewMatrix();
+            gridData.pos        = glm::vec4(camera->GetPosition(), camera->GetFarPlane());
+            UpdateBufferData(gridUBO, &gridData, sizeof(Test::GridData));
         }
 
         {
@@ -1822,7 +1714,7 @@ namespace Silex
             lightData.cascade[1] = outLightMatrices[1];
             lightData.cascade[2] = outLightMatrices[2];
             lightData.cascade[3] = outLightMatrices[3];
-            std::memcpy(shadow.lightTransformMap, &lightData, sizeof(Test::LightSpaceTransformData));
+            UpdateBufferData(shadow.lightTransformUBO, &lightData, sizeof(Test::LightSpaceTransformData));
 
             Test::SceneUBO sceneUBO = {};
             sceneUBO.lightColor               = glm::vec4(1.0, 1.0, 1.0, 1.0);
@@ -1830,29 +1722,192 @@ namespace Silex
             sceneUBO.cameraPosition           = glm::vec4(camera->GetPosition(), camera->GetFarPlane());
             sceneUBO.view                     = camera->GetViewMatrix();
             sceneUBO.invViewProjection        = glm::inverse(camera->GetProjectionMatrix() * camera->GetViewMatrix());
-            std::memcpy(lighting.mappedScene, &sceneUBO, sizeof(Test::SceneUBO));
+            UpdateBufferData(lighting.sceneUBO, &sceneUBO, sizeof(Test::SceneUBO));
 
             Test::CascadeData cascadeData;
             cascadeData.cascadePlaneDistances[0].x = shadowCascadeLevels[0];
             cascadeData.cascadePlaneDistances[1].x = shadowCascadeLevels[1];
             cascadeData.cascadePlaneDistances[2].x = shadowCascadeLevels[2];
             cascadeData.cascadePlaneDistances[3].x = shadowCascadeLevels[3];
-            std::memcpy(shadow.cascadeMap, &cascadeData, sizeof(Test::CascadeData));
+            UpdateBufferData(shadow.cascadeUBO, &cascadeData, sizeof(Test::CascadeData));
         }
 
         {
             Test::EnvironmentUBO environmentUBO = {};
             environmentUBO.view       = camera->GetViewMatrix();
             environmentUBO.projection = camera->GetProjectionMatrix();
-            std::memcpy(environment.map, &environmentUBO, sizeof(Test::EnvironmentUBO));
+            UpdateBufferData(environment.ubo, &environmentUBO, sizeof(Test::EnvironmentUBO));
+        }
+    }
+
+    void RHI::Update(Camera* camera)
+    {
+        bool isUsingCamera = Engine::Get()->GetEditor()->IsUsingEditorCamera();
+
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
+        ImGui::SetNextWindowPos(viewport->Pos);
+        ImGui::SetNextWindowSize(viewport->Size);
+        ImGui::SetNextWindowViewport(viewport->ID);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+
+        ImGuiWindowFlags windowFlags = 0;
+        windowFlags |= ImGuiWindowFlags_NoDocking;
+        windowFlags |= ImGuiWindowFlags_NoTitleBar;
+        windowFlags |= ImGuiWindowFlags_NoMove;
+        windowFlags |= ImGuiWindowFlags_NoResize;
+        windowFlags |= ImGuiWindowFlags_NoCollapse;
+        windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
+        windowFlags |= ImGuiWindowFlags_NoNavFocus;
+        windowFlags |= ImGuiWindowFlags_MenuBar;
+        windowFlags |= isUsingCamera ? ImGuiWindowFlags_NoInputs : 0;
+
+        {
+            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+            ImGui::Begin("DockSpace", nullptr, windowFlags);
+            ImGui::PopStyleVar();
+
+            ImGuiDockNodeFlags docapaceFlag = ImGuiDockNodeFlags_NoWindowMenuButton;
+            docapaceFlag |= isUsingCamera ? ImGuiDockNodeFlags_NoResize : 0;
+
+            ImGuiID dockspaceID = ImGui::GetID("Dockspace");
+            ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), docapaceFlag);
+
+            //============================
+            // メニューバー
+            //============================
+            if (ImGui::BeginMenuBar())
+            {
+                if (ImGui::BeginMenu("編集"))
+                {
+                    if (ImGui::MenuItem("終了", "Alt+F4")) Engine::Get()->Close();
+
+                    ImGui::EndMenu();
+                }
+
+                ImGui::EndMenuBar();
+            }
+
+            ImGui::End();
         }
 
-        api->SetViewport(frame.commandBuffer, 0, 0, shadowMapResolution, shadowMapResolution);
-        api->SetScissor(frame.commandBuffer,  0, 0, shadowMapResolution, shadowMapResolution);
+        // シーンプロパティ
+        //m_ScenePropertyPanel.Render(&bShowOutliner, &bShowProperty);
+
+        // アセットプロパティ
+        //m_AssetBrowserPanel.Render(&bShowAssetBrowser, &bShowMaterial);
+
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+        ImGui::Begin("シーン", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
+
+        // ビューポートへのホバー
+        bool bHoveredViewport = ImGui::IsWindowHovered();
+
+        // ウィンドウ内のコンテンツサイズ（タブやパディングは含めないので、ImGui::GetWindowSize関数は使わない）
+        ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
+        ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
+        ImVec2 content = { contentMax.x - contentMin.x, contentMax.y - contentMin.y };
+
+        // ウィンドウ左端からのオフセット
+        ImVec2 viewportOffset = ImGui::GetWindowPos();
+
+        // ImGuizmo用 相対ウィンドウ座標
+        ImVec2 relativeViewportRect[2] =
+        {
+            { contentMin.x + viewportOffset.x, contentMin.y + viewportOffset.y },
+            { contentMax.x + viewportOffset.x, contentMax.y + viewportOffset.y }
+        };
+
+        // シーン描画
+        {
+            // エディターが有効な状態では、シーンビューポートサイズがフレームバッファサイズになる
+            if ((content.x > 0.0f && content.y > 0.0f) && (content.x != sceneFramebufferSize.x || content.y != sceneFramebufferSize.y))
+            {
+                sceneFramebufferSize.x = content.x;
+                sceneFramebufferSize.y = content.y;
+                camera->SetViewportSize(sceneFramebufferSize.x, sceneFramebufferSize.y);
+
+                SL_LOG_TRACE("Resize SceneFramebuffer: {}, {}", sceneFramebufferSize.x, sceneFramebufferSize.y);
+                RESIZE(sceneFramebufferSize.x, sceneFramebufferSize.y);
+            }
+
+            // シーン描画
+            GUI::Image(imageSet, content.x, content.y);
+        }
+
+        ImGui::End();
+        ImGui::PopStyleVar();
+
+        ImGui::Begin("Info", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
+        ImGui::Text("FPS: %d", Engine::Get()->GetFrameRate());
+        ImGui::SeparatorText("");
+
+        ImGui::Text("SceneViewport:  %d, %d", sceneFramebufferSize.x, sceneFramebufferSize.y);
+        ImGui::Text("ViewportOffset: %d, %d", (uint32)viewportOffset.x, (uint32)viewportOffset.y);
+        ImGui::Text("Mouse:          %d, %d", Input::GetCursorPosition().x, Input::GetCursorPosition().y);
+
+        ImGui::SeparatorText("");
+        ImGui::SliderFloat3("light", &sceneLightDir[0], -1.0, 1.0);
+        ImGui::SliderInt("Sleep", &debugSleep, 0, 15);
+        ImGui::SeparatorText("");
+        for (const auto& [profile, time] : Engine::Get()->GetPerformanceData())
+        {
+            ImGui::Text("%-*s %.2f ms", 24, profile, time);
+        }
+
+        ImGui::End();
+        ImGui::PopStyleVar(2);
+
+        // OS::Get()->Sleep(debugSleep);
+        UpdateUBO(camera);
+
+
+        // シーンピクセルID取得
+        if (Input::IsMouseButtonReleased(Mouse::Left) && Input::IsKeyDown(Keys::P) && bHoveredViewport)
+        {
+            glm::ivec2 clickPos = Input::GetCursorPosition();
+            clickPos.x -= viewportOffset.x;
+            clickPos.y -= viewportOffset.y;
+
+            int32 id = ReadPixelObjectID(clickPos.x, clickPos.y);
+
+            SL_LOG_DEBUG("Clicked: ID({})", id);
+        }
+    }
+
+
+    void RHI::Render(float dt)
+    {
+        FrameData& frame = frameData[frameIndex];
+        const auto& viewportSize = sceneFramebufferSize;
+
+        // コマンドバッファ開始
+        api->BeginCommandBuffer(frame.commandBuffer);
+
+        //===================================================================================================
+        // memcopy mapped buffer in-between command buffer calls?
+        // https://www.reddit.com/r/vulkan/comments/110ygxu/memcopy_mapped_buffer_inbetween_command_buffer/
+        //---------------------------------------------------------------------------------------------------
+        // UBO のマルチバッファリング化が実装されるまで、パイプラインバリアで同期するようにする
+        // ただし、マルチバッファリングを使用しない限り、即時書き込みのUBOの同期をとる方法はないので、現状効果はない
+        //===================================================================================================
+        
+        // HOST_COHERENT フラグ: 明示的にフラッシュしなくても、コマンドバッファが転送された時点でGPUと同期される
+        // メモリバリア         : GPU側が読み取るタイミングの動機
+
+        // マルチバッファリングを実装できれば、前フレームの実行がフェンスで完了している状態でUBOの更新が可能なので、この待機は不必要となる
+        MemoryBarrierInfo mb = {};
+        mb.srcAccess = BARRIER_ACCESS_HOST_WRITE_BIT;
+        mb.dstAccess = BARRIER_ACCESS_UNIFORM_READ_BIT;
+        api->PipelineBarrier(frame.commandBuffer, PIPELINE_STAGE_HOST_BIT, PIPELINE_STAGE_VERTEX_SHADER_BIT, 1, &mb, 0, nullptr, 0, nullptr);
+
 
         // シャドウパス
         if (1)
         {
+            api->SetViewport(frame.commandBuffer, 0, 0, shadowMapResolution, shadowMapResolution);
+            api->SetScissor(frame.commandBuffer, 0, 0, shadowMapResolution, shadowMapResolution);
+
             api->BeginRenderPass(frame.commandBuffer, shadow.pass, shadow.framebuffer, 1, &shadow.depthView);
 
             api->BindPipeline(frame.commandBuffer, shadow.pipeline);
@@ -1872,11 +1927,11 @@ namespace Silex
             api->EndRenderPass(frame.commandBuffer);
         }
 
-        api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
-        api->SetScissor(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
-
         if (1) // メッシュパス
         {
+            api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
+            api->SetScissor(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
+
             TextureView* views[] = {gbuffer->albedoView, gbuffer->normalView, gbuffer->emissionView, gbuffer->idView, gbuffer->depthView };
             api->BeginRenderPass(frame.commandBuffer, gbuffer->pass, gbuffer->framebuffer, 5, views);
             
@@ -1909,7 +1964,7 @@ namespace Silex
             api->EndRenderPass(frame.commandBuffer);
         }
 
-        if (1)
+        if (1) // スカイパス
         {
             TextureView* views[] = { lighting.view, gbuffer->depthView };
             api->BeginRenderPass(frame.commandBuffer, environment.pass, environment.framebuffer, 2, views);
@@ -1940,6 +1995,9 @@ namespace Silex
             // プリフィルタリング
             if (1)
             {
+                api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
+                api->SetScissor(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
+
                 api->BeginRenderPass(frame.commandBuffer, bloom->pass, bloom->bloomFB, 1, &bloom->prefilterView);
                 api->BindPipeline(frame.commandBuffer, bloom->prefilterPipeline);
 
@@ -2017,13 +2075,13 @@ namespace Silex
 
         if (1) // コンポジットパス
         {
-            api->BeginRenderPass(frame.commandBuffer, compositPass, compositFB, 1, &compositTextureView);
+            api->BeginRenderPass(frame.commandBuffer, compositePass, compositeFB, 1, &compositeTextureView);
 
             api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
             api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
 
-            api->BindPipeline(frame.commandBuffer, compositPipeline);
-            api->BindDescriptorSet(frame.commandBuffer, compositSet, 0);
+            api->BindPipeline(frame.commandBuffer, compositePipeline);
+            api->BindDescriptorSet(frame.commandBuffer, compositeSet, 0);
             api->Draw(frame.commandBuffer, 3, 1, 0, 0);
 
             api->EndRenderPass(frame.commandBuffer);
@@ -2248,14 +2306,14 @@ namespace Silex
     }
 
 
-    Buffer* RHI::CreateUniformBuffer(void* data, uint64 size, void** outMappedAdress)
+    Buffer* RHI::CreateUniformBuffer(void* data, uint64 size)
     {
-        return _CreateAndMapBuffer(BUFFER_USAGE_UNIFORM_BIT, data, size, outMappedAdress);
+        return _CreateAndMapBuffer(BUFFER_USAGE_UNIFORM_BIT, data, size, nullptr);
     }
 
-    Buffer* RHI::CreateStorageBuffer(void* data, uint64 size, void** outMappedAdress)
+    Buffer* RHI::CreateStorageBuffer(void* data, uint64 size)
     {
-        return _CreateAndMapBuffer(BUFFER_USAGE_STORAGE_BIT, data, size, outMappedAdress);
+        return _CreateAndMapBuffer(BUFFER_USAGE_STORAGE_BIT, data, size, nullptr);
     }
 
     Buffer* RHI::CreateVertexBuffer(void* data, uint64 size)
@@ -2270,17 +2328,27 @@ namespace Silex
 
     void RHI::DestroyBuffer(Buffer* buffer)
     {
+        api->UnmapBuffer(buffer);
+
         FrameData& frame = frameData[frameIndex];
         frame.pendingResources->buffer.push_back(buffer);
     }
 
-    Buffer* RHI::_CreateAndMapBuffer(BufferUsageFlags type, const void* data, uint64 dataSize, void** outMappedAdress)
+    bool RHI::UpdateBufferData(Buffer* buffer, const void* data, uint32 dataByte)
     {
-        Buffer* buffer   = api->CreateBuffer(dataSize, type | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_CPU);
-        *outMappedAdress = api->MapBuffer(buffer);
+        return api->UpdateBufferData(buffer, data, dataByte);
+    }
+
+    Buffer* RHI::_CreateAndMapBuffer(BufferUsageFlags type, const void* data, uint64 dataSize, void** outMappedPtr)
+    {
+        Buffer* buffer  = api->CreateBuffer(dataSize, type | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_CPU);
+        void* mappedPtr = api->MapBuffer(buffer);
 
         if (data != nullptr)
-            std::memcpy(*outMappedAdress, data, dataSize);
+            std::memcpy(mappedPtr, data, dataSize);
+
+        if (outMappedPtr != nullptr)
+            *outMappedPtr = mappedPtr;
 
         return buffer;
     }
@@ -2454,6 +2522,11 @@ namespace Silex
     const FrameData& RHI::GetFrameData() const
     {
         return frameData[frameIndex];
+    }
+
+    uint32 RHI::GetCurrentFrameIndex() const
+    {
+        return frameIndex;
     }
 
     CommandQueue* RHI::GetGraphicsCommandQueue() const

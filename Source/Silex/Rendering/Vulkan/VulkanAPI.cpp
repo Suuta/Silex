@@ -1050,19 +1050,47 @@ namespace Silex
 
     void* VulkanAPI::MapBuffer(Buffer* buffer)
     {
-        VulkanBuffer* vkbuffer = VulkanCast(buffer);
-
+        VulkanBuffer* vb = VulkanCast(buffer);
         void* mappedPtr = nullptr;
-        VkResult result = vmaMapMemory(allocator, vkbuffer->allocationHandle, &mappedPtr);
-        SL_CHECK_VKRESULT(result, nullptr);
+
+        if (!vb->mapped)
+        {
+            VkResult result = vmaMapMemory(allocator, vb->allocationHandle, &mappedPtr);
+            SL_CHECK_VKRESULT(result, nullptr);
+
+            vb->pointer = mappedPtr;
+            vb->mapped  = true;
+        }
 
         return mappedPtr;
     }
 
     void VulkanAPI::UnmapBuffer(Buffer* buffer)
     {
-        VulkanBuffer* vkbuffer = VulkanCast(buffer);
-        vmaUnmapMemory(allocator, vkbuffer->allocationHandle);
+        VulkanBuffer* vb = VulkanCast(buffer);
+
+        if (vb->mapped)
+        {
+            vmaUnmapMemory(allocator, vb->allocationHandle);
+            vb->pointer = nullptr;
+            vb->mapped  = false;
+        }
+    }
+
+    bool VulkanAPI::UpdateBufferData(Buffer* buffer, const void* data, uint64 dataByte)
+    {
+        VulkanBuffer* vb = VulkanCast(buffer);
+
+        if (vb->mapped)
+        {
+            std::memcpy(vb->pointer, data, dataByte);
+            return true;
+        }
+        else
+        {
+            SL_LOG_ERROR("Mapされていないバッファーに対する書き込みは無効です");
+            return false;
+        }
     }
 
 
@@ -1445,6 +1473,7 @@ namespace Silex
             memoryBarriers[i] = {};
             memoryBarriers[i].sType         = VK_STRUCTURE_TYPE_MEMORY_BARRIER;
             memoryBarriers[i].srcAccessMask = (VkPipelineStageFlags)memoryBarrier[i].srcAccess;
+            memoryBarriers[i].srcAccessMask = (VkAccessFlags)memoryBarrier[i].srcAccess;
             memoryBarriers[i].dstAccessMask = (VkAccessFlags)memoryBarrier[i].dstAccess;
         }
 
@@ -2220,7 +2249,11 @@ namespace Silex
                 // テクスチャ + サンプル
                 case DESCRIPTOR_TYPE_IMAGE_SAMPLER:
                 {
-                    // サンプラーとイメージがセットで1つのデスクリプタとして扱うため
+                    //=========================================================
+                    // handles は常に 1 であり vector を削除したいが
+                    // バインドレス実装によって必要になるかもしれないのでそのままにしておく
+                    //=========================================================
+
                     numHandles = descriptor.handles.size();
                     VkDescriptorImageInfo* imageInfos = SL_STACK(VkDescriptorImageInfo, numHandles);
 

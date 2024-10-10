@@ -57,7 +57,7 @@ namespace Silex
         glm::vec3 Right;
         glm::vec3 WorldUp;
 
-        float NearPlane = 0.1f;
+        float NearPlane = 0.1f;    // これ以上下げない（精度の問題か、Gridの不具合あり）
         float FarPlane  = 1000.0f;
         float Yaw;
         float Pitch;

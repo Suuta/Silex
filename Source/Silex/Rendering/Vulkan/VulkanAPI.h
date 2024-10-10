@@ -81,6 +81,7 @@ namespace Silex
         void DestroyBuffer(Buffer* buffer) override;
         void* MapBuffer(Buffer* buffer) override;
         void UnmapBuffer(Buffer* buffer) override;
+        bool UpdateBufferData(Buffer* buffer, const void* data, uint64 dataByte) override;
 
         //--------------------------------------------------
         // テクスチャ

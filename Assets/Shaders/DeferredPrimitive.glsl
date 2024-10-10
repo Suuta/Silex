@@ -13,7 +13,6 @@ layout (location = 4) in vec3 inBitangent;
 layout (location = 0) out vec3     outNormal;
 layout (location = 1) out vec2     outTexCoord;
 layout (location = 2) out flat int outID;
-layout (location = 3) out mat3     outNormalMatrix;
 
 //------------------------------------------------------------------
 // ユニフォーム
@@ -28,10 +27,10 @@ layout (set = 0, binding = 0) uniform Transform
 
 void main()
 {
-    vec4 worldPos = world * vec4(inPos, 1.0);
+    vec4 worldPos     = world * vec4(inPos, 1.0);
+    mat3 normalMatrix = mat3(transpose(inverse(world)));
 
-    outNormalMatrix = mat3(transpose(inverse(world)));
-    outNormal       = outNormalMatrix * inNormal;
+    outNormal       = normalize(normalMatrix * inNormal);
     outTexCoord     = inTexCoord;
     outID           = 9999;
 
@@ -47,7 +46,6 @@ void main()
 layout (location = 0) in vec3     inNormal;
 layout (location = 1) in vec2     inTexCoord;
 layout (location = 2) in flat int inID;
-layout (location = 3) in mat3     inNormalMatrix;
 
 layout (location = 0) out vec4 outAlbedo;   // アルベド + ラフネス
 layout (location = 1) out vec4 outNormal;   // 法線    + ラフネス
@@ -118,8 +116,8 @@ void main()
     //vec3 normal        = convertNormal;
 
     // ノーマル・メタリック
-    vec4 normalmap     = vec4(inNormal, 1.0);
-    vec3 convertNormal = (normalmap.rgb * 0.5) + vec3(0.5);
+    vec3 normalmap     = inNormal;
+    vec3 convertNormal = (normalmap * 0.5) + vec3(0.5);
     vec3 normal        = convertNormal;
 
     outNormal.rgb = normal;
@@ -142,4 +140,6 @@ void main()
     //----------------------------------------------------------------------------
 
     outID = inID; // エンティティID
+
+    outID = int(normal.x * 10.0) + int(normal.y * 10.0) + int(normal.z * 10.0);
 }

@@ -74,7 +74,7 @@ layout(set = 0, binding = 10) uniform ShadowData
 const int   cascadeCount    = 4;
 const float shadowDepthBias = 0.01;
 const float PI              = 3.14159265359;
-const float EPSILON         = 0.0001;
+const float EPSILON         = 0.00001;
 const float iblIntencity    = 1.0;
 
 
@@ -110,25 +110,18 @@ float ShadowSampling(float bias, int layer, vec3 shadowMapCoords, float lightSpa
     float shadowColor = 0.0;
 
     // 5 x 5 PCF
-
-    //if (enableSoftShadow)
-    {
-        for (float x = -2.0; x <= 2.0; x += 1.0)
-        {
-            for (float y = -2.0; y <= 2.0; y += 1.0)
-            {
-                shadowColor += ShadowSampleOffset(shadowMapCoords, vec2(x, y), texelSize, layer, lightSpaceDepth, bias);
-            }
-        }
-
-        shadowColor /= 25;
-    }
-
-    //else
+    //for (float x = -2.0; x <= 2.0; x += 1.0)
     //{
-    //    float depth = texture(cascadeshadowMap, vec4(shadowMapCoords.xy, layer, shadowMapCoords.z));
-    //    shadowColor = step(lightSpaceDepth - bias, depth);
+    //    for (float y = -2.0; y <= 2.0; y += 1.0)
+    //    {
+    //        shadowColor += ShadowSampleOffset(shadowMapCoords, vec2(x, y), texelSize, layer, lightSpaceDepth, bias);
+    //    }
     //}
+    //shadowColor /= 25;
+
+
+    float depth = texture(cascadeshadowMap, vec4(shadowMapCoords.xy, layer, shadowMapCoords.z));
+    shadowColor = step(lightSpaceDepth - bias, depth);
 
     return shadowColor;
 }
@@ -168,7 +161,7 @@ float DirectionalLightShadow(vec3 fragPosWorldSpace, vec3 normal, out int curren
 
     // ライト空間での深度値 (視錐台外であれば影を落とさない)
     float lightSpaceDepth = projCoords.z;
-    if (lightSpaceDepth >= 1.0)
+    if (lightSpaceDepth > 1.0)
     {
         return 1.0;
     }
@@ -322,10 +315,13 @@ vec3 BRDF()
     // 深度値から復元
     vec3 WORLD = ConstructWorldPosition(inTexCoord, DEPTH, u_scene.invViewProjection);
 
+    // ノーマルを -1~1に戻す
+    vec3 constructN = vec3(NORMAL.xyz * 2.0) - vec3(1.0);
+
     vec3  worldPos  = WORLD;      // ピクセル座標（ワールド空間）
     vec3  albedo    = ALBEDO.rgb; // ベースカラー（アルベド / 拡散反射率）
     float roughness = ALBEDO.a;   // ラフネス
-    vec3  normal    = NORMAL.rgb; // 法線
+    vec3  normal    = constructN; // 法線
     float metallic  = NORMAL.a;   // メタリック
 
     vec3 N = normalize(normal);                                // 法線ベクトル
@@ -389,7 +385,7 @@ vec3 BRDF()
     // シャドウ (Directional Light)
     //========================================
     int   currentLayer;
-    float shadow      = DirectionalLightShadow(worldPos, normal, currentLayer);
+    float shadow      = DirectionalLightShadow(worldPos, N, currentLayer);
     float shadowColor = smoothstep(0.0, 1.0, shadow);
 
     //========================================
@@ -406,6 +402,7 @@ vec3 BRDF()
     //color *= mix(vec3(1.0), CascadeColor(currentLayer), sc);
 
     return color;
+    //return shadow + (0.00001 * color);
 }
 
 

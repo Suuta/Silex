@@ -68,10 +68,8 @@ namespace Silex
         TextureView* idView       = nullptr;
         TextureView* depthView    = nullptr;
 
-        Buffer*        materialUBO     = nullptr;
-        void*          mappedMaterial  = nullptr;
-        Buffer*        transformUBO    = nullptr;
-        void*          mappedTransfrom = nullptr;
+        Buffer* materialUBO  = nullptr;
+        Buffer* transformUBO = nullptr;
 
         DescriptorSet* transformSet = nullptr;
         DescriptorSet* materialSet  = nullptr;
@@ -88,7 +86,6 @@ namespace Silex
         ShaderHandle* shader   = nullptr;
 
         Buffer*        sceneUBO    = nullptr;
-        void*          mappedScene = nullptr;
         DescriptorSet* set         = nullptr;
     };
 
@@ -101,7 +98,6 @@ namespace Silex
         Pipeline*          pipeline    = nullptr;
         ShaderHandle*      shader      = nullptr;
         Buffer*            ubo         = nullptr;
-        void*              map         = nullptr;
         DescriptorSet*     set         = nullptr;
     };
 
@@ -114,11 +110,8 @@ namespace Silex
         Pipeline*          pipeline          = nullptr;
         ShaderHandle*      shader            = nullptr;
         Buffer*            transformUBO      = nullptr;
-        void*              transformMap      = nullptr;
         Buffer*            lightTransformUBO = nullptr;
-        void*              lightTransformMap = nullptr;
         Buffer*            cascadeUBO        = nullptr;
-        void*              cascadeMap        = nullptr;
         DescriptorSet*     set               = nullptr;
     };
 
@@ -150,9 +143,9 @@ namespace Silex
         ShaderHandle*               upSamplingShader   = nullptr;
         std::vector<DescriptorSet*> upSamplingSet      = {};
 
-        Pipeline*          bloomPipeline = nullptr;
-        ShaderHandle*      bloomShader   = nullptr;
-        DescriptorSet*     bloomSet      = nullptr;
+        Pipeline*      bloomPipeline = nullptr;
+        ShaderHandle*  bloomShader   = nullptr;
+        DescriptorSet* bloomSet      = nullptr;
     };
 
 
@@ -180,18 +173,17 @@ namespace Silex
         // Getter
         //===========================================================
 
-        // レンダリング環境
+        // レンダリングコンテキスト
         RenderingContext* GetContext() const;
         RenderingAPI*     GetAPI()     const;
 
         // コマンドキュー
         QueueID       GetGraphicsQueueID()      const;
         CommandQueue* GetGraphicsCommandQueue() const;
-      //QueueID       GetComputeQueueID()       const;
-      //CommandQueue* GetComputeCommandQueue()  const;
 
         // フレームデータ
-        const FrameData& GetFrameData() const;
+        const FrameData& GetFrameData()         const;
+        uint32           GetCurrentFrameIndex() const;
 
         // デバイス情報
         const DeviceInfo& GetDeviceInfo() const;
@@ -215,11 +207,12 @@ namespace Silex
         void         DestroyTextureView(TextureView* view);
 
         // バッファ
-        Buffer* CreateUniformBuffer(void* data, uint64 size, void** outMappedAdress);
-        Buffer* CreateStorageBuffer(void* data, uint64 size, void** outMappedAdress);
+        Buffer* CreateUniformBuffer(void* data, uint64 size);
+        Buffer* CreateStorageBuffer(void* data, uint64 size);
         Buffer* CreateVertexBuffer(void* data, uint64 size);
         Buffer* CreateIndexBuffer(void* data, uint64 size);
         void    DestroyBuffer(Buffer* buffer);
+        bool    UpdateBufferData(Buffer* buffer, const void* data, uint32 dataByte);
 
         // フレームバッファ
         FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height);
@@ -239,8 +232,8 @@ namespace Silex
     
     private:
 
-        Buffer*        _CreateAndMapBuffer(BufferUsageFlags type, const void* data, uint64 dataSize, void** outMappedAdress);
-        Buffer*        _CreateAndSubmitBufferData(BufferUsageFlags type, const void* data, uint64 dataSize);
+        Buffer* _CreateAndMapBuffer(BufferUsageFlags type, const void* data, uint64 dataSize, void** outMappedPtr);
+        Buffer* _CreateAndSubmitBufferData(BufferUsageFlags type, const void* data, uint64 dataSize);
 
         TextureHandle* _CreateTexture(TextureDimension dimension, TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 depth, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags);
         void           _SubmitTextureData(TextureHandle* texture, uint32 width, uint32 height, bool genMipmap, const void* pixelData, uint64 dataSize);
@@ -267,20 +260,23 @@ namespace Silex
         static inline RHI* instance = nullptr;
 
 
+    public:
+
         //===========================================================
         // テストコード
         //===========================================================
-    public:
 
         void TEST();
         void Update(class Camera* camera);
-        void Render(class Camera* camera, float dt);
+        void Render(float dt);
         void RESIZE(uint32 width, uint32 height);
+        void UpdateUBO(class Camera* camera);
 
     public:
 
         // ビューポートサイズ
         glm::ivec2 sceneFramebufferSize = {};
+        glm::ivec2 cameraFramebufferSize = {};
 
         // Gバッファ
         void PrepareGBuffer(uint32 width, uint32 height);
@@ -365,19 +361,18 @@ namespace Silex
     public:
 
         // シーンBlit
-        FramebufferHandle* compositFB          = nullptr;
-        TextureHandle*     compositTexture     = nullptr;
-        TextureView*       compositTextureView = nullptr;
-        RenderPass*        compositPass        = nullptr;
-        ShaderHandle*      compositShader      = nullptr;
-        Pipeline*          compositPipeline    = nullptr;
-        DescriptorSet*     compositSet         = nullptr;
+        FramebufferHandle* compositeFB          = nullptr;
+        TextureHandle*     compositeTexture     = nullptr;
+        TextureView*       compositeTextureView = nullptr;
+        RenderPass*        compositePass        = nullptr;
+        ShaderHandle*      compositeShader      = nullptr;
+        Pipeline*          compositePipeline    = nullptr;
+        DescriptorSet*     compositeSet         = nullptr;
 
     public:
 
         // グリッド
         Buffer*        gridUBO        = nullptr;
-        void*          mappedGridData = nullptr;
         ShaderHandle*  gridShader     = nullptr;
         Pipeline*      gridPipeline   = nullptr;
         DescriptorSet* gridSet        = nullptr;

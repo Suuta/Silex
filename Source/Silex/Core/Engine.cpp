@@ -76,10 +76,10 @@ namespace Silex
 
         // レンダリングコンテキスト生成
         context = RenderingContext::Create(mainWindow->GetPlatformHandle());
-        result = context->Initialize(SL_RENDERER_VALIDATION);
+        result = context->Initialize(1);
         SL_CHECK(!result, false);
 
-        // レンダリングデバイス生成 (描画APIを抽象化)
+        // API抽象化レイヤー生成
         rhi = slnew(RHI);
         result = rhi->Initialize(context);
         SL_CHECK(!result, false);
@@ -108,11 +108,11 @@ namespace Silex
         editor = slnew(Editor);
         editor->Init();
 
+        rhi->TEST();
+
+
         // ウィンドウ表示
         mainWindow->Show();
-
-
-        rhi->TEST();
 
         return true;
     }
@@ -157,7 +157,7 @@ namespace Silex
             gui->Update();
 
             // render
-            rhi->Render(editor->GetEditorCamera(), deltaTime);
+            rhi->Render(deltaTime);
             gui->Render();
 
             // submit

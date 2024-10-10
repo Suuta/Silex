@@ -731,6 +731,10 @@ namespace Silex
         Sampler*     sampler   = nullptr;
     };
 
+    //=========================================================
+    // "handles" は常に 1 であり vector を削除したいが(紛らわしいため)
+    // バインドレス実装によって必要になるかもしれないのでそのままにしておく
+    //=========================================================
     struct DescriptorInfo
     {
         DescriptorType                type    = DESCRIPTOR_TYPE_MAX;
@@ -742,17 +746,23 @@ namespace Silex
     {
         std::vector<DescriptorInfo> infos;
 
-        void AddTexture(uint32 binding, DescriptorType type, TextureView* view, Sampler* sampler)
+        void BindTexture(uint32 binding, DescriptorType type, TextureView* view, Sampler* sampler)
         {
-            DescriptorInfo& info = infos.emplace_back();
+            if (infos.size() < binding + 1)
+                infos.resize(binding + 1);
+
+            DescriptorInfo& info = infos[binding];
             info.binding = binding;
             info.type    = type;
             info.handles.emplace_back(DescriptorHandle{ nullptr, view, sampler });
         }
 
-        void AddBuffer(uint32 binding, DescriptorType type, Buffer* buffer)
+        void BindBuffer(uint32 binding, DescriptorType type, Buffer* buffer)
         {
-            DescriptorInfo& info = infos.emplace_back();
+            if (infos.size() < binding + 1)
+                infos.resize(binding + 1);
+
+            DescriptorInfo& info = infos[binding];
             info.binding = binding;
             info.type    = type;
             info.handles.emplace_back(DescriptorHandle{ buffer, nullptr, nullptr });
@@ -1107,6 +1117,17 @@ namespace Silex
             info.rasterize.frontFace = face;
             info.rasterize.wireframe = wireframe;
             info.rasterize.lineWidth = lineWidth;
+            return *this;
+        }
+
+        PipelineStateInfoBuilder& RasterizerDepthBias(bool depthBiasEnable, float bias, float slope = 0.0f, bool depthBiasClamp = false, float biasClamp = 0.0f)
+        {
+            info.rasterize.depthBiasEnabled        = depthBiasEnable;
+            info.rasterize.depthBiasConstantFactor = bias;
+            info.rasterize.depthBiasSlopeFactor    = slope;
+            info.rasterize.depthBiasClamp          = biasClamp;
+            info.rasterize.enableDepthClamp        = depthBiasClamp;
+
             return *this;
         }
 
