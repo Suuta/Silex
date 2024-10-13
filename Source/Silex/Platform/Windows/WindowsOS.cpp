@@ -257,10 +257,10 @@ namespace Silex
         ::OutputDebugStringW(ToUTF16(message).c_str());
     }
 
-    int32 WindowsOS::Message(OSMessageType type, const std::wstring& message)
+    int32 WindowsOS::Message(OSMessageType type, const std::string& message)
     {
         uint32 messageType = type == OS_MESSEGA_TYPE_ALERT ? MB_OK | MB_ICONERROR : MB_OK | MB_ICONINFORMATION;
-        return ::MessageBoxW(NULL, message.c_str(), L"Error", messageType);
+        return ::MessageBoxW(NULL, ToUTF16(message).c_str(), L"Error", messageType);
     }
 
 

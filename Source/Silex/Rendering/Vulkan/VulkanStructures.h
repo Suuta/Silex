@@ -37,13 +37,13 @@ namespace Silex
     //=============================================
 
     // サーフェース
-    struct VulkanSurface : public Surface
+    struct VulkanSurface : public SurfaceHandle
     {
         VkSurfaceKHR surface = nullptr;
     };
 
     // コマンドキュー
-    struct VulkanCommandQueue : public CommandQueue
+    struct VulkanCommandQueue : public CommandQueueHandle
     {
         VkQueue queue  = nullptr;
         uint32  family = RENDER_INVALID_ID;
@@ -51,32 +51,32 @@ namespace Silex
     };
 
     // コマンドプール
-    struct VulkanCommandPool : public CommandPool
+    struct VulkanCommandPool : public CommandPoolHandle
     {
         VkCommandPool     commandPool = nullptr;
         CommandBufferType type = COMMAND_BUFFER_TYPE_PRIMARY;
     };
 
     // コマンドバッファ
-    struct VulkanCommandBuffer : public CommandBuffer
+    struct VulkanCommandBuffer : public CommandBufferHandle
     {
         VkCommandBuffer commandBuffer = nullptr;
     };
 
     // セマフォ
-    struct VulkanSemaphore : public Semaphore
+    struct VulkanSemaphore : public SemaphoreHandle
     {
         VkSemaphore semaphore = nullptr;
     };
 
     // フェンス
-    struct VulkanFence : public Fence
+    struct VulkanFence : public FenceHandle
     {
         VkFence fence = nullptr;
     };
 
     // レンダーパス
-    struct VulkanRenderPass : public RenderPass
+    struct VulkanRenderPass : public RenderPassHandle
     {
         VkRenderPass              renderpass = nullptr;
         std::vector<VkClearValue> clearValue = {};
@@ -90,7 +90,7 @@ namespace Silex
     };
 
     // スワップチェイン
-    struct VulkanSwapChain : public SwapChain
+    struct VulkanSwapChain : public SwapChainHandle
     { 
         VkSwapchainKHR  swapchain  = nullptr;
         VkColorSpaceKHR colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
@@ -99,7 +99,7 @@ namespace Silex
 
         std::vector<FramebufferHandle*> framebuffers = {};
         std::vector<TextureHandle*>     textures     = {};
-        std::vector<TextureView*>       views        = {};
+        std::vector<TextureViewHandle*>       views        = {};
         VulkanSurface*                  surface      = nullptr;
         VulkanRenderPass*               renderpass   = nullptr;
 
@@ -108,7 +108,7 @@ namespace Silex
     };
 
     // バッファ
-    struct VulkanBuffer : public Buffer
+    struct VulkanBuffer : public BufferHandle
     {
         VkBuffer      buffer           = nullptr;
         VkBufferView  view             = nullptr;
@@ -134,14 +134,14 @@ namespace Silex
     };
 
     // テクスチャビュー
-    struct VulkanTextureView : public TextureView
+    struct VulkanTextureView : public TextureViewHandle
     {
         VkImageSubresourceRange subresource = {};
         VkImageView             view        = nullptr;
     };
 
     // サンプラー
-    struct VulkanSampler : public Sampler
+    struct VulkanSampler : public SamplerHandle
     {
         VkSampler sampler = nullptr;
     };
@@ -156,7 +156,7 @@ namespace Silex
     };
 
     // デスクリプターセット
-    struct VulkanDescriptorSet : public DescriptorSet
+    struct VulkanDescriptorSet : public DescriptorSetHandle
     {
         VkDescriptorSet  descriptorSet  = nullptr;
         VkDescriptorPool descriptorPool = nullptr;
@@ -168,7 +168,7 @@ namespace Silex
     };
 
     // パイプライン
-    struct VulkanPipeline : public Pipeline
+    struct VulkanPipeline : public PipelineHandle
     {
         VkPipeline pipeline = nullptr;
     };
@@ -182,22 +182,22 @@ namespace Silex
     //=============================================
     template<class T> struct VulkanTypeTraits {};
 
-    template<> struct VulkanTypeTraits<Buffer>            { using Internal = VulkanBuffer;        };
+    template<> struct VulkanTypeTraits<BufferHandle>            { using Internal = VulkanBuffer;        };
     template<> struct VulkanTypeTraits<TextureHandle>     { using Internal = VulkanTexture;       };
-    template<> struct VulkanTypeTraits<TextureView>       { using Internal = VulkanTextureView;   };
-    template<> struct VulkanTypeTraits<Sampler>           { using Internal = VulkanSampler;       };
+    template<> struct VulkanTypeTraits<TextureViewHandle>       { using Internal = VulkanTextureView;   };
+    template<> struct VulkanTypeTraits<SamplerHandle>           { using Internal = VulkanSampler;       };
     template<> struct VulkanTypeTraits<ShaderHandle>      { using Internal = VulkanShader;        };
     template<> struct VulkanTypeTraits<FramebufferHandle> { using Internal = VulkanFramebuffer;   };
-    template<> struct VulkanTypeTraits<CommandQueue>      { using Internal = VulkanCommandQueue;  };
-    template<> struct VulkanTypeTraits<CommandBuffer>     { using Internal = VulkanCommandBuffer; };
-    template<> struct VulkanTypeTraits<CommandPool>       { using Internal = VulkanCommandPool;   };
-    template<> struct VulkanTypeTraits<Fence>             { using Internal = VulkanFence;         };
-    template<> struct VulkanTypeTraits<Semaphore>         { using Internal = VulkanSemaphore;     };
-    template<> struct VulkanTypeTraits<DescriptorSet>     { using Internal = VulkanDescriptorSet; };
-    template<> struct VulkanTypeTraits<Pipeline>          { using Internal = VulkanPipeline;      };
-    template<> struct VulkanTypeTraits<RenderPass>        { using Internal = VulkanRenderPass;    };
-    template<> struct VulkanTypeTraits<Surface>           { using Internal = VulkanSurface;       };
-    template<> struct VulkanTypeTraits<SwapChain>         { using Internal = VulkanSwapChain;     };
+    template<> struct VulkanTypeTraits<CommandQueueHandle>      { using Internal = VulkanCommandQueue;  };
+    template<> struct VulkanTypeTraits<CommandBufferHandle>     { using Internal = VulkanCommandBuffer; };
+    template<> struct VulkanTypeTraits<CommandPoolHandle>       { using Internal = VulkanCommandPool;   };
+    template<> struct VulkanTypeTraits<FenceHandle>             { using Internal = VulkanFence;         };
+    template<> struct VulkanTypeTraits<SemaphoreHandle>         { using Internal = VulkanSemaphore;     };
+    template<> struct VulkanTypeTraits<DescriptorSetHandle>     { using Internal = VulkanDescriptorSet; };
+    template<> struct VulkanTypeTraits<PipelineHandle>          { using Internal = VulkanPipeline;      };
+    template<> struct VulkanTypeTraits<RenderPassHandle>        { using Internal = VulkanRenderPass;    };
+    template<> struct VulkanTypeTraits<SurfaceHandle>           { using Internal = VulkanSurface;       };
+    template<> struct VulkanTypeTraits<SwapChainHandle>         { using Internal = VulkanSwapChain;     };
 
 
     template<typename T>

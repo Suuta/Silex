@@ -24,24 +24,24 @@ namespace Silex
         //--------------------------------------------------
         // コマンドキュー
         //--------------------------------------------------
-        virtual CommandQueue* CreateCommandQueue(QueueID id, uint32 indexInFamily = 0) = 0;
-        virtual void DestroyCommandQueue(CommandQueue* queue) = 0;
-        virtual QueueID QueryQueueID(QueueFamilyFlags flag, Surface* surface = nullptr) const = 0;
-        virtual bool SubmitQueue(CommandQueue* queue, CommandBuffer* commandbuffer, Fence* fence, Semaphore* present, Semaphore* render) = 0;
+        virtual CommandQueueHandle* CreateCommandQueue(QueueID id, uint32 indexInFamily = 0) = 0;
+        virtual void DestroyCommandQueue(CommandQueueHandle* queue) = 0;
+        virtual QueueID QueryQueueID(QueueFamilyFlags flag, SurfaceHandle* surface = nullptr) const = 0;
+        virtual bool SubmitQueue(CommandQueueHandle* queue, CommandBufferHandle* commandbuffer, FenceHandle* fence, SemaphoreHandle* present, SemaphoreHandle* render) = 0;
 
         //--------------------------------------------------
         // コマンドプール
         //--------------------------------------------------
-        virtual CommandPool* CreateCommandPool(QueueID id, CommandBufferType type = COMMAND_BUFFER_TYPE_PRIMARY) = 0;
-        virtual void DestroyCommandPool(CommandPool* pool) = 0;
+        virtual CommandPoolHandle* CreateCommandPool(QueueID id, CommandBufferType type = COMMAND_BUFFER_TYPE_PRIMARY) = 0;
+        virtual void DestroyCommandPool(CommandPoolHandle* pool) = 0;
 
         //--------------------------------------------------
         // コマンドバッファ
         //--------------------------------------------------
-        virtual CommandBuffer* CreateCommandBuffer(CommandPool* pool) = 0;
-        virtual void DestroyCommandBuffer(CommandBuffer* commandBuffer) = 0;
-        virtual bool BeginCommandBuffer(CommandBuffer* commandBuffer) = 0;
-        virtual bool EndCommandBuffer(CommandBuffer* commandBuffer) = 0;
+        virtual CommandBufferHandle* CreateCommandBuffer(CommandPoolHandle* pool) = 0;
+        virtual void DestroyCommandBuffer(CommandBufferHandle* commandBuffer) = 0;
+        virtual bool BeginCommandBuffer(CommandBufferHandle* commandBuffer) = 0;
+        virtual bool EndCommandBuffer(CommandBufferHandle* commandBuffer) = 0;
 
         //--------------------------------------------------
         // セマフォ
@@ -49,36 +49,36 @@ namespace Silex
 #ifdef CreateSemaphore
 #undef CreateSemaphore // マクロを使わずに CreateSemaphoreA/W を使えばよい
 #endif
-        virtual Semaphore* CreateSemaphore() = 0;
-        virtual void DestroySemaphore(Semaphore* semaphore) = 0;
+        virtual SemaphoreHandle* CreateSemaphore() = 0;
+        virtual void DestroySemaphore(SemaphoreHandle* semaphore) = 0;
 
         //--------------------------------------------------
         // フェンス
         //--------------------------------------------------
-        virtual Fence* CreateFence() = 0;
-        virtual void DestroyFence(Fence* fence) = 0;
-        virtual bool WaitFence(Fence* fence) = 0;
+        virtual FenceHandle* CreateFence() = 0;
+        virtual void DestroyFence(FenceHandle* fence) = 0;
+        virtual bool WaitFence(FenceHandle* fence) = 0;
 
         //--------------------------------------------------
         // スワップチェイン
         //--------------------------------------------------
-        virtual SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) = 0;
-        virtual void DestroySwapChain(SwapChain* swapchain) = 0;
-        virtual bool ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) = 0;
-        virtual std::pair<FramebufferHandle*, TextureView*> GetCurrentBackBuffer(SwapChain* swapchain, Semaphore* present) = 0;
-        virtual bool Present(CommandQueue* queue, SwapChain* swapchain, Semaphore* render) = 0;
+        virtual SwapChainHandle* CreateSwapChain(SurfaceHandle* surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) = 0;
+        virtual void DestroySwapChain(SwapChainHandle* swapchain) = 0;
+        virtual bool ResizeSwapChain(SwapChainHandle* swapchain, uint32 width, uint32 height, uint32 requestFramebufferCount, VSyncMode mode) = 0;
+        virtual std::pair<FramebufferHandle*, TextureViewHandle*> GetCurrentBackBuffer(SwapChainHandle* swapchain, SemaphoreHandle* present) = 0;
+        virtual bool Present(CommandQueueHandle* queue, SwapChainHandle* swapchain, SemaphoreHandle* render) = 0;
         
-        virtual RenderPass* GetSwapChainRenderPass(SwapChain* swapchain) = 0;
-        virtual RenderingFormat GetSwapChainFormat(SwapChain* swapchain) = 0;
+        virtual RenderPassHandle* GetSwapChainRenderPass(SwapChainHandle* swapchain) = 0;
+        virtual RenderingFormat GetSwapChainFormat(SwapChainHandle* swapchain) = 0;
 
         //--------------------------------------------------
         // バッファ
         //--------------------------------------------------
-        virtual Buffer* CreateBuffer(uint64 size, BufferUsageFlags usage, MemoryAllocationType memoryType) = 0;
-        virtual void DestroyBuffer(Buffer* buffer) = 0;
-        virtual void* MapBuffer(Buffer* buffer) = 0;
-        virtual void UnmapBuffer(Buffer* buffer) = 0;
-        virtual bool UpdateBufferData(Buffer* buffer, const void* data, uint64 dataByte) = 0;
+        virtual BufferHandle* CreateBuffer(uint64 size, BufferUsageFlags usage, MemoryAllocationType memoryType) = 0;
+        virtual void DestroyBuffer(BufferHandle* buffer) = 0;
+        virtual void* MapBuffer(BufferHandle* buffer) = 0;
+        virtual void UnmapBuffer(BufferHandle* buffer) = 0;
+        virtual bool UpdateBufferData(BufferHandle* buffer, const void* data, uint64 dataByte) = 0;
 
         //--------------------------------------------------
         // テクスチャ
@@ -89,26 +89,26 @@ namespace Silex
         //--------------------------------------------------
         // テクスチャビュー
         //--------------------------------------------------
-        virtual TextureView* CreateTextureView(TextureHandle* texture, const TextureViewInfo& info) = 0;
-        virtual void DestroyTextureView(TextureView* view) = 0;
+        virtual TextureViewHandle* CreateTextureView(TextureHandle* texture, const TextureViewInfo& info) = 0;
+        virtual void DestroyTextureView(TextureViewHandle* view) = 0;
 
         //--------------------------------------------------
         // サンプラ
         //--------------------------------------------------
-        virtual Sampler* CreateSampler(const SamplerInfo& info) = 0;
-        virtual void DestroySampler(Sampler* sampler) = 0;
+        virtual SamplerHandle* CreateSampler(const SamplerInfo& info) = 0;
+        virtual void DestroySampler(SamplerHandle* sampler) = 0;
 
         //--------------------------------------------------
         // フレームバッファ
         //--------------------------------------------------
-        virtual FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height) = 0;
+        virtual FramebufferHandle* CreateFramebuffer(RenderPassHandle* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height) = 0;
         virtual void DestroyFramebuffer(FramebufferHandle* framebuffer) = 0;
 
         //--------------------------------------------------
         // レンダーパス
         //--------------------------------------------------
-        virtual RenderPass* CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies, uint32 numClearValue, RenderPassClearValue* clearValue) = 0;
-        virtual void DestroyRenderPass(RenderPass* renderpass) = 0;
+        virtual RenderPassHandle* CreateRenderPass(uint32 numAttachments, Attachment* attachments, uint32 numSubpasses, Subpass* subpasses, uint32 numSubpassDependencies, SubpassDependency* subpassDependencies, uint32 numClearValue, RenderPassClearValue* clearValue) = 0;
+        virtual void DestroyRenderPass(RenderPassHandle* renderpass) = 0;
 
         //--------------------------------------------------
         // シェーダー
@@ -119,48 +119,49 @@ namespace Silex
         //--------------------------------------------------
         // デスクリプターセット
         //--------------------------------------------------
-        virtual DescriptorSet* CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex) = 0;
-        virtual void DestroyDescriptorSet(DescriptorSet* descriptorset) = 0;
+        virtual DescriptorSetHandle* CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex) = 0;
+        virtual void UpdateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors) = 0;
+        virtual void DestroyDescriptorSet(DescriptorSetHandle* descriptorset) = 0;
 
         //--------------------------------------------------
         // パイプライン
         //--------------------------------------------------
-        virtual Pipeline* CreateGraphicsPipeline(ShaderHandle* shader, PipelineStateInfo* info, RenderPass* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) = 0;
-        virtual Pipeline* CreateComputePipeline(ShaderHandle* shader) = 0;
-        virtual void DestroyPipeline(Pipeline* pipeline) = 0;
+        virtual PipelineHandle* CreateGraphicsPipeline(ShaderHandle* shader, PipelineStateInfo* info, RenderPassHandle* renderpass, uint32 renderSubpass = 0, PipelineDynamicStateFlags dynamicState = DYNAMIC_STATE_NONE) = 0;
+        virtual PipelineHandle* CreateComputePipeline(ShaderHandle* shader) = 0;
+        virtual void DestroyPipeline(PipelineHandle* pipeline) = 0;
 
         //--------------------------------------------------
         // コマンド
         //--------------------------------------------------
-        virtual void PipelineBarrier(CommandBuffer* commandbuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrierInfo* memoryBarrier, uint32 numBufferBarrier, BufferBarrierInfo* bufferBarrier, uint32 numTextureBarrier, TextureBarrierInfo* textureBarrier) = 0;
-        virtual void ClearBuffer(CommandBuffer* commandbuffer, Buffer* buffer, uint64 offset, uint64 size) = 0;
-        virtual void CopyBuffer(CommandBuffer* commandbuffer, Buffer* srcBuffer, Buffer* dstBuffer, uint32 numRegion, BufferCopyRegion* regions) = 0;
-        virtual void CopyTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureCopyRegion* regions) = 0;
-        virtual void ResolveTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, uint32 srcLayer, uint32 srcMipmap, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 dstLayer, uint32 dstMipmap) = 0;
-        virtual void ClearColorTexture(CommandBuffer* commandbuffer, TextureHandle* texture, TextureLayout textureLayout, const glm::vec4& color, const TextureSubresourceRange& subresources) = 0;
-        virtual void CopyBufferToTexture(CommandBuffer* commandbuffer, Buffer* srcBuffer, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, BufferTextureCopyRegion* regions) = 0;
-        virtual void CopyTextureToBuffer(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, Buffer* dstBuffer, uint32 numRegion, BufferTextureCopyRegion* regions) = 0;
-        virtual void BlitTexture(CommandBuffer* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureBlitRegion* regions, SamplerFilter filter = SAMPLER_FILTER_LINEAR) = 0;
+        virtual void PipelineBarrier(CommandBufferHandle* commandbuffer, PipelineStageBits srcStage, PipelineStageBits dstStage, uint32 numMemoryBarrier, MemoryBarrierInfo* memoryBarrier, uint32 numBufferBarrier, BufferBarrierInfo* bufferBarrier, uint32 numTextureBarrier, TextureBarrierInfo* textureBarrier) = 0;
+        virtual void ClearBuffer(CommandBufferHandle* commandbuffer, BufferHandle* buffer, uint64 offset, uint64 size) = 0;
+        virtual void CopyBuffer(CommandBufferHandle* commandbuffer, BufferHandle* srcBuffer, BufferHandle* dstBuffer, uint32 numRegion, BufferCopyRegion* regions) = 0;
+        virtual void CopyTexture(CommandBufferHandle* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureCopyRegion* regions) = 0;
+        virtual void ResolveTexture(CommandBufferHandle* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, uint32 srcLayer, uint32 srcMipmap, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 dstLayer, uint32 dstMipmap) = 0;
+        virtual void ClearColorTexture(CommandBufferHandle* commandbuffer, TextureHandle* texture, TextureLayout textureLayout, const glm::vec4& color, const TextureSubresourceRange& subresources) = 0;
+        virtual void CopyBufferToTexture(CommandBufferHandle* commandbuffer, BufferHandle* srcBuffer, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, BufferTextureCopyRegion* regions) = 0;
+        virtual void CopyTextureToBuffer(CommandBufferHandle* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, BufferHandle* dstBuffer, uint32 numRegion, BufferTextureCopyRegion* regions) = 0;
+        virtual void BlitTexture(CommandBufferHandle* commandbuffer, TextureHandle* srcTexture, TextureLayout srcTextureLayout, TextureHandle* dstTexture, TextureLayout dstTextureLayout, uint32 numRegion, TextureBlitRegion* regions, SamplerFilter filter = SAMPLER_FILTER_LINEAR) = 0;
 
-        virtual void PushConstants(CommandBuffer* commandbuffer, ShaderHandle* shader, const void* data, uint32 numData, uint32 offsetIndex = 0) = 0;
-        virtual void BeginRenderPass(CommandBuffer* commandbuffer, RenderPass* renderpass, FramebufferHandle* framebuffer, uint32 numView, TextureView** views, CommandBufferType commandBufferType = COMMAND_BUFFER_TYPE_PRIMARY) = 0;
-        virtual void EndRenderPass(CommandBuffer* commandbuffer) = 0;
-        virtual void NextRenderSubpass(CommandBuffer* commandbuffer, CommandBufferType commandBufferType) = 0;
-        virtual void SetViewport(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) = 0;
-        virtual void SetScissor(CommandBuffer* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) = 0;
-        virtual void ClearAttachments(CommandBuffer* commandbuffer, uint32 numAttachmentClear, AttachmentClear** attachmentClears, uint32 x, uint32 y, uint32 width, uint32 height) = 0;
-        virtual void BindPipeline(CommandBuffer* commandbuffer, Pipeline* pipeline) = 0;
-        virtual void BindDescriptorSet(CommandBuffer* commandbuffer, DescriptorSet* descriptorset, uint32 setIndex) = 0;
-        virtual void Draw(CommandBuffer* commandbuffer, uint32 vertexCount, uint32 instanceCount, uint32 baseVertex, uint32 firstInstance) = 0;
-        virtual void DrawIndexed(CommandBuffer* commandbuffer, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance) = 0;
-        virtual void BindVertexBuffers(CommandBuffer* commandbuffer, uint32 bindingCount, Buffer** buffers, uint64* offsets) = 0;
-        virtual void BindVertexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, uint64 offset) = 0;
-        virtual void BindIndexBuffer(CommandBuffer* commandbuffer, Buffer* buffer, IndexBufferFormat format, uint64 offset) = 0;
+        virtual void PushConstants(CommandBufferHandle* commandbuffer, ShaderHandle* shader, const void* data, uint32 numData, uint32 offsetIndex = 0) = 0;
+        virtual void BeginRenderPass(CommandBufferHandle* commandbuffer, RenderPassHandle* renderpass, FramebufferHandle* framebuffer, uint32 numView, TextureViewHandle** views, CommandBufferType commandBufferType = COMMAND_BUFFER_TYPE_PRIMARY) = 0;
+        virtual void EndRenderPass(CommandBufferHandle* commandbuffer) = 0;
+        virtual void NextRenderSubpass(CommandBufferHandle* commandbuffer, CommandBufferType commandBufferType) = 0;
+        virtual void SetViewport(CommandBufferHandle* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) = 0;
+        virtual void SetScissor(CommandBufferHandle* commandbuffer, uint32 x, uint32 y, uint32 width, uint32 height) = 0;
+        virtual void ClearAttachments(CommandBufferHandle* commandbuffer, uint32 numAttachmentClear, AttachmentClear** attachmentClears, uint32 x, uint32 y, uint32 width, uint32 height) = 0;
+        virtual void BindPipeline(CommandBufferHandle* commandbuffer, PipelineHandle* pipeline) = 0;
+        virtual void BindDescriptorSet(CommandBufferHandle* commandbuffer, DescriptorSetHandle* descriptorset, uint32 setIndex) = 0;
+        virtual void Draw(CommandBufferHandle* commandbuffer, uint32 vertexCount, uint32 instanceCount, uint32 baseVertex, uint32 firstInstance) = 0;
+        virtual void DrawIndexed(CommandBufferHandle* commandbuffer, uint32 indexCount, uint32 instanceCount, uint32 firstIndex, int32 vertexOffset, uint32 firstInstance) = 0;
+        virtual void BindVertexBuffers(CommandBufferHandle* commandbuffer, uint32 bindingCount, BufferHandle** buffers, uint64* offsets) = 0;
+        virtual void BindVertexBuffer(CommandBufferHandle* commandbuffer, BufferHandle* buffer, uint64 offset) = 0;
+        virtual void BindIndexBuffer(CommandBufferHandle* commandbuffer, BufferHandle* buffer, IndexBufferFormat format, uint64 offset) = 0;
 
         //--------------------------------------------------
         // MISC
         //--------------------------------------------------
-        virtual bool ImmidiateCommands(CommandQueue* queue, CommandBuffer* commandBuffer, Fence* fence, std::function<void(CommandBuffer*)>&& func) = 0;
+        virtual bool ImmidiateCommands(CommandQueueHandle* queue, CommandBufferHandle* commandBuffer, FenceHandle* fence, std::function<void(CommandBufferHandle*)>&& func) = 0;
         virtual bool WaitDevice() = 0;
     };
 }

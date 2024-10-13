@@ -38,7 +38,7 @@ namespace Silex
         return VK_KHR_WIN32_SURFACE_EXTENSION_NAME;
     }
 
-    Surface* WindowsVulkanContext::CreateSurface()
+    SurfaceHandle* WindowsVulkanContext::CreateSurface()
     {
         VkWin32SurfaceCreateInfoKHR createInfo = {};
         createInfo.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
@@ -55,7 +55,7 @@ namespace Silex
         return surface;
     }
 
-    void WindowsVulkanContext::DestroySurface(Surface* surface)
+    void WindowsVulkanContext::DestroySurface(SurfaceHandle* surface)
     {
         if (surface)
         {

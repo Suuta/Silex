@@ -381,6 +381,7 @@ namespace Silex
 
             DescriptorSetInfo gridinfo;
             gridinfo.BindBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gridUBO);
+            gridinfo.BindBuffer(0, DESCRIPTOR_TYPE_UNIFORM_BUFFER, gridUBO);
             gridSet = CreateDescriptorSet(gridShader, 0, gridinfo);
         }
 
@@ -470,7 +471,7 @@ namespace Silex
         cubemapTextureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT);
 
         // 一時ビュー (キューブマップがミップレベルをもつため、コピー操作時に単一ミップを対象としたビューが別途必要)
-        TextureView* captureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT, 0, 6, 0, 1);
+        TextureViewHandle* captureView = CreateTextureView(cubemapTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT, 0, 6, 0, 1);
 
         // キューブマップ UBO
         Test::EquirectangularData data;
@@ -502,7 +503,7 @@ namespace Silex
         IBLProcessFB = CreateFramebuffer(IBLProcessPass, 1, &cubemapTexture, envResolution, envResolution);
 
         // キューブマップ書き込み
-        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBufferHandle* cmd)
         {
             // イメージレイアウトを read_only に移行させる
             TextureBarrierInfo info = {};
@@ -598,7 +599,7 @@ namespace Silex
         irradianceSet = CreateDescriptorSet(irradianceShader, 0, info);
 
         // キューブマップ書き込み
-        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBufferHandle* cmd)
         {
             MeshSource* ms = cubeMesh->GetMeshSource();
 
@@ -641,7 +642,7 @@ namespace Silex
         prefilterTextureView = CreateTextureView(prefilterTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT);
 
         // 生成用ビュー（ミップレベル分用意）
-        std::array<TextureView*, prefilterMipCount> prefilterViews;
+        std::array<TextureViewHandle*, prefilterMipCount> prefilterViews;
         for (uint32 i = 0; i < prefilterMipCount; i++)
         {
             prefilterViews[i] = CreateTextureView(prefilterTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT, 0, 6, i, 1);
@@ -661,7 +662,7 @@ namespace Silex
         prefilterSet = CreateDescriptorSet(prefilterShader, 0, info);
 
         // キューブマップ書き込み
-        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBufferHandle* cmd)
         {
             MeshSource* ms = cubeMesh->GetMeshSource();
             api->BindVertexBuffer(cmd, ms->GetVertexBuffer(), 0);
@@ -730,7 +731,7 @@ namespace Silex
         IBLProcessFB = api->CreateFramebuffer(IBLProcessPass, 1, &brdflutTexture, brdfResolution, brdfResolution);
 
         // キューブマップ書き込み
-        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBufferHandle* cmd)
         {
             MeshSource* ms = cubeMesh->GetMeshSource();
 
@@ -777,6 +778,7 @@ namespace Silex
         shadow.depth             = CreateTexture2DArray(RENDERING_FORMAT_D32_SFLOAT, shadowMapResolution, shadowMapResolution, 4);
         shadow.depthView         = CreateTextureView(shadow.depth, TEXTURE_TYPE_2D_ARRAY, TEXTURE_ASPECT_DEPTH_BIT);
         shadow.framebuffer       = CreateFramebuffer(shadow.pass, 1, &shadow.depth, shadowMapResolution, shadowMapResolution);
+        
         shadow.transformUBO      = CreateUniformBuffer(nullptr, sizeof(Test::ShadowTransformData));
         shadow.lightTransformUBO = CreateUniformBuffer(nullptr, sizeof(Test::LightSpaceTransformData));
         shadow.cascadeUBO        = CreateUniformBuffer(nullptr, sizeof(Test::CascadeData));
@@ -1608,7 +1610,7 @@ namespace Silex
 
     int32 RHI::ReadPixelObjectID(uint32 x, uint32 y)
     {
-        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBufferHandle* cmd)
         {
             TextureBarrierInfo info = {};
             info.texture      = gbuffer->id;
@@ -1658,7 +1660,6 @@ namespace Silex
 
             DescriptorSetInfo blitinfo;
             blitinfo.BindTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, bloom->bloomView, linearSampler);
-            //blitinfo.AddTexture(0, DESCRIPTOR_TYPE_IMAGE_SAMPLER, lighting.view, linearSampler);
             compositeSet = CreateDescriptorSet(compositeShader, 0, blitinfo);
         }
 
@@ -1916,8 +1917,8 @@ namespace Silex
             // スポンザ
             for (MeshSource* source : sponzaMesh->GetMeshSources())
             {
-                Buffer* vb        = source->GetVertexBuffer();
-                Buffer* ib        = source->GetIndexBuffer();
+                BufferHandle* vb        = source->GetVertexBuffer();
+                BufferHandle* ib        = source->GetIndexBuffer();
                 uint32 indexCount = source->GetIndexCount();
                 api->BindVertexBuffer(frame.commandBuffer, vb, 0);
                 api->BindIndexBuffer(frame.commandBuffer, ib, INDEX_BUFFER_FORMAT_UINT32, 0);
@@ -1932,7 +1933,7 @@ namespace Silex
             api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
             api->SetScissor(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
 
-            TextureView* views[] = {gbuffer->albedoView, gbuffer->normalView, gbuffer->emissionView, gbuffer->idView, gbuffer->depthView };
+            TextureViewHandle* views[] = {gbuffer->albedoView, gbuffer->normalView, gbuffer->emissionView, gbuffer->idView, gbuffer->depthView };
             api->BeginRenderPass(frame.commandBuffer, gbuffer->pass, gbuffer->framebuffer, 5, views);
             
             api->BindPipeline(frame.commandBuffer, gbuffer->pipeline);
@@ -1942,8 +1943,8 @@ namespace Silex
             // スポンザ
             for (MeshSource* source : sponzaMesh->GetMeshSources())
             {
-                Buffer* vb        = source->GetVertexBuffer();
-                Buffer* ib        = source->GetIndexBuffer();
+                BufferHandle* vb        = source->GetVertexBuffer();
+                BufferHandle* ib        = source->GetIndexBuffer();
                 uint32 indexCount = source->GetIndexCount();
                 api->BindVertexBuffer(frame.commandBuffer, vb, 0);
                 api->BindIndexBuffer(frame.commandBuffer, ib, INDEX_BUFFER_FORMAT_UINT32, 0);
@@ -1966,7 +1967,7 @@ namespace Silex
 
         if (1) // スカイパス
         {
-            TextureView* views[] = { lighting.view, gbuffer->depthView };
+            TextureViewHandle* views[] = { lighting.view, gbuffer->depthView };
             api->BeginRenderPass(frame.commandBuffer, environment.pass, environment.framebuffer, 2, views);
 
             if (1) // スカイ
@@ -2130,7 +2131,7 @@ namespace Silex
         frame.pendingResources->texture.push_back(texture);
     }
 
-    TextureView* RHI::CreateTextureView(TextureHandle* texture, TextureType type, TextureAspectFlags aspect, uint32 baseArrayLayer, uint32 numArrayLayer, uint32 baseMipLevel, uint32 numMipLevel)
+    TextureViewHandle* RHI::CreateTextureView(TextureHandle* texture, TextureType type, TextureAspectFlags aspect, uint32 baseArrayLayer, uint32 numArrayLayer, uint32 baseMipLevel, uint32 numMipLevel)
     {
         TextureViewInfo viewInfo = {};
         viewInfo.type                      = type;
@@ -2143,7 +2144,7 @@ namespace Silex
         return api->CreateTextureView(texture, viewInfo);
     }
 
-    void RHI::DestroyTextureView(TextureView* view)
+    void RHI::DestroyTextureView(TextureViewHandle* view)
     {
         FrameData& frame = frameData[frameIndex];
         frame.pendingResources->textureView.push_back(view);
@@ -2176,7 +2177,7 @@ namespace Silex
     void RHI::_SubmitTextureData(TextureHandle* texture, uint32 width, uint32 height, bool genMipmap, const void* pixelData, uint64 dataSize)
     {
         // ステージングバッファ
-        Buffer* staging = api->CreateBuffer(dataSize, BUFFER_USAGE_TRANSFER_SRC_BIT, MEMORY_ALLOCATION_TYPE_CPU);
+        BufferHandle* staging = api->CreateBuffer(dataSize, BUFFER_USAGE_TRANSFER_SRC_BIT, MEMORY_ALLOCATION_TYPE_CPU);
 
         // ステージングにテクスチャデータをコピー
         void* mappedPtr = api->MapBuffer(staging);
@@ -2184,7 +2185,7 @@ namespace Silex
         api->UnmapBuffer(staging);
 
         // コピーコマンド
-        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBufferHandle* cmd)
         {
             TextureSubresourceRange range = {};
             range.aspect = TEXTURE_ASPECT_COLOR_BIT;
@@ -2233,7 +2234,7 @@ namespace Silex
         api->DestroyBuffer(staging);
     }
     
-    void RHI::_GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, uint32 depth, uint32 array, TextureAspectFlags aspect)
+    void RHI::_GenerateMipmaps(CommandBufferHandle* cmd, TextureHandle* texture, uint32 width, uint32 height, uint32 depth, uint32 array, TextureAspectFlags aspect)
     {
         auto mipmaps = RenderingUtility::CalculateMipmap(width, height);
 
@@ -2306,27 +2307,27 @@ namespace Silex
     }
 
 
-    Buffer* RHI::CreateUniformBuffer(void* data, uint64 size)
+    BufferHandle* RHI::CreateUniformBuffer(void* data, uint64 size)
     {
         return _CreateAndMapBuffer(BUFFER_USAGE_UNIFORM_BIT, data, size, nullptr);
     }
 
-    Buffer* RHI::CreateStorageBuffer(void* data, uint64 size)
+    BufferHandle* RHI::CreateStorageBuffer(void* data, uint64 size)
     {
         return _CreateAndMapBuffer(BUFFER_USAGE_STORAGE_BIT, data, size, nullptr);
     }
 
-    Buffer* RHI::CreateVertexBuffer(void* data, uint64 size)
+    BufferHandle* RHI::CreateVertexBuffer(void* data, uint64 size)
     {
         return _CreateAndSubmitBufferData(BUFFER_USAGE_VERTEX_BIT, data, size);
     }
 
-    Buffer* RHI::CreateIndexBuffer(void* data, uint64 size)
+    BufferHandle* RHI::CreateIndexBuffer(void* data, uint64 size)
     {
         return _CreateAndSubmitBufferData(BUFFER_USAGE_INDEX_BIT, data, size);
     }
 
-    void RHI::DestroyBuffer(Buffer* buffer)
+    void RHI::DestroyBuffer(BufferHandle* buffer)
     {
         api->UnmapBuffer(buffer);
 
@@ -2334,14 +2335,14 @@ namespace Silex
         frame.pendingResources->buffer.push_back(buffer);
     }
 
-    bool RHI::UpdateBufferData(Buffer* buffer, const void* data, uint32 dataByte)
+    bool RHI::UpdateBufferData(BufferHandle* buffer, const void* data, uint32 dataByte)
     {
         return api->UpdateBufferData(buffer, data, dataByte);
     }
 
-    Buffer* RHI::_CreateAndMapBuffer(BufferUsageFlags type, const void* data, uint64 dataSize, void** outMappedPtr)
+    BufferHandle* RHI::_CreateAndMapBuffer(BufferUsageFlags type, const void* data, uint64 dataSize, void** outMappedPtr)
     {
-        Buffer* buffer  = api->CreateBuffer(dataSize, type | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_CPU);
+        BufferHandle* buffer  = api->CreateBuffer(dataSize, type | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_CPU);
         void* mappedPtr = api->MapBuffer(buffer);
 
         if (data != nullptr)
@@ -2353,16 +2354,16 @@ namespace Silex
         return buffer;
     }
 
-    Buffer* RHI::_CreateAndSubmitBufferData(BufferUsageFlags type, const void* data, uint64 dataSize)
+    BufferHandle* RHI::_CreateAndSubmitBufferData(BufferUsageFlags type, const void* data, uint64 dataSize)
     {
-        Buffer* buffer  = api->CreateBuffer(dataSize, type | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_GPU);
-        Buffer* staging = api->CreateBuffer(dataSize, type | BUFFER_USAGE_TRANSFER_SRC_BIT, MEMORY_ALLOCATION_TYPE_CPU);
+        BufferHandle* buffer  = api->CreateBuffer(dataSize, type | BUFFER_USAGE_TRANSFER_DST_BIT, MEMORY_ALLOCATION_TYPE_GPU);
+        BufferHandle* staging = api->CreateBuffer(dataSize, type | BUFFER_USAGE_TRANSFER_SRC_BIT, MEMORY_ALLOCATION_TYPE_CPU);
         
         void* mapped = api->MapBuffer(staging);
         std::memcpy(mapped, data, dataSize);
         api->UnmapBuffer(staging);
 
-        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBuffer* cmd)
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, [&](CommandBufferHandle* cmd)
         {
             BufferCopyRegion region = {};
             region.size = dataSize;
@@ -2377,7 +2378,7 @@ namespace Silex
 
 
 
-    FramebufferHandle* RHI::CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height)
+    FramebufferHandle* RHI::CreateFramebuffer(RenderPassHandle* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height)
     {
         return api->CreateFramebuffer(renderpass, numTexture, textures, width, height);
     }
@@ -2390,12 +2391,12 @@ namespace Silex
 
 
 
-    DescriptorSet* RHI::CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex, DescriptorSetInfo& setInfo)
+    DescriptorSetHandle* RHI::CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex, DescriptorSetInfo& setInfo)
     {
         return api->CreateDescriptorSet(setInfo.infos.size(), setInfo.infos.data(), shader, setIndex);
     }
 
-    void RHI::DestroyDescriptorSet(DescriptorSet* set)
+    void RHI::DestroyDescriptorSet(DescriptorSetHandle* set)
     {
         FrameData& frame = frameData[frameIndex];
         frame.pendingResources->descriptorset.push_back(set);
@@ -2403,24 +2404,24 @@ namespace Silex
 
 
 
-    SwapChain* RHI::CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode)
+    SwapChainHandle* RHI::CreateSwapChain(SurfaceHandle* surface, uint32 width, uint32 height, VSyncMode mode)
     {
         return api->CreateSwapChain(surface, width, height, swapchainBufferCount, mode);
     }
 
-    void RHI::DestoySwapChain(SwapChain* swapchain)
+    void RHI::DestoySwapChain(SwapChainHandle* swapchain)
     {
         api->DestroySwapChain(swapchain);
     }
 
-    bool RHI::ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode)
+    bool RHI::ResizeSwapChain(SwapChainHandle* swapchain, uint32 width, uint32 height, VSyncMode mode)
     {
         return api->ResizeSwapChain(swapchain, width, height, swapchainBufferCount, mode);
     }
 
     bool RHI::Present()
     {
-        SwapChain* swapchain = Window::Get()->GetSwapChain();
+        SwapChainHandle* swapchain = Window::Get()->GetSwapChain();
         FrameData& frame = frameData[frameIndex];
 
         bool result = api->Present(graphicsQueue, swapchain, frame.renderSemaphore);
@@ -2447,7 +2448,7 @@ namespace Silex
     {
         FrameData& f = frameData[frame];
 
-        for (Buffer* buffer : f.pendingResources->buffer)
+        for (BufferHandle* buffer : f.pendingResources->buffer)
         {
             api->DestroyBuffer(buffer);
         }
@@ -2461,21 +2462,21 @@ namespace Silex
 
         f.pendingResources->texture.clear();
 
-        for (TextureView* view : f.pendingResources->textureView)
+        for (TextureViewHandle* view : f.pendingResources->textureView)
         {
             api->DestroyTextureView(view);
         }
 
         f.pendingResources->textureView.clear();
 
-        for (Sampler* sampler : f.pendingResources->sampler)
+        for (SamplerHandle* sampler : f.pendingResources->sampler)
         {
             api->DestroySampler(sampler);
         }
 
         f.pendingResources->sampler.clear();
 
-        for (DescriptorSet* set : f.pendingResources->descriptorset)
+        for (DescriptorSetHandle* set : f.pendingResources->descriptorset)
         {
             api->DestroyDescriptorSet(set);
         }
@@ -2496,7 +2497,7 @@ namespace Silex
 
         f.pendingResources->shader.clear();
 
-        for (Pipeline* pipeline : f.pendingResources->pipeline)
+        for (PipelineHandle* pipeline : f.pendingResources->pipeline)
         {
             api->DestroyPipeline(pipeline);
         }
@@ -2529,7 +2530,7 @@ namespace Silex
         return frameIndex;
     }
 
-    CommandQueue* RHI::GetGraphicsCommandQueue() const
+    CommandQueueHandle* RHI::GetGraphicsCommandQueue() const
     {
         return graphicsQueue;
     }

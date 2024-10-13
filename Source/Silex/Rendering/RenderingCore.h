@@ -2,11 +2,6 @@
 #pragma once
 #include "Core/Core.h"
 
-#include <vulkan/vulkan.h>
-#include <d3d12.h>
-#include <dxgi1_6.h>
-
-
 namespace Silex
 {
     //================================================
@@ -20,20 +15,20 @@ namespace Silex
     //================================================
     using QueueID = uint32;
 
-    SL_HANDLE(Surface);
-    SL_HANDLE(CommandQueue);
-    SL_HANDLE(CommandPool);
-    SL_HANDLE(CommandBuffer);
-    SL_HANDLE(Fence);
-    SL_HANDLE(Semaphore);
-    SL_HANDLE(SwapChain);
-    SL_HANDLE(RenderPass);
-    SL_HANDLE(Buffer);
-    SL_HANDLE(Pipeline);
-    SL_HANDLE(Sampler);
-    SL_HANDLE(DescriptorSet);
+    SL_HANDLE(SurfaceHandle);
+    SL_HANDLE(CommandQueueHandle);
+    SL_HANDLE(CommandPoolHandle);
+    SL_HANDLE(CommandBufferHandle);
+    SL_HANDLE(FenceHandle);
+    SL_HANDLE(SemaphoreHandle);
+    SL_HANDLE(SwapChainHandle);
+    SL_HANDLE(RenderPassHandle);
+    SL_HANDLE(BufferHandle);
+    SL_HANDLE(PipelineHandle);
+    SL_HANDLE(SamplerHandle);
+    SL_HANDLE(DescriptorSetHandle);
     SL_HANDLE(FramebufferHandle);
-    SL_HANDLE(TextureView);
+    SL_HANDLE(TextureViewHandle);
     SL_HANDLE(TextureHandle);
     SL_HANDLE(ShaderHandle);
 
@@ -630,7 +625,7 @@ namespace Silex
 
     struct BufferBarrierInfo
     {
-        Buffer*            buffer;
+        BufferHandle*            buffer;
         BarrierAccessFlags srcAccess;
         BarrierAccessFlags dstAccess;
         uint64             offset;
@@ -726,27 +721,28 @@ namespace Silex
 
     struct DescriptorHandle
     {
-        Buffer*      buffer    = nullptr;
-        TextureView* imageView = nullptr;
-        Sampler*     sampler   = nullptr;
+        BufferHandle*      buffer    = nullptr;
+        TextureViewHandle* imageView = nullptr;
+        SamplerHandle*     sampler   = nullptr;
     };
 
     //=========================================================
-    // "handles" は常に 1 であり vector を削除したいが(紛らわしいため)
-    // バインドレス実装によって必要になるかもしれないのでそのままにしておく
+    // "handle" はそのデスクリプターへのオブジェクトハンドルを指定する
+    // 実装は未定だが、バインドレス実装によって、可変長サイズハンドルが必要
+    // になった場合は、配列化にするとともに APIレイヤーの実装も変更する
     //=========================================================
     struct DescriptorInfo
     {
-        DescriptorType                type    = DESCRIPTOR_TYPE_MAX;
-        uint32                        binding = 0;
-        std::vector<DescriptorHandle> handles;
+        DescriptorType   type    = DESCRIPTOR_TYPE_MAX;
+        uint32           binding = 0;
+        DescriptorHandle handles;
     };
 
     struct DescriptorSetInfo
     {
         std::vector<DescriptorInfo> infos;
 
-        void BindTexture(uint32 binding, DescriptorType type, TextureView* view, Sampler* sampler)
+        void BindTexture(uint32 binding, DescriptorType type, TextureViewHandle* view, SamplerHandle* sampler)
         {
             if (infos.size() < binding + 1)
                 infos.resize(binding + 1);
@@ -754,10 +750,10 @@ namespace Silex
             DescriptorInfo& info = infos[binding];
             info.binding = binding;
             info.type    = type;
-            info.handles.emplace_back(DescriptorHandle{ nullptr, view, sampler });
+            info.handles = DescriptorHandle{ nullptr, view, sampler };
         }
 
-        void BindBuffer(uint32 binding, DescriptorType type, Buffer* buffer)
+        void BindBuffer(uint32 binding, DescriptorType type, BufferHandle* buffer)
         {
             if (infos.size() < binding + 1)
                 infos.resize(binding + 1);
@@ -765,7 +761,7 @@ namespace Silex
             DescriptorInfo& info = infos[binding];
             info.binding = binding;
             info.type    = type;
-            info.handles.emplace_back(DescriptorHandle{ buffer, nullptr, nullptr });
+            info.handles = DescriptorHandle{ buffer, nullptr, nullptr };
         }
     };
 
@@ -893,11 +889,12 @@ namespace Silex
 
         BLEND_OP_MAX
     };
+
     enum VertexBufferFormat
     {
-        VERTEX_BUFFER_FORMAT_R32 = RENDERING_FORMAT_R32_SFLOAT,
-        VERTEX_BUFFER_FORMAT_R32G32 = RENDERING_FORMAT_R32G32_SFLOAT,
-        VERTEX_BUFFER_FORMAT_R32G32B32 = RENDERING_FORMAT_R32G32B32_SFLOAT,
+        VERTEX_BUFFER_FORMAT_R32          = RENDERING_FORMAT_R32_SFLOAT,
+        VERTEX_BUFFER_FORMAT_R32G32       = RENDERING_FORMAT_R32G32_SFLOAT,
+        VERTEX_BUFFER_FORMAT_R32G32B32    = RENDERING_FORMAT_R32G32B32_SFLOAT,
         VERTEX_BUFFER_FORMAT_R32G32B32A32 = RENDERING_FORMAT_R32G32B32A32_SFLOAT,
     };
 

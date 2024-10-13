@@ -2,8 +2,8 @@
 #pragma once
 
 #include "Core/TaskQueue.h"
-#include "Rendering/RenderingCore.h"
 #include "Rendering/ShaderCompiler.h"
+#include "Rendering/RHIStructures.h"
 
 
 namespace Silex
@@ -15,25 +15,25 @@ namespace Silex
     // 削除待機リソース
     struct PendingDestroyResourceQueue
     {
-        std::vector<Buffer*>            buffer;
+        std::vector<BufferHandle*>            buffer;
         std::vector<TextureHandle*>     texture;
-        std::vector<TextureView*>       textureView;
-        std::vector<Sampler*>           sampler;
-        std::vector<DescriptorSet*>     descriptorset;
+        std::vector<TextureViewHandle*>       textureView;
+        std::vector<SamplerHandle*>           sampler;
+        std::vector<DescriptorSetHandle*>     descriptorset;
         std::vector<FramebufferHandle*> framebuffer;
         std::vector<ShaderHandle*>      shader;
-        std::vector<Pipeline*>          pipeline;
+        std::vector<PipelineHandle*>          pipeline;
     };
 
 
     // フレームデータ
     struct FrameData
     {
-        CommandPool*                 commandPool      = nullptr;
-        CommandBuffer*               commandBuffer    = nullptr;
-        Semaphore*                   presentSemaphore = nullptr;
-        Semaphore*                   renderSemaphore  = nullptr;
-        Fence*                       fence            = nullptr;
+        CommandPoolHandle*                 commandPool      = nullptr;
+        CommandBufferHandle*               commandBuffer    = nullptr;
+        SemaphoreHandle*                   presentSemaphore = nullptr;
+        SemaphoreHandle*                   renderSemaphore  = nullptr;
+        FenceHandle*                       fence            = nullptr;
         bool                         waitingSignal    = false;
         PendingDestroyResourceQueue* pendingResources;
     };
@@ -42,18 +42,17 @@ namespace Silex
     // 即時コマンドデータ
     struct ImmidiateCommandData
     {
-        CommandPool*   commandPool   = nullptr;
-        CommandBuffer* commandBuffer = nullptr;
-        Fence*         fence         = nullptr;
+        CommandPoolHandle*   commandPool   = nullptr;
+        CommandBufferHandle* commandBuffer = nullptr;
+        FenceHandle*         fence         = nullptr;
     };
 
 
-    // Gバッファ
     struct GBufferData
     {
-        RenderPass*        pass        = nullptr;
+        RenderPassHandle*  pass        = nullptr;
         FramebufferHandle* framebuffer = nullptr;
-        Pipeline*          pipeline    = nullptr;
+        PipelineHandle*    pipeline    = nullptr;
         ShaderHandle*      shader      = nullptr;
 
         TextureHandle* albedo   = nullptr;
@@ -62,57 +61,58 @@ namespace Silex
         TextureHandle* id       = nullptr;
         TextureHandle* depth    = nullptr;
 
-        TextureView* albedoView   = nullptr;
-        TextureView* normalView   = nullptr;
-        TextureView* emissionView = nullptr;
-        TextureView* idView       = nullptr;
-        TextureView* depthView    = nullptr;
+        TextureViewHandle* albedoView   = nullptr;
+        TextureViewHandle* normalView   = nullptr;
+        TextureViewHandle* emissionView = nullptr;
+        TextureViewHandle* idView       = nullptr;
+        TextureViewHandle* depthView    = nullptr;
 
-        Buffer* materialUBO  = nullptr;
-        Buffer* transformUBO = nullptr;
+        BufferHandle* materialUBO  = nullptr;
+        BufferHandle* transformUBO = nullptr;
 
-        DescriptorSet* transformSet = nullptr;
-        DescriptorSet* materialSet  = nullptr;
+        DescriptorSetHandle* transformSet = nullptr;
+        DescriptorSetHandle* materialSet  = nullptr;
     };
 
     struct LightingData
     {
-        RenderPass*        pass        = nullptr;
+        RenderPassHandle*  pass        = nullptr;
         FramebufferHandle* framebuffer = nullptr;
         TextureHandle*     color       = nullptr;
-        TextureView*       view        = nullptr;
+        TextureViewHandle* view        = nullptr;
 
-        Pipeline*     pipeline = nullptr;
-        ShaderHandle* shader   = nullptr;
+        PipelineHandle* pipeline = nullptr;
+        ShaderHandle*   shader   = nullptr;
 
-        Buffer*        sceneUBO    = nullptr;
-        DescriptorSet* set         = nullptr;
+        BufferHandle*        sceneUBO;
+        DescriptorSetHandle* set;
     };
 
     struct EnvironmentData
     {
-        RenderPass*        pass        = nullptr;
-        FramebufferHandle* framebuffer = nullptr;
-        TextureHandle*     depth       = nullptr;
-        TextureView*       view        = nullptr;
-        Pipeline*          pipeline    = nullptr;
-        ShaderHandle*      shader      = nullptr;
-        Buffer*            ubo         = nullptr;
-        DescriptorSet*     set         = nullptr;
+        RenderPassHandle*    pass        = nullptr;
+        FramebufferHandle*   framebuffer = nullptr;
+        TextureHandle*       depth       = nullptr;
+        TextureViewHandle*   view        = nullptr;
+        PipelineHandle*      pipeline    = nullptr;
+        ShaderHandle*        shader      = nullptr;
+        BufferHandle*        ubo         = nullptr;
+        DescriptorSetHandle* set         = nullptr;
     };
 
     struct ShadowData
     {
-        RenderPass*        pass              = nullptr;
+        RenderPassHandle*  pass              = nullptr;
         FramebufferHandle* framebuffer       = nullptr;
         TextureHandle*     depth             = nullptr;
-        TextureView*       depthView         = nullptr;
-        Pipeline*          pipeline          = nullptr;
+        TextureViewHandle* depthView         = nullptr;
+        PipelineHandle*    pipeline          = nullptr;
         ShaderHandle*      shader            = nullptr;
-        Buffer*            transformUBO      = nullptr;
-        Buffer*            lightTransformUBO = nullptr;
-        Buffer*            cascadeUBO        = nullptr;
-        DescriptorSet*     set               = nullptr;
+
+        BufferHandle*        transformUBO;
+        BufferHandle*        lightTransformUBO;
+        BufferHandle*        cascadeUBO;
+        DescriptorSetHandle* set;
     };
 
     struct BloomData
@@ -120,32 +120,32 @@ namespace Silex
         const uint32 numDefaultSampling = 6;
         std::vector<Extent> resolutions = {};
 
-        RenderPass* pass = nullptr;
+        RenderPassHandle* pass = nullptr;
 
         std::vector<FramebufferHandle*> samplingFB    = {};
         std::vector<TextureHandle*>     sampling      = {};
-        std::vector<TextureView*>       samplingView  = {};
+        std::vector<TextureViewHandle*> samplingView  = {};
         TextureHandle*                  prefilter     = {};
-        TextureView*                    prefilterView = {};
+        TextureViewHandle*              prefilterView = {};
         TextureHandle*                  bloom         = {};
-        TextureView*                    bloomView     = {};
+        TextureViewHandle*              bloomView     = {};
         FramebufferHandle*              bloomFB       = {};
 
-        Pipeline*          prefilterPipeline = nullptr;
-        ShaderHandle*      prefilterShader   = nullptr;
-        DescriptorSet*     prefilterSet      = nullptr;
+        PipelineHandle*      prefilterPipeline = nullptr;
+        ShaderHandle*        prefilterShader   = nullptr;
+        DescriptorSetHandle* prefilterSet      = nullptr;
 
-        Pipeline*                   downSamplingPipeline = nullptr;
-        ShaderHandle*               downSamplingShader   = nullptr;
-        std::vector<DescriptorSet*> downSamplingSet      = {};
+        PipelineHandle*                   downSamplingPipeline = nullptr;
+        ShaderHandle*                     downSamplingShader   = nullptr;
+        std::vector<DescriptorSetHandle*> downSamplingSet      = {};
 
-        Pipeline*                   upSamplingPipeline = nullptr;
-        ShaderHandle*               upSamplingShader   = nullptr;
-        std::vector<DescriptorSet*> upSamplingSet      = {};
+        PipelineHandle*                   upSamplingPipeline = nullptr;
+        ShaderHandle*                     upSamplingShader   = nullptr;
+        std::vector<DescriptorSetHandle*> upSamplingSet      = {};
 
-        Pipeline*      bloomPipeline = nullptr;
-        ShaderHandle*  bloomShader   = nullptr;
-        DescriptorSet* bloomSet      = nullptr;
+        PipelineHandle*      bloomPipeline = nullptr;
+        ShaderHandle*        bloomShader   = nullptr;
+        DescriptorSetHandle* bloomSet      = nullptr;
     };
 
 
@@ -179,7 +179,7 @@ namespace Silex
 
         // コマンドキュー
         QueueID       GetGraphicsQueueID()      const;
-        CommandQueue* GetGraphicsCommandQueue() const;
+        CommandQueueHandle* GetGraphicsCommandQueue() const;
 
         // フレームデータ
         const FrameData& GetFrameData()         const;
@@ -203,41 +203,41 @@ namespace Silex
         void           DestroyTexture(TextureHandle* texture);
 
         // テクスチャビュー
-        TextureView* CreateTextureView(TextureHandle* texture, TextureType type, TextureAspectFlags aspect, uint32 baseArrayLayer = 0, uint32 numArrayLayer = UINT32_MAX, uint32 baseMipLevel = 0, uint32 numMipLevel = UINT32_MAX);
-        void         DestroyTextureView(TextureView* view);
+        TextureViewHandle* CreateTextureView(TextureHandle* texture, TextureType type, TextureAspectFlags aspect, uint32 baseArrayLayer = 0, uint32 numArrayLayer = UINT32_MAX, uint32 baseMipLevel = 0, uint32 numMipLevel = UINT32_MAX);
+        void         DestroyTextureView(TextureViewHandle* view);
 
         // バッファ
-        Buffer* CreateUniformBuffer(void* data, uint64 size);
-        Buffer* CreateStorageBuffer(void* data, uint64 size);
-        Buffer* CreateVertexBuffer(void* data, uint64 size);
-        Buffer* CreateIndexBuffer(void* data, uint64 size);
-        void    DestroyBuffer(Buffer* buffer);
-        bool    UpdateBufferData(Buffer* buffer, const void* data, uint32 dataByte);
+        BufferHandle* CreateUniformBuffer(void* data, uint64 size);
+        BufferHandle* CreateStorageBuffer(void* data, uint64 size);
+        BufferHandle* CreateVertexBuffer(void* data, uint64 size);
+        BufferHandle* CreateIndexBuffer(void* data, uint64 size);
+        void    DestroyBuffer(BufferHandle* buffer);
+        bool    UpdateBufferData(BufferHandle* buffer, const void* data, uint32 dataByte);
 
         // フレームバッファ
-        FramebufferHandle* CreateFramebuffer(RenderPass* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height);
+        FramebufferHandle* CreateFramebuffer(RenderPassHandle* renderpass, uint32 numTexture, TextureHandle** textures, uint32 width, uint32 height);
         void               DestroyFramebuffer(FramebufferHandle* framebuffer);
 
         // デスクリプターセット
-        DescriptorSet* CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex, DescriptorSetInfo& setInfo);
-        void           DestroyDescriptorSet(DescriptorSet* set);
+        DescriptorSetHandle* CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex, DescriptorSetInfo& setInfo);
+        void           DestroyDescriptorSet(DescriptorSetHandle* set);
 
         // スワップチェイン
-        SwapChain* CreateSwapChain(Surface* surface, uint32 width, uint32 height, VSyncMode mode);
-        bool       ResizeSwapChain(SwapChain* swapchain, uint32 width, uint32 height, VSyncMode mode);
-        void       DestoySwapChain(SwapChain* swapchain);
+        SwapChainHandle* CreateSwapChain(SurfaceHandle* surface, uint32 width, uint32 height, VSyncMode mode);
+        bool       ResizeSwapChain(SwapChainHandle* swapchain, uint32 width, uint32 height, VSyncMode mode);
+        void       DestoySwapChain(SwapChainHandle* swapchain);
         bool       Present();
         void       BeginSwapChainPass();
         void       EndSwapChainPass();
     
     private:
 
-        Buffer* _CreateAndMapBuffer(BufferUsageFlags type, const void* data, uint64 dataSize, void** outMappedPtr);
-        Buffer* _CreateAndSubmitBufferData(BufferUsageFlags type, const void* data, uint64 dataSize);
+        BufferHandle* _CreateAndMapBuffer(BufferUsageFlags type, const void* data, uint64 dataSize, void** outMappedPtr);
+        BufferHandle* _CreateAndSubmitBufferData(BufferUsageFlags type, const void* data, uint64 dataSize);
 
         TextureHandle* _CreateTexture(TextureDimension dimension, TextureType type, RenderingFormat format, uint32 width, uint32 height, uint32 depth, uint32 array, bool genMipmap, TextureUsageFlags additionalFlags);
         void           _SubmitTextureData(TextureHandle* texture, uint32 width, uint32 height, bool genMipmap, const void* pixelData, uint64 dataSize);
-        void           _GenerateMipmaps(CommandBuffer* cmd, TextureHandle* texture, uint32 width, uint32 height, uint32 depth, uint32 array, TextureAspectFlags aspect);
+        void           _GenerateMipmaps(CommandBufferHandle* cmd, TextureHandle* texture, uint32 width, uint32 height, uint32 depth, uint32 array, TextureAspectFlags aspect);
 
         void _DestroyPendingResources(uint32 frame);
 
@@ -252,7 +252,7 @@ namespace Silex
         RenderingAPI*     api     = nullptr;
 
         QueueID       graphicsQueueID = RENDER_INVALID_ID;
-        CommandQueue* graphicsQueue   = nullptr;
+        CommandQueueHandle* graphicsQueue   = nullptr;
 
         //===========================================================
         // インスタンス
@@ -320,78 +320,77 @@ namespace Silex
 
         // オブジェクトID リードバック
         int32 ReadPixelObjectID(uint32 x, uint32 y);
-        Buffer* pixelIDBuffer = nullptr;
-        void*   mappedPixelID = nullptr;
+        BufferHandle* pixelIDBuffer = nullptr;
+        void*         mappedPixelID = nullptr;
 
     public:
 
         // IBL
-        FramebufferHandle* IBLProcessFB          = nullptr;
-        RenderPass*        IBLProcessPass        = nullptr;
-        Buffer*            equirectangularUBO    = nullptr;
-        void*              mappedEquirectanguler = nullptr;
+        FramebufferHandle* IBLProcessFB       = nullptr;
+        RenderPassHandle*  IBLProcessPass     = nullptr;
+        BufferHandle*      equirectangularUBO = nullptr;
 
         // キューブマップ変換
-        Pipeline*      equirectangularPipeline = nullptr;
-        ShaderHandle*  equirectangularShader   = nullptr;
-        TextureHandle* cubemapTexture          = nullptr;
-        TextureView*   cubemapTextureView      = nullptr;
-        DescriptorSet* equirectangularSet      = nullptr;
+        PipelineHandle*      equirectangularPipeline = nullptr;
+        ShaderHandle*        equirectangularShader   = nullptr;
+        TextureHandle*       cubemapTexture          = nullptr;
+        TextureViewHandle*   cubemapTextureView      = nullptr;
+        DescriptorSetHandle* equirectangularSet      = nullptr;
 
         // irradiance
-        Pipeline*      irradiancePipeline    = nullptr;
+        PipelineHandle*      irradiancePipeline    = nullptr;
         ShaderHandle*  irradianceShader      = nullptr;
         TextureHandle* irradianceTexture     = nullptr;
-        TextureView*   irradianceTextureView = nullptr;
-        DescriptorSet* irradianceSet         = nullptr;
+        TextureViewHandle*   irradianceTextureView = nullptr;
+        DescriptorSetHandle* irradianceSet         = nullptr;
 
         // prefilter
-        Pipeline*      prefilterPipeline    = nullptr;
-        ShaderHandle*  prefilterShader      = nullptr;
-        TextureHandle* prefilterTexture     = nullptr;
-        TextureView*   prefilterTextureView = nullptr;
-        DescriptorSet* prefilterSet         = nullptr;
+        PipelineHandle*      prefilterPipeline    = nullptr;
+        ShaderHandle*        prefilterShader      = nullptr;
+        TextureHandle*       prefilterTexture     = nullptr;
+        TextureViewHandle*   prefilterTextureView = nullptr;
+        DescriptorSetHandle* prefilterSet         = nullptr;
 
         // BRDF-LUT
-        Pipeline*      brdflutPipeline    = nullptr;
-        ShaderHandle*  brdflutShader      = nullptr;
-        TextureHandle* brdflutTexture     = nullptr;
-        TextureView*   brdflutTextureView = nullptr;
+        PipelineHandle*    brdflutPipeline    = nullptr;
+        ShaderHandle*      brdflutShader      = nullptr;
+        TextureHandle*     brdflutTexture     = nullptr;
+        TextureViewHandle* brdflutTextureView = nullptr;
 
     public:
 
         // シーンBlit
-        FramebufferHandle* compositeFB          = nullptr;
-        TextureHandle*     compositeTexture     = nullptr;
-        TextureView*       compositeTextureView = nullptr;
-        RenderPass*        compositePass        = nullptr;
-        ShaderHandle*      compositeShader      = nullptr;
-        Pipeline*          compositePipeline    = nullptr;
-        DescriptorSet*     compositeSet         = nullptr;
+        FramebufferHandle*   compositeFB          = nullptr;
+        TextureHandle*       compositeTexture     = nullptr;
+        TextureViewHandle*   compositeTextureView = nullptr;
+        RenderPassHandle*    compositePass        = nullptr;
+        ShaderHandle*        compositeShader      = nullptr;
+        PipelineHandle*      compositePipeline    = nullptr;
+        DescriptorSetHandle* compositeSet         = nullptr;
 
     public:
 
         // グリッド
-        Buffer*        gridUBO        = nullptr;
-        ShaderHandle*  gridShader     = nullptr;
-        Pipeline*      gridPipeline   = nullptr;
-        DescriptorSet* gridSet        = nullptr;
+        ShaderHandle*        gridShader   = nullptr;
+        PipelineHandle*      gridPipeline = nullptr;
+        DescriptorSetHandle* gridSet;
+        BufferHandle*        gridUBO;
 
     public:
 
         // ImGui::Image
-        DescriptorSet* imageSet = nullptr;
+        DescriptorSetHandle* imageSet = nullptr;
 
         // swapchain
         FramebufferHandle* currentSwapchainFramebuffer = nullptr;
-        TextureView*       currentSwapchainView        = nullptr;
-        RenderPass*        swapchainPass               = nullptr;
+        TextureViewHandle*       currentSwapchainView        = nullptr;
+        RenderPassHandle*        swapchainPass               = nullptr;
 
     public:
 
         // サンプラー
-        Sampler*   linearSampler = nullptr;
-        Sampler*   shadowSampler = nullptr;
+        SamplerHandle*   linearSampler = nullptr;
+        SamplerHandle*   shadowSampler = nullptr;
 
         // 頂点レイアウト
         InputLayout defaultLayout;
@@ -403,10 +402,10 @@ namespace Silex
 
         // テクスチャ
         TextureHandle* defaultTexture     = nullptr;
-        TextureView*   defaultTextureView = nullptr;
+        TextureViewHandle*   defaultTextureView = nullptr;
 
         TextureHandle* envTexture     = nullptr;
-        TextureView*   envTextureView = nullptr;
+        TextureViewHandle*   envTextureView = nullptr;
     };
 }
 

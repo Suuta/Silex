@@ -40,8 +40,8 @@ namespace Silex
         virtual void DestroyRendringAPI(RenderingAPI* api) = 0;
 
         // サーフェース
-        virtual Surface* CreateSurface() = 0;
-        virtual void DestroySurface(Surface* surface) = 0;
+        virtual SurfaceHandle* CreateSurface() = 0;
+        virtual void DestroySurface(SurfaceHandle* surface) = 0;
 
         // デバイス情報
         virtual const DeviceInfo& GetDeviceInfo() const = 0;

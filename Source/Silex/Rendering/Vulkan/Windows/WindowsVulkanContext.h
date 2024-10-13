@@ -21,8 +21,8 @@ namespace Silex
 
         // サーフェース
         const char* GetPlatformSurfaceExtensionName() override final;
-        Surface*    CreateSurface()                   override final;
-        void        DestroySurface(Surface* surface)  override final;
+        SurfaceHandle*    CreateSurface()                   override final;
+        void        DestroySurface(SurfaceHandle* surface)  override final;
 
     private:
 

@@ -1,6 +1,5 @@
-#pragma once
 
-#include "Core/Core.h"
+#pragma once
 #include "Rendering/RenderingCore.h"
 
 
@@ -109,7 +108,8 @@ namespace Silex
         std::vector<PushConstantRange>   pushConstantRanges;
 
 
-        // 現状は使用していないが、データ情報が必要になった場合(エディターでの表示)に使用する
+        // シェーダーコンパイル時のコンソール出力に使用中
+        // 現状は使用していないが、データ情報が必要になった場合(エディターでの表示)に使用できる
         std::unordered_map<std::string, ShaderPushConstant>        pushConstants;
         std::unordered_map<std::string, ShaderResourceDeclaration> resources;
     };

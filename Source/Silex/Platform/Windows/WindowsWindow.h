@@ -40,8 +40,8 @@ namespace Silex
         void*       GetPlatformHandle()                const override;
         GLFWwindow* GetGLFWWindow()                    const override;
         WindowData* GetWindowData()                    const override;
-        Surface*    GetSurface()                       const override;
-        SwapChain*  GetSwapChain()                     const override;
+        SurfaceHandle*    GetSurface()                       const override;
+        SwapChainHandle*  GetSwapChain()                     const override;
 
         // レンダーコンテキスト
         bool SetupWindowContext(RenderingContext* context)   override;
@@ -59,8 +59,8 @@ namespace Silex
 
     private:
 
-        Surface*   renderingSurface = nullptr;
-        SwapChain* swapchain        = nullptr;
+        SurfaceHandle*   renderingSurface = nullptr;
+        SwapChainHandle* swapchain        = nullptr;
 
         // ウィンドウデータ
         GLFWwindow* window = nullptr;

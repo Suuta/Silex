@@ -44,7 +44,7 @@ namespace Silex
 
     public:
 
-        static void Image(DescriptorSet* set, float width, float height);
+        static void Image(DescriptorSetHandle* set, float width, float height);
 
     private:
 

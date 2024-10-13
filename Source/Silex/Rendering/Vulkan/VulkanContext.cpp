@@ -298,7 +298,7 @@ namespace Silex
         return deviceInfo;
     }
 
-    bool VulkanContext::QueueHasPresent(Surface* surface, uint32 queueIndex) const
+    bool VulkanContext::QueueHasPresent(SurfaceHandle* surface, uint32 queueIndex) const
     {
         VkSurfaceKHR vkSurface = VulkanCast(surface)->surface;
         VkBool32 supported = false;

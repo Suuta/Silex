@@ -1,6 +1,8 @@
 
 #pragma once
+
 #include "Rendering/RenderingContext.h"
+#include <vulkan/vulkan.h>
 
 
 namespace Silex
@@ -53,7 +55,7 @@ namespace Silex
     public:
 
         // プレゼント命令のサポート
-        bool QueueHasPresent(Surface* surface, uint32 queueIndex) const;
+        bool QueueHasPresent(SurfaceHandle* surface, uint32 queueIndex) const;
 
         // 各種プロパティ取得
         const std::vector<VkQueueFamilyProperties>& GetQueueFamilyProperties()     const;

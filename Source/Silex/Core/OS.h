@@ -49,7 +49,7 @@ namespace Silex
         virtual void OutputDebugConsole(const std::string& message)         = 0;
 
         // メッセージ
-        virtual int32 Message(OSMessageType type, const std::wstring& message) = 0;
+        virtual int32 Message(OSMessageType type, const std::string& message) = 0;
 
     protected:
 

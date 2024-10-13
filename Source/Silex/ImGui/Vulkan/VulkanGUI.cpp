@@ -188,7 +188,7 @@ namespace Silex
 
 #if SL_RENDERER_VULKAN
 
-    void GUI::Image(DescriptorSet* set, float width, float height)
+    void GUI::Image(DescriptorSetHandle* set, float width, float height)
     {
         VulkanDescriptorSet* descriptorset = (VulkanDescriptorSet*)set;
         ImGui::Image(descriptorset->descriptorSet, { width, height });

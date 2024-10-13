@@ -33,7 +33,7 @@ namespace Silex
         void OutputDebugConsole(const std::string& message)         override;
 
         // メッセージ
-        int32 Message(OSMessageType type, const std::wstring& message) override;
+        int32 Message(OSMessageType type, const std::string& message) override;
 
     private:
 

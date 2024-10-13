@@ -178,12 +178,12 @@ namespace Silex
         return data;
     }
 
-    Surface* WindowsWindow::GetSurface() const
+    SurfaceHandle* WindowsWindow::GetSurface() const
     {
         return renderingSurface;
     }
 
-    SwapChain* WindowsWindow::GetSwapChain() const
+    SwapChainHandle* WindowsWindow::GetSwapChain() const
     {
         return swapchain;
     }
