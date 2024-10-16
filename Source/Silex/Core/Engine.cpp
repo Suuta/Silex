@@ -76,7 +76,7 @@ namespace Silex
 
         // レンダリングコンテキスト生成
         context = RenderingContext::Create(mainWindow->GetPlatformHandle());
-        result = context->Initialize(1);
+        result = context->Initialize(SL_RENDERER_VALIDATION);
         SL_CHECK(!result, false);
 
         // API抽象化レイヤー生成

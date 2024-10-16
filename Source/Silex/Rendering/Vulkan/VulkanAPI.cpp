@@ -2149,16 +2149,62 @@ namespace Silex
     //==================================================================================
     // デスクリプター
     //==================================================================================
-    DescriptorSetHandle* VulkanAPI::CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex)
+    DescriptorSetHandle* VulkanAPI::CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex)
     {
-        VulkanShader* vkShader = VulkanCast(shader);
+        VulkanShader*         vkShader   = VulkanCast(shader);
+        ShaderReflectionData* reflection = vkShader->reflection;
 
-        // 同一シグネチャ（型と数の一致）のプールを識別するキー ※同一プールは デフォルトで64個まで確保され、超えた場合は別プールが確保される
+        // デスクリプターセットのシグネチャ（データ型と数の一致）を識別するキー
         DescriptorSetPoolKey key = {};
+        uint32 numDescriptor = 0;
+
+        // シェーダーリフレクションからキーを生成
+        ShaderDescriptorSet& shaderset = reflection->descriptorSets[setIndex];
+        numDescriptor += key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE]          = shaderset.separateTextures.size();
+        numDescriptor += key.descriptorTypeCounts[DESCRIPTOR_TYPE_SAMPLER]        = shaderset.separateSamplers.size();
+        numDescriptor += key.descriptorTypeCounts[DESCRIPTOR_TYPE_IMAGE_SAMPLER]  = shaderset.imageSamplers.size();
+        numDescriptor += key.descriptorTypeCounts[DESCRIPTOR_TYPE_UNIFORM_BUFFER] = shaderset.uniformBuffers.size();
+        numDescriptor += key.descriptorTypeCounts[DESCRIPTOR_TYPE_STORAGE_IMAGE]  = shaderset.storageImages.size();
+        numDescriptor += key.descriptorTypeCounts[DESCRIPTOR_TYPE_STORAGE_BUFFER] = shaderset.storageBuffers.size();
+
+        // デスクリプタープール取得 (keyをもとに同一キーの空きプールがあれば取得、なければ新規生成) 
+        // ※同一プールは デフォルトで64個まで確保され、超えた場合は別プールが確保される
+        VkDescriptorPool vkPool = _FindOrCreateDescriptorPool(key);
+        SL_CHECK(!vkPool, nullptr);
+
+        VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
+        descriptorSetAllocateInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        descriptorSetAllocateInfo.descriptorPool     = vkPool;
+        descriptorSetAllocateInfo.descriptorSetCount = 1;
+        descriptorSetAllocateInfo.pSetLayouts        = &vkShader->descriptorsetLayouts[setIndex];
+
+        // デスクリプターセット生成
+        VkDescriptorSet vkdescriptorset = nullptr;
+        VkResult result = vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &vkdescriptorset);
+        if (result != VK_SUCCESS)
+        {
+            _DecrementPoolRefCount(vkPool, key);
+            
+            SL_LOG_LOCATION_ERROR(VkResultToString(result));
+            return nullptr;
+        }
+
+        VulkanDescriptorSet* descriptorset = slnew(VulkanDescriptorSet);
+        descriptorset->descriptorPool = vkPool;
+        descriptorset->descriptorSet  = vkdescriptorset;
+        descriptorset->pipelineLayout = vkShader->pipelineLayout;
+        descriptorset->poolKey        = key;
+        descriptorset->writes.resize(numDescriptor);
+
+        return descriptorset;
+    }
+
+    void VulkanAPI::UpdateDescriptorSet(DescriptorSetHandle* set, uint32 numdescriptors, DescriptorInfo* descriptors)
+    {
+        VulkanDescriptorSet* vkset = VulkanCast(set);
 
         // デスクリプタに実データ（イメージ・バッファ）書き込み
-        std::vector<VkWriteDescriptorSet> writes(numdescriptors);
-
+        VkWriteDescriptorSet* writes = SL_STACK(VkWriteDescriptorSet, numdescriptors);
         for (uint32 i = 0; i < numdescriptors; i++)
         {
             uint32 numHandles = 1;
@@ -2331,53 +2377,17 @@ namespace Silex
                 default: SL_ASSERT(false);
             }
 
-            // キーに使用デスクリプタ型の個数を加算
+            // 配列やバインドレス実装の場合を除いて、基本的には 1個
             writes[i].descriptorCount = numHandles;
-            key.descriptorTypeCounts[descriptor.type] += numHandles;
         }
 
-        // デスクリプタープール取得 (keyをもとに、生成済みのプールがあれば取得、なければ新規生成)
-        VkDescriptorPool vkPool = _FindOrCreateDescriptorPool(key);
-        SL_CHECK(!vkPool, nullptr);
+        for (uint32 i = 0; i < numdescriptors; i++)
+            writes[i].dstSet = vkset->descriptorSet;
 
-        VkDescriptorSetAllocateInfo descriptorSetAllocateInfo = {};
-        descriptorSetAllocateInfo.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        descriptorSetAllocateInfo.descriptorPool     = vkPool;
-        descriptorSetAllocateInfo.descriptorSetCount = 1;
-        descriptorSetAllocateInfo.pSetLayouts        = &vkShader->descriptorsetLayouts[setIndex];
+        for (uint32 i = 0; i < numdescriptors; i++)
+            vkset->writes[i] = writes[i];
 
-        // デスクリプターセット生成
-        VkDescriptorSet vkdescriptorset = nullptr;
-        VkResult result = vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &vkdescriptorset);
-        if (result != VK_SUCCESS)
-        {
-            _DecrementPoolRefCount(vkPool, key);
-            
-            SL_LOG_LOCATION_ERROR(VkResultToString(result));
-            return nullptr;
-        }
-
-        // デスクリプターセット更新
-        {
-            for (uint32 i = 0; i < numdescriptors; i++)
-                writes[i].dstSet = vkdescriptorset;
-
-            vkUpdateDescriptorSets(device, numdescriptors, writes.data(), 0, nullptr);
-        }
-
-        VulkanDescriptorSet* descriptorset = slnew(VulkanDescriptorSet);
-        descriptorset->descriptorPool = vkPool;
-        descriptorset->descriptorSet  = vkdescriptorset;
-        descriptorset->pipelineLayout = vkShader->pipelineLayout;
-        descriptorset->poolKey        = key;
-        descriptorset->writes         = writes;
-
-        return descriptorset;
-    }
-
-    void VulkanAPI::UpdateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors)
-    {
-
+        vkUpdateDescriptorSets(device, numdescriptors, writes, 0, nullptr);
     }
 
     void VulkanAPI::DestroyDescriptorSet(DescriptorSetHandle* descriptorset)

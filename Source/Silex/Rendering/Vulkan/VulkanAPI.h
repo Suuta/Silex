@@ -119,8 +119,8 @@ namespace Silex
         //--------------------------------------------------
         // デスクリプターセット
         //--------------------------------------------------
-        DescriptorSetHandle* CreateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors, ShaderHandle* shader, uint32 setIndex) override;
-        void UpdateDescriptorSet(uint32 numdescriptors, DescriptorInfo* descriptors) override;
+        DescriptorSetHandle* CreateDescriptorSet(ShaderHandle* shader, uint32 setIndex) override;
+        void UpdateDescriptorSet(DescriptorSetHandle* set, uint32 numdescriptors, DescriptorInfo* descriptors) override;
         void DestroyDescriptorSet(DescriptorSetHandle* descriptorset) override;
 
         //--------------------------------------------------

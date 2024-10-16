@@ -31,9 +31,11 @@ namespace Silex
         void SetConsoleAttribute(uint16 color)                      override;
         void OutputConsole(uint8 color, const std::string& message) override;
         void OutputDebugConsole(const std::string& message)         override;
+        void OutputDebugConsole(const std::wstring& message)        override;
 
         // メッセージ
         int32 Message(OSMessageType type, const std::string& message) override;
+        int32 Message(OSMessageType type, const std::wstring& message) override;
 
     private:
 

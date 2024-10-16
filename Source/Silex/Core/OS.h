@@ -47,9 +47,11 @@ namespace Silex
         virtual void SetConsoleAttribute(uint16 color)                      = 0;
         virtual void OutputConsole(uint8 color, const std::string& message) = 0;
         virtual void OutputDebugConsole(const std::string& message)         = 0;
+        virtual void OutputDebugConsole(const std::wstring& message)        = 0;
 
         // メッセージ
-        virtual int32 Message(OSMessageType type, const std::string& message) = 0;
+        virtual int32 Message(OSMessageType type, const std::string& message)  = 0;
+        virtual int32 Message(OSMessageType type, const std::wstring& message) = 0;
 
     protected:
 

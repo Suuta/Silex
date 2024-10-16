@@ -56,6 +56,7 @@ namespace Silex
         void OnMouseButtonReleased(MouseButtonReleasedEvent& e) override;
         void OnMouseScroll(MouseScrollEvent& e)                 override;
         void OnMouseMove(MouseMoveEvent& e)                     override;
+        void OnWindowMove(WindowMoveEvent& e)                   override;
 
     private:
 

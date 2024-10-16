@@ -109,19 +109,20 @@ float ShadowSampling(float bias, int layer, vec3 shadowMapCoords, float lightSpa
     vec2  texelSize   = 1.0 / vec2(textureSize(cascadeshadowMap, 0));
     float shadowColor = 0.0;
 
-    // 5 x 5 PCF
-    //for (float x = -2.0; x <= 2.0; x += 1.0)
-    //{
-    //    for (float y = -2.0; y <= 2.0; y += 1.0)
-    //    {
-    //        shadowColor += ShadowSampleOffset(shadowMapCoords, vec2(x, y), texelSize, layer, lightSpaceDepth, bias);
-    //    }
-    //}
-    //shadowColor /= 25;
+    // ソフトシャドウ (5 x 5 PCF)
+    for (float x = -2.0; x <= 2.0; x += 1.0)
+    {
+        for (float y = -2.0; y <= 2.0; y += 1.0)
+        {
+            shadowColor += ShadowSampleOffset(shadowMapCoords, vec2(x, y), texelSize, layer, lightSpaceDepth, bias);
+        }
+    }
+    shadowColor /= 25;
 
 
-    float depth = texture(cascadeshadowMap, vec4(shadowMapCoords.xy, layer, shadowMapCoords.z));
-    shadowColor = step(lightSpaceDepth - bias, depth);
+    // ソフトシャドウ なし
+    //float depth = texture(cascadeshadowMap, vec4(shadowMapCoords.xy, layer, shadowMapCoords.z));
+    //shadowColor = step(lightSpaceDepth - bias, depth);
 
     return shadowColor;
 }

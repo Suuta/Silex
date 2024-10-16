@@ -97,6 +97,9 @@ namespace Silex
         std::unordered_map<uint32, ShaderImage>  storageImages;
         std::unordered_map<uint32, ShaderImage>  separateTextures;
         std::unordered_map<uint32, ShaderImage>  separateSamplers;
+
+        //std::unordered_map<uint32, ShaderImage>  inputAttachment;
+        //std::unordered_map<uint32, ShaderImage>  inputAttachment;
     };
 
     //------------------------------------

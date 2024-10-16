@@ -35,6 +35,7 @@ namespace Silex
     SL_DECLARE_DELEGATE(MouseButtonReleasedDelegate, void, MouseButtonReleasedEvent&)
     SL_DECLARE_DELEGATE(MouseScrollDelegate,         void, MouseScrollEvent&)
     SL_DECLARE_DELEGATE(MouseMoveDelegate,           void, MouseMoveEvent&)
+    SL_DECLARE_DELEGATE(WindowMoveDelegate,          void, WindowMoveEvent&)
 
 
     // ウィンドウデータ
@@ -65,6 +66,7 @@ namespace Silex
         MouseButtonReleasedDelegate MouseButtonReleasedEvent;
         MouseScrollDelegate         MouseScrollEvent;
         MouseMoveDelegate           MouseMoveEvent;
+        WindowMoveDelegate          WindowMoveEvent;
     };
 
     // ウィンドウインターフェース
@@ -134,6 +136,7 @@ namespace Silex
         virtual void OnMouseButtonReleased(MouseButtonReleasedEvent& e) = 0;
         virtual void OnMouseScroll(MouseScrollEvent& e)                 = 0;
         virtual void OnMouseMove(MouseMoveEvent& e)                     = 0;
+        virtual void OnWindowMove(WindowMoveEvent& e)                   = 0;
 
     public:
 
@@ -145,6 +148,7 @@ namespace Silex
         SL_DECLARE_WINDOW_EVENT_FN(MouseButtonReleasedEvent);
         SL_DECLARE_WINDOW_EVENT_FN(MouseScrollEvent);
         SL_DECLARE_WINDOW_EVENT_FN(MouseMoveEvent);
+        SL_DECLARE_WINDOW_EVENT_FN(WindowMoveEvent);
 
     protected:
 

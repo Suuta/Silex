@@ -418,30 +418,6 @@ namespace Silex
         uint32 elements_in_chunk;
     };
 
-#if 0
-    class Texture
-    {
-
-    };
-
-    class RHITexture
-    {
-    public:
-
-        glm::ivec2     GetSize()         const { return size; }
-        TextureHandle* GetNativeHandle() const { return native; }
-
-    private:
-
-        glm::ivec2     size;
-        TextureHandle* native;
-    };
-    
-
-    ResourceStorage<RHITexture> texturre_storage;
-#endif
-
-
 
     template <typename T, bool THREAD_SAFE = false, uint32 DEFAULT_PAGE_SIZE = 4096>
     class PagedAllocator
@@ -512,6 +488,7 @@ namespace Silex
 
     private:
 
+        // 本家とは異なるが、自分で理解しやすい実装を採用
         uint32 _count_set_bit(uint64 value)
         {
             value = value == 0 ? 1 : value;
@@ -573,6 +550,10 @@ namespace Silex
 
             if constexpr (THREAD_SAFE) spin_lock.unlock();
         }
+
+        //----------------------------------------------
+        // コンストラクタ・デストラクタはスレッドセーフなのでは？
+        //----------------------------------------------
 
         PagedAllocator(uint32_t p_page_size = DEFAULT_PAGE_SIZE)
         {

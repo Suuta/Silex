@@ -28,6 +28,7 @@ namespace Silex
         static void OnMouseButton(GLFWwindow* window, int32 button, int32 action, int32 mods);
         static void OnScroll(GLFWwindow* window, double xOffset, double yOffset);
         static void OnCursorPos(GLFWwindow* window, double x, double y);
+        static void OnWindowMoved(GLFWwindow* window, int32 x, int32 y);
     }
 
     WindowsWindow::WindowsWindow(const char* title, uint32 width, uint32 height)
@@ -73,6 +74,8 @@ namespace Silex
         glfwSetMouseButtonCallback(window, Callback::OnMouseButton); // マウスボタン入力
         glfwSetScrollCallback(window,      Callback::OnScroll);      // マウススクロール
         glfwSetCursorPosCallback(window,   Callback::OnCursorPos);   // マウス位置
+        glfwSetWindowPosCallback(window,   Callback::OnWindowMoved); // ウィンドウ位置
+
 
         // ウィンドウサイズ同期（既に最大化で変化しているので、同期が必要）
         glfwGetWindowSize(window, (int*)&data->width, (int*)&data->height);
@@ -223,6 +226,10 @@ namespace Silex
     {
     }
 
+    void WindowsWindow::OnWindowMove(WindowMoveEvent& e)
+    {
+    }
+
 
 
 
@@ -327,6 +334,15 @@ namespace Silex
             MouseMoveEvent event((float)x, (float)y);
             data->OnMouseMove(event);
             data->GetWindowData()->MouseMoveEvent.Execute(event);
+        }
+
+        void OnWindowMoved(GLFWwindow* window, int32 x, int32 y)
+        {
+            WindowsWindow* data = ((WindowsWindow*)glfwGetWindowUserPointer(window));
+
+            WindowMoveEvent event(x, y);
+            data->OnWindowMove(event);
+            data->GetWindowData()->WindowMoveEvent.Execute(event);
         }
     }
 }

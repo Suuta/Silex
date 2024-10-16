@@ -30,6 +30,15 @@ namespace Silex
         WindowCloseEvent() {}
     };
 
+    struct WindowMoveEvent : public Event
+    {
+        SL_CLASS(WindowMoveEvent, Event)
+            WindowMoveEvent(uint32 x, uint32 y) : x(x), y(y) {}
+
+        uint32 x;
+        uint32 y;
+    };
+
     //======================================================================
     // キー入力
     //======================================================================
