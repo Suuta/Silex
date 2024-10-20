@@ -80,7 +80,7 @@ namespace Silex
         SL_CHECK(!result, false);
 
         // API抽象化レイヤー生成
-        rhi = slnew(RHI);
+        rhi = slnew(Renderer);
         result = rhi->Initialize(context);
         SL_CHECK(!result, false);
 
@@ -98,7 +98,7 @@ namespace Silex
         //Renderer::Get()->Init();
 
         // アセットマネージャー
-        //AssetManager::Get()->Init();
+        AssetManager::Init();
 
         // エディターUI (ImGui)
         gui = GUI::Create();
@@ -125,7 +125,7 @@ namespace Silex
         // ImGui 破棄
         sldelete(gui);
 
-        //AssetManager::Get()->Shutdown();
+        AssetManager::Shutdown();
         //Renderer::Get()->Shutdown();
 
         // ウィンドウコンテキスト破棄

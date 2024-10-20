@@ -5,7 +5,6 @@
 #include "Asset/Asset.h"
 #include "Serialize/Serialize.h"
 #include "Serialize/AssetSerializer.h"
-#include "Rendering/Renderer.h"
 #include "Rendering/Material.h"
 
 /*
@@ -65,7 +64,7 @@
 namespace Silex
 {
     template<>
-    void AssetSerializer<Material>::Serialize(const Shared<Material>& aseet, const std::string& filePath)
+    void AssetSerializer<Material>::Serialize(const Ref<Material>& aseet, const std::string& filePath)
     {
         AssetID albedoAssetID = Renderer::Get()->GetDefaultTexture()->GetAssetID();
         if (aseet->AlbedoMap) albedoAssetID = aseet->AlbedoMap->GetAssetID();
@@ -88,9 +87,9 @@ namespace Silex
     }
 
     template<>
-    Shared<Material> AssetSerializer<Material>::Deserialize(const std::string& filePath)
+    Ref<Material> AssetSerializer<Material>::Deserialize(const std::string& filePath)
     {
-        Shared<Material> material = CreateShared<Material>();
+        Ref<Material> material = CreateRef<Material>();
 
         YAML::Node data = YAML::LoadFile(filePath);
 
@@ -110,7 +109,7 @@ namespace Silex
         material->Albedo        = albedo;
 
         // テクスチャ読み込み完了を前提とする
-        const Shared<Texture2D>& texture = AssetManager::Get()->GetAssetAs<Texture2D>(albedoMap);
+        const Ref<Texture2D>& texture = AssetManager::Get()->GetAssetAs<Texture2D>(albedoMap);
         material->AlbedoMap = texture;
 
         return material;

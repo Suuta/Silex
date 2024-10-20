@@ -22,7 +22,7 @@ namespace Silex
         WindowsWindow(const char* title, uint32 width, uint32 height);
         ~WindowsWindow();
 
-        bool Initialize() override;
+        bool Initialize()    override;
         void ProcessMessage()override;
 
         // ウィンドウステート
@@ -33,15 +33,15 @@ namespace Silex
         void Hide()     override;
 
         // Get / Set
-        void        SetTitle(const std::string& title) override;
-        const char* GetTitle()                         const override;
-        glm::ivec2  GetSize()                          const override;
-        glm::ivec2  GetWindowPos()                     const override;
-        void*       GetPlatformHandle()                const override;
-        GLFWwindow* GetGLFWWindow()                    const override;
-        WindowData* GetWindowData()                    const override;
-        SurfaceHandle*    GetSurface()                       const override;
-        SwapChainHandle*  GetSwapChain()                     const override;
+        void             SetTitle(const std::string& title) override;
+        const char*      GetTitle()                         const override;
+        glm::ivec2       GetSize()                          const override;
+        glm::ivec2       GetWindowPos()                     const override;
+        void*            GetPlatformHandle()                const override;
+        GLFWwindow*      GetGLFWWindow()                    const override;
+        WindowData*      GetWindowData()                    const override;
+        SurfaceHandle*   GetSurface()                       const override;
+        SwapChainHandle* GetSwapChain()                     const override;
 
         // レンダーコンテキスト
         bool SetupWindowContext(RenderingContext* context)   override;

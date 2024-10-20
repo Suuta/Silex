@@ -22,8 +22,8 @@ namespace Silex
         data->eventName.Bind(Traits::Forward<T>(func));                \
     }
 
-    class  Window;
-    class  RenderingContext;
+    class Window;
+    class RenderingContext;
 
     using WindowCreateFunction = Window* (*)(const char* title, uint32 width, uint32 height);
 
@@ -117,11 +117,11 @@ namespace Silex
         virtual void        SetTitle(const std::string& title) = 0;
 
         // ウィンドウデータ
-        virtual GLFWwindow* GetGLFWWindow()     const = 0;
-        virtual WindowData* GetWindowData()     const = 0;
-        virtual SurfaceHandle*    GetSurface()        const = 0;
-        virtual SwapChainHandle*  GetSwapChain()      const = 0;
-        virtual void*       GetPlatformHandle() const = 0;
+        virtual GLFWwindow*      GetGLFWWindow()     const = 0;
+        virtual WindowData*      GetWindowData()     const = 0;
+        virtual SurfaceHandle*   GetSurface()        const = 0;
+        virtual SwapChainHandle* GetSwapChain()      const = 0;
+        virtual void*            GetPlatformHandle() const = 0;
 
         // レンダリングコンテキスト
         virtual bool SetupWindowContext(RenderingContext* context)   = 0;

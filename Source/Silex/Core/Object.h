@@ -67,7 +67,7 @@ namespace Silex
         
         // 参照カウント操作は参照カウントポインタからのみ操作可能にする
         template<class T>
-        friend class Shared;
+        friend class Ref;
     };
 
     //============================================

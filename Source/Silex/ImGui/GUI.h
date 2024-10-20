@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include "Core/SharedPointer.h"
+#include "Core/Ref.h"
 #include "Rendering/RenderingCore.h"
 
 

@@ -2,7 +2,7 @@
 #include "PCH.h"
 
 #include "Core/Engine.h"
-#include "Rendering/RHI.h"
+#include "Rendering/Renderer.h"
 #include "Rendering/RenderingContext.h"
 #include "Rendering/Vulkan/VulkanStructures.h"
 #include "Rendering/Vulkan/VulkanContext.h"
@@ -132,7 +132,7 @@ namespace Silex
 
         GLFWwindow*         glfw      = Window::Get()->GetGLFWWindow();
         VulkanSwapChain*    swapchain = (VulkanSwapChain*)Window::Get()->GetSwapChain();
-        VulkanCommandQueue* queue     = (VulkanCommandQueue*)RHI::Get()->GetGraphicsCommandQueue();
+        VulkanCommandQueue* queue     = (VulkanCommandQueue*)Renderer::Get()->GetGraphicsCommandQueue();
 
         Super::Init(vulkanContext);
 
@@ -174,11 +174,11 @@ namespace Silex
 
     void VulkanGUI::Render()
     {
-        const FrameData& frame = RHI::Get()->GetFrameData();
+        const FrameData& frame = Renderer::Get()->GetFrameData();
 
-        RHI::Get()->BeginSwapChainPass();
+        Renderer::Get()->BeginSwapChainPass();
         ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), ((VulkanCommandBuffer*)(frame.commandBuffer))->commandBuffer);
-        RHI::Get()->EndSwapChainPass();
+        Renderer::Get()->EndSwapChainPass();
     }
 
     void VulkanGUI::EndFrame()

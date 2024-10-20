@@ -6,7 +6,7 @@
 #include "Core/Timer.h"
 #include "Editor/Editor.h"
 #include "ImGui/GUI.h"
-#include "Rendering/RHI.h"
+#include "Rendering/Renderer.h"
 
 
 namespace Silex
@@ -49,7 +49,7 @@ namespace Silex
 
     private:
 
-        RHI*              rhi        = nullptr;
+        Renderer*         rhi        = nullptr;
         RenderingContext* context    = nullptr;
         Editor*           editor     = nullptr;
         GUI*              gui        = nullptr;

@@ -4,10 +4,9 @@
 #include "Asset/Asset.h"
 #include "Core/Random.h"
 #include "Editor/SplashImage.h"
-#include "Rendering/MeshFactory.h"
-#include "Rendering/Renderer.h"
-#include "Rendering/SkyLight.h"
-#include "Rendering/Texture.h"
+#include "Rendering/Mesh.h"
+#include "Rendering/Environment.h"
+#include "Rendering/RenderingStructures.h"
 #include "Serialize/AssetSerializer.h"
 
 #include <yaml-cpp/yaml.h>
@@ -65,84 +64,128 @@ namespace Silex
     //==================================================================================
 
 
+#if 0
+    {
+        // メッシュ
+        //m_QuadMesh = Shared<Mesh>(MeshFactory::Quad());
+        //m_QuadMesh->SetPrimitiveType(RHI::PrimitiveType::TriangleStrip);
+        //m_QuadMesh->GetFilePath() = "Quad";
+
+        m_CubeMesh = Ref<Mesh>(MeshFactory::Cube());
+        m_CubeMesh->SetPrimitiveType(rhi::PrimitiveType::Triangle);
+        m_CubeMesh->GetFilePath() = "Cube";
+
+        m_SphereMesh = Ref<Mesh>(MeshFactory::Sphere());
+        m_SphereMesh->SetPrimitiveType(rhi::PrimitiveType::TriangleStrip);
+        m_SphereMesh->GetFilePath() = "Sphere";
+
+        // テクスチャ
+        rhi::TextureDesc desc = {};
+        desc.Filter = rhi::TextureFilter::Linear;
+        desc.Wrap = rhi::TextureWrap::Repeat;
+        desc.GenMipmap = true;
+
+        m_DefaultTexture = Texture2D::Create(desc, "Assets/Textures/default.png");
+        m_CheckerboardTexture = Texture2D::Create(desc, "Assets/Textures/checkerboard.png");
+
+        // マテリアル
+        m_DefaultMaterial = CreateShared<Material>();
+    }
+
+    void Renderer::Shutdown()
+    {
+        m_SphereMesh.Reset();
+        m_QuadMesh.Reset();
+        m_CubeMesh.Reset();
+
+        m_DefaultMaterial.Reset();
+        m_DefaultTexture.Reset();
+        m_CheckerboardTexture.Reset();
+
+        s_RendererPlatform->Shutdown();
+        m_TaskQueue.Release();
+    }
+#endif
+
+
 
     AssetManager* AssetManager::Get()
     {
-        return s_Instance;
+        return instance;
     }
 
     void AssetManager::Init()
     {
-        SL_ASSERT(s_Instance == nullptr)
-        s_Instance = slnew(AssetManager);
+        SL_ASSERT(instance == nullptr)
+        instance = slnew(AssetManager);
 
         // ビルトインデータ(ID: 1 - 5 に割り当て)
         // アセットデータベースには登録されない（メモリオンリーアセット）
         {
             auto& tex = Renderer::Get()->GetDefaultTexture();
-            tex->SetAssetType(AssetType::Texture2D);
+            tex->SetAssetType(AssetType::Texture);
             tex->SetName("Default");
-            AssetManager::Get()->AddToAssetAndID(1, tex);
-            s_Instance->m_BuiltinAssetCount++;
+            instance->_AddToAssetAndID(1, tex);
+            instance->builtinAssetCount++;
 
             auto& checker = Renderer::Get()->GetCheckerboardexture();
-            checker->SetAssetType(AssetType::Texture2D);
+            checker->SetAssetType(AssetType::Texture);
             checker->SetName("Checkerboard");
-            AssetManager::Get()->AddToAssetAndID(2, checker);
-            s_Instance->m_BuiltinAssetCount++;
+            instance->_AddToAssetAndID(2, checker);
+            instance->builtinAssetCount++;
 
             auto& cube = Renderer::Get()->GetCubeMesh();
             cube->SetAssetType(AssetType::Mesh);
             cube->SetName("Cube");
-            AssetManager::Get()->AddToAssetAndID(3, cube);
-            s_Instance->m_BuiltinAssetCount++;
+            instance->_AddToAssetAndID(3, cube);
+            instance->builtinAssetCount++;
 
             auto& sphere = Renderer::Get()->GetSphereMesh();
             sphere->SetAssetType(AssetType::Mesh);
             sphere->SetName("Sphere");
-            AssetManager::Get()->AddToAssetAndID(4, sphere);
-            s_Instance->m_BuiltinAssetCount++;
+            instance->_AddToAssetAndID(4, sphere);
+            instance->builtinAssetCount++;
 
             auto& material = Renderer::Get()->GetDefaultMaterial();
             material->SetAssetType(AssetType::Material);
             material->SetName("DefaultMaterial");
             material->AlbedoMap = checker;
-            AssetManager::Get()->AddToAssetAndID(5, material);
-            s_Instance->m_BuiltinAssetCount++;
+            instance->_AddToAssetAndID(5, material);
+            instance->builtinAssetCount++;
         }
 
-        if (std::filesystem::exists(s_AssetDatabasePath))
+        if (std::filesystem::exists(assetDatabasePath))
         {
             // データベースからメタデータを取得
-            s_Instance->LoadAssetMetaDataFromDatabaseFile(s_AssetDatabasePath);
+            instance->_LoadAssetMetaDataFromDatabaseFile(assetDatabasePath);
         }
 
         // 物理ファイルとメタデータと照合しながらアセットディレクトリ全体を走査
-        s_Instance->InspectAssetDirectory(s_AssetDiectoryPath);
+        instance->_InspectAssetDirectory(assetDiectoryPath);
 
         // データベースファイルのメタデータを更新する
-        s_Instance->WriteDatabaseToFile(s_AssetDatabasePath);
+        instance->_WriteDatabaseToFile(assetDatabasePath);
 
         // メタデータを元に実際にアセットをメモリにロードする
-        s_Instance->LoadAssetToMemory(s_AssetDatabasePath);
+        instance->_LoadAssetToMemory(assetDatabasePath);
     }
 
     void AssetManager::Shutdown()
     {
         // データベースファイルのメタデータを更新する
-        s_Instance->WriteDatabaseToFile(s_AssetDatabasePath);
+        instance->_WriteDatabaseToFile(assetDatabasePath);
 
-        if (s_Instance)
+        if (instance)
         {
-            sldelete(s_Instance);
+            sldelete(instance);
         }
     }
 
     bool AssetManager::HasMetadata(const std::filesystem::path& directory)
     {
-        for (auto& [id, metadata] : m_Metadata)
+        for (auto& [id, metadata] : metadata)
         {
-            if (metadata.FilePath == directory)
+            if (metadata.path == directory)
                 return true;
         }
 
@@ -151,9 +194,9 @@ namespace Silex
 
     AssetMetadata AssetManager::GetMetadata(const std::filesystem::path& directory)
     {
-        for (auto& [id, metadata] : m_Metadata)
+        for (auto& [id, metadata] : metadata)
         {
-            if (metadata.FilePath == directory)
+            if (metadata.path == directory)
                 return metadata;
         }
 
@@ -162,35 +205,35 @@ namespace Silex
 
     bool AssetManager::IsLoaded(const AssetID id)
     {
-        return m_AssetData.contains(id);
+        return assetData.contains(id);
     }
 
     AssetMetadata AssetManager::GetMetadata(AssetID id)
     {
-        return m_Metadata[id];
+        return metadata[id];
     }
 
-    std::unordered_map<AssetID, Shared<Asset>>& AssetManager::GetAllAssets()
+    std::unordered_map<AssetID, Ref<Asset>>& AssetManager::GetAllAssets()
     {
-        return m_AssetData;
+        return assetData;
     }
 
     std::unordered_map<AssetID, AssetMetadata>& AssetManager::GetMetadatas()
     {
-        return m_Metadata;
+        return metadata;
     }
 
     uint64 AssetManager::GenerateAssetID()
     {
-        return Random<uint64>::Range(m_BuiltinAssetCount + 1, std::numeric_limits<uint64>::max());
+        return Random<uint64>::Range(builtinAssetCount + 1, std::numeric_limits<uint64>::max());
     }
 
     bool AssetManager::IsValidID(AssetID id)
     {
-        return id != 0 && id > m_BuiltinAssetCount;
+        return id != 0 && id > builtinAssetCount;
     }
 
-    void AssetManager::LoadAssetMetaDataFromDatabaseFile(const std::filesystem::path& filePath)
+    void AssetManager::_LoadAssetMetaDataFromDatabaseFile(const std::filesystem::path& filePath)
     {
         // ファイル読み込み
         std::ifstream stream(filePath);
@@ -215,56 +258,56 @@ namespace Silex
             // 現状、アセットが変更・削除されている場合は無視する
             //===========================================
 
-            AssetMetadata metadata;
-            metadata.ID       = n["id"].as<uint64_t>();
-            metadata.Type     = (AssetType)n["type"].as<uint32>();
-            metadata.FilePath = n["path"].as<std::string>();
+            AssetMetadata md;
+            md.id   = n["id"].as<uint64_t>();
+            md.type = (AssetType)n["type"].as<uint32>();
+            md.path = n["path"].as<std::string>();
 
             // 物理ファイルが存在しない
-            if (!std::filesystem::exists(metadata.FilePath))
+            if (!std::filesystem::exists(md.path))
             {
-                SL_LOG_ERROR("{}: が存在しません", metadata.FilePath.string().c_str());
+                SL_LOG_ERROR("{}: が存在しません", md.path.string().c_str());
                 continue;
             }
 
             // メタデータを登録
-            AssetID id = metadata.ID;
-            m_Metadata[id] = metadata;
+            AssetID id = md.id;
+            metadata[id] = md;
         }
     }
 
-    void AssetManager::InspectAssetDirectory(const std::filesystem::path& directory)
+    void AssetManager::_InspectAssetDirectory(const std::filesystem::path& directory)
     {
-        InspectRecursive(directory);
+        _InspectRecursive(directory);
     }
 
-    void AssetManager::InspectRecursive(const std::filesystem::path& directory)
+    void AssetManager::_InspectRecursive(const std::filesystem::path& directory)
     {
         // データベースファイルを読み込んでメタデータを取得した場合は LoadAssetMetaDataFromFile 関数で追加済みだが、
         // データベースファイルが存在しなかった場合、このタイミングにAddToMetadata関数で登録される
         for (auto& dir : std::filesystem::directory_iterator(directory))
         {
             // データベースファイルは無視する
-            if (dir.path() == s_AssetDatabasePath)
+            if (dir.path() == assetDatabasePath)
                 continue;
 
-            if (dir.is_directory()) InspectRecursive(dir.path());
-            else                    AddToMetadata(dir.path());
+            if (dir.is_directory()) _InspectRecursive(dir.path());
+            else                    _AddToMetadata(dir.path());
         }
     }
 
-    void AssetManager::AddToAssetAndID(const AssetID id, Shared<Asset> asset)
+    void AssetManager::_AddToAssetAndID(const AssetID id, Ref<Asset> asset)
     {
         asset->SetAssetID(id);
-        m_AssetData[id] = asset;
+        assetData[id] = asset;
     }
 
-    void AssetManager::AddToAsset(Shared<Asset> asset)
+    void AssetManager::_AddToAsset(Ref<Asset> asset)
     {
-        m_AssetData[asset->GetAssetID()] = asset;
+        assetData[asset->GetAssetID()] = asset;
     }
 
-    AssetMetadata AssetManager::AddToMetadata(const std::filesystem::path& directory)
+    AssetMetadata AssetManager::_AddToMetadata(const std::filesystem::path& directory)
     {
         // ディレクトリ区切り文字変換
         std::string path = directory.string();
@@ -276,44 +319,44 @@ namespace Silex
             return {};
 
         // なければ新規登録
-        AssetMetadata metadata;
-        metadata.ID       = GenerateAssetID();
-        metadata.FilePath = dir;
-        metadata.Type     = FileNameToAssetType(dir);
+        AssetMetadata md;
+        md.id   = GenerateAssetID();
+        md.path = dir;
+        md.type = FileNameToAssetType(dir);
 
-        m_Metadata[metadata.ID] = metadata;
-        return metadata;
+        metadata[md.id] = md;
+        return md;
     }
 
-    void AssetManager::RemoveFromMetadata(const AssetID id)
+    void AssetManager::_RemoveFromMetadata(const AssetID id)
     {
-        if (m_Metadata.contains(id))
+        if (metadata.contains(id))
         {
-            m_Metadata.erase(id);
+            metadata.erase(id);
         }
     }
 
-    void AssetManager::RemoveFromAsset(const AssetID id)
+    void AssetManager::_RemoveFromAsset(const AssetID id)
     {
-        if (m_AssetData.contains(id))
+        if (assetData.contains(id))
         {
-            m_AssetData.erase(id);
+            assetData.erase(id);
         }
     }
 
-    void AssetManager::WriteDatabaseToFile(const std::filesystem::path& directory)
+    void AssetManager::_WriteDatabaseToFile(const std::filesystem::path& directory)
     {
         YAML::Emitter out;
 
         out << YAML::BeginMap << YAML::Key << "AssetDatabase";
         out << YAML::BeginSeq;
 
-        for (auto& [id, metadata] : m_Metadata)
+        for (auto& [id, metadata] : metadata)
         {
             out << YAML::BeginMap;
-            out << YAML::Key << "id"   << YAML::Value << metadata.ID;
-            out << YAML::Key << "type" << YAML::Value << (uint32)metadata.Type;
-            out << YAML::Key << "path" << YAML::Value << metadata.FilePath.string();
+            out << YAML::Key << "id"   << YAML::Value << metadata.id;
+            out << YAML::Key << "type" << YAML::Value << (uint32)metadata.type;
+            out << YAML::Key << "path" << YAML::Value << metadata.path.string();
             out << YAML::EndMap;
         }
 
@@ -328,73 +371,67 @@ namespace Silex
     // マテリアルがテクスチャに依存するので、アセットタイプごとにイテレーションするようにする
     // 必要があれば、アセットタイプごとのデータ群を返す関数を追加する
     //===========================================================================
-    void AssetManager::LoadAssetToMemory(const std::filesystem::path& filePath)
+    void AssetManager::_LoadAssetToMemory(const std::filesystem::path& filePath)
     {
         INIT_PROCESS("Load Texture", 20);
 
         // テクスチャ2D: マテリアルから参照されるので、最初に読み込むこと!
-        for (auto& [ud, metadata] : m_Metadata)
+        for (auto& [ud, md] : metadata)
         {
-            if (metadata.Type == AssetType::Texture2D)
+            if (md.type == AssetType::Texture)
             {
-                AssetID id       = metadata.ID;
-                std::string path = metadata.FilePath.string();
+                AssetID id       = md.id;
+                std::string path = md.path.string();
 
-                Shared<Asset> asset = nullptr;
+                Ref<Asset> asset = nullptr;
                 asset = LoadAssetFromFile<Texture2D>(path);
 
-                s_Instance->AddToAssetAndID(id, asset);
+                instance->_AddToAssetAndID(id, asset);
             }
         }
 
         INIT_PROCESS("Load EnvironmentMap", 40);
 
         // 環境マップ
-        for (auto& [ud, metadata] : m_Metadata)
+        for (auto& [ud, md] : metadata)
         {
-            if (metadata.Type == AssetType::SkyLight)
+            if (md.type == AssetType::Environment)
             {
-                AssetID id       = metadata.ID;
-                std::string path = metadata.FilePath.string();
+                AssetID id       = md.id;
+                std::string path = md.path.string();
 
-                Shared<Asset> asset = nullptr;
-                asset = LoadAssetFromFile<SkyLight>(path);
-
-                s_Instance->AddToAssetAndID(id, asset);
+                Ref<Asset> asset = LoadAssetFromFile<Environment>(path);
+                instance->_AddToAssetAndID(id, asset);
             }
         }
 
         INIT_PROCESS("Load Material", 60);
 
         // マテリアル
-        for (auto& [ud, metadata] : m_Metadata)
+        for (auto& [ud, md] : metadata)
         {
-            if (metadata.Type == AssetType::Material)
+            if (md.type == AssetType::Material)
             {
-                AssetID id = metadata.ID;
-                std::string path = metadata.FilePath.string();
+                AssetID id       = md.id;
+                std::string path = md.path.string();
 
-                Shared<Asset> asset = nullptr;
-                asset = LoadAssetFromFile<Material>(path);
-
-                s_Instance->AddToAssetAndID(id, asset);
+                Ref<Asset> asset = LoadAssetFromFile<Material>(path);
+                instance->_AddToAssetAndID(id, asset);
             }
         }
 
         INIT_PROCESS("Load Mesh", 80);
 
         // メッシュ
-        for (auto& [ud, metadata] : m_Metadata)
+        for (auto& [ud, md] : metadata)
         {
-            if (metadata.Type == AssetType::Mesh)
+            if (md.type == AssetType::Mesh)
             {
-                AssetID id = metadata.ID;
-                std::string path = metadata.FilePath.string();
+                AssetID id       = md.id;
+                std::string path = md.path.string();
 
-                Shared<Asset> asset = nullptr;
-                asset = LoadAssetFromFile<Mesh>(path);
-
-                s_Instance->AddToAssetAndID(id, asset);
+                Ref<Asset> asset = LoadAssetFromFile<Mesh>(path);
+                instance->_AddToAssetAndID(id, asset);
             }
         }
     }

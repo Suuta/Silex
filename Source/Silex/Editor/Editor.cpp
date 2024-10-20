@@ -419,7 +419,7 @@ namespace Silex
 
     void Editor::OpenScene(const std::string& filePath)
     {
-        Shared<Scene> newScene = CreateShared<Scene>();
+        Ref<Scene> newScene = CreateShared<Scene>();
 
         SceneSerializer serializer(newScene.Get());
         serializer.Deserialize(filePath);
@@ -472,7 +472,7 @@ namespace Silex
 
     void Editor::NewScene()
     {
-        Shared<Scene> newScene = CreateShared<Scene>();
+        Ref<Scene> newScene = CreateShared<Scene>();
 
         m_Scene = newScene;
         m_SceneRenderer.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);

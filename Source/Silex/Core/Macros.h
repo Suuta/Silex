@@ -38,7 +38,7 @@
 #define SL_ARG3(_1, _2, _3, ...) _3
 
 // インターフェース抽象化ハンドル
-#define SL_HANDLE(name) class name : public Handle {};
+#define SL_DECLARE_HANDLE(name) class name : public Handle {};
 
 
 // C++20 からは STLでも 分岐予測のヒントが可能になった

@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Core/Core.h"
-#include "Core/SharedPointer.h"
+#include "Core/Ref.h"
 
 
 namespace Silex
@@ -18,7 +18,7 @@ namespace Silex
         AssetSerializer()          = default;
         virtual ~AssetSerializer() = default;
 
-        static void      Serialize(const Shared<T>& aseet, const std::string& filePath);
-        static Shared<T> Deserialize(const std::string& filePath);
+        static void   Serialize(const Ref<T>& aseet, const std::string& filePath);
+        static Ref<T> Deserialize(const std::string& filePath);
     };
 }

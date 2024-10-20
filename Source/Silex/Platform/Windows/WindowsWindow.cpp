@@ -6,7 +6,7 @@
 #include "Asset/TextureReader.h"
 #include "Platform/Windows/WindowsWindow.h"
 #include "Rendering/RenderingCore.h"
-#include "Rendering/RHI.h"
+#include "Rendering/Renderer.h"
 #include "Rendering/Vulkan/Windows/WindowsVulkanContext.h"
 
 #ifndef GLFW_EXPOSE_NATIVE_WIN32
@@ -98,7 +98,7 @@ namespace Silex
         SL_CHECK(!renderingSurface, false);
 
         // スワップチェイン生成
-        swapchain = RHI::Get()->CreateSwapChain(renderingSurface, data->width, data->height, data->vsync);
+        swapchain = Renderer::Get()->CreateSwapChain(renderingSurface, data->width, data->height, data->vsync);
         SL_CHECK(!swapchain, false);
 
         return true;
@@ -107,7 +107,7 @@ namespace Silex
     void WindowsWindow::CleanupWindowContext(RenderingContext* context)
     {
         // スワップチェイン破棄
-        RHI::Get()->DestoySwapChain(swapchain);
+        Renderer::Get()->DestoySwapChain(swapchain);
 
         // サーフェース破棄
         context->DestroySurface(renderingSurface);
@@ -199,7 +199,7 @@ namespace Silex
 
     void WindowsWindow::OnWindowResize(WindowResizeEvent& e)
     {
-        RHI::Get()->ResizeSwapChain(swapchain, data->width, data->height, data->vsync);
+        Renderer::Get()->ResizeSwapChain(swapchain, data->width, data->height, data->vsync);
     }
 
     void WindowsWindow::OnKeyPressed(KeyPressedEvent& e)

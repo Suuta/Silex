@@ -42,8 +42,8 @@ namespace Silex
     {
         SL_CLASS(MeshComponent, Class)
 
-        Shared<Mesh>                  mesh       = nullptr;
-        std::vector<Shared<Material>> materials  = {};
+        Ref<Mesh>                  mesh       = nullptr;
+        std::vector<Ref<Material>> materials  = {};
         bool                          castShadow = true;
     };
 
@@ -67,7 +67,7 @@ namespace Silex
         bool  enableIBL = true;
         float intencity = 1.0f;
 
-        Shared<SkyLight> sky;
+        Ref<Environment> sky;
     };
 
     struct PostProcessComponent : public Class

@@ -2,8 +2,7 @@
 #pragma once
 
 #include "Core/Core.h"
-#include "Core/SharedPointer.h"
-#include "Rendering/Renderer.h"
+#include "Core/Ref.h"
 #include "Serialize/AssetSerializer.h"
 
 
@@ -28,11 +27,13 @@ namespace Silex
     {
     public:
 
-        static Shared<Material> Create(const std::filesystem::path& directory, Args&&... args)
+        static Ref<Material> Create(const std::filesystem::path& directory, Args&&... args)
         {
-            Shared<Material> asset = CreateShared<Material>(Traits::Forward<Args>(args)...);
+            Ref<Material> asset = CreateRef<Material>(Traits::Forward<Args>(args)...);
             asset->SetupAssetProperties(directory.string(), AssetType::Material);
-            asset->AlbedoMap = Renderer::Get()->GetDefaultTexture();
+
+            //TODO: アセットマネージャーから取得するように変更
+            //asset->AlbedoMap = Renderer::Get()->GetDefaultTexture();
 
             AssetSerializer<Material>::Serialize(asset, directory.string());
 

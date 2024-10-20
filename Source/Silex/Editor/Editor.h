@@ -2,11 +2,9 @@
 #pragma once
 
 #include "Core/Core.h"
-#include "Core/SharedPointer.h"
+#include "Core/Ref.h"
 #include "Rendering/Mesh.h"
-#include "Rendering/Shader.h"
-#include "Rendering/Camera.h"
-#include "Scene/SceneRenderer.h"
+#include "Scene/Camera.h"
 #include "Editor/ScenePropertyPanel.h"
 #include "Editor/AssetBrowserPanel.h"
 
@@ -73,8 +71,8 @@ namespace Silex
 
     private:
 
-        Shared<Scene> m_Scene;
-        SceneRenderer m_SceneRenderer;
+        Ref<Scene> m_Scene;
+        //SceneRenderer m_SceneRenderer;
 
         ScenePropertyPanel m_ScenePropertyPanel;
         AssetBrowserPanel  m_AssetBrowserPanel;

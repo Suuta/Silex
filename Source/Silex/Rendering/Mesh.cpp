@@ -2,8 +2,7 @@
 #include "PCH.h"
 
 #include "Rendering/Mesh.h"
-#include "Rendering/Texture.h"
-#include "Rendering/RHI.h"
+#include "Rendering/Renderer.h"
 #include "Asset/TextureReader.h"
 #include "Editor/SplashImage.h"
 
@@ -36,8 +35,8 @@ namespace Silex
         , hasIndex(!indices.empty())
         , materialIndex(materialIndex)
     {
-        vertexBuffer = RHI::Get()->CreateVertexBuffer(vertices.data(), sizeof(Vertex) * vertexCount);
-        indexBuffer  = RHI::Get()->CreateIndexBuffer(indices.data(), sizeof(uint32) * indexCount);
+        vertexBuffer = Renderer::Get()->CreateVertexBuffer(vertices.data(), sizeof(Vertex) * vertexCount);
+        indexBuffer  = Renderer::Get()->CreateIndexBuffer(indices.data(), sizeof(uint32) * indexCount);
     }
 
     MeshSource::MeshSource(uint64 numVertex, Vertex* vertices, uint64 numIndex, uint32* indices, uint32 materialIndex)
@@ -46,14 +45,14 @@ namespace Silex
         , hasIndex(indices != nullptr || numIndex == 0)
         , materialIndex(materialIndex)
     {
-        vertexBuffer = RHI::Get()->CreateVertexBuffer(vertices, sizeof(Vertex) * vertexCount);
-        indexBuffer  = RHI::Get()->CreateIndexBuffer(indices, sizeof(uint32) * indexCount);
+        vertexBuffer = Renderer::Get()->CreateVertexBuffer(vertices, sizeof(Vertex) * vertexCount);
+        indexBuffer  = Renderer::Get()->CreateIndexBuffer(indices, sizeof(uint32) * indexCount);
     }
 
     MeshSource::~MeshSource()
     {
-        if (vertexBuffer) RHI::Get()->DestroyBuffer(vertexBuffer);
-        if (indexBuffer) RHI::Get()->DestroyBuffer(indexBuffer);
+        if (vertexBuffer) Renderer::Get()->DestroyBuffer(vertexBuffer);
+        if (indexBuffer) Renderer::Get()->DestroyBuffer(indexBuffer);
     }
 
     void MeshSource::Bind() const
@@ -79,7 +78,7 @@ namespace Silex
 
     void Mesh::Load(const std::filesystem::path& filePath)
     {
-        m_FilePath = filePath.string();
+        assetFilePath = filePath.string();
 
         uint32 flags = 0;
         flags |= aiProcess_OptimizeMeshes;
@@ -91,7 +90,7 @@ namespace Silex
 
         // メッシュファイルを読み込み
         Assimp::Importer importer;
-        const aiScene* scene = importer.ReadFile(m_FilePath, flags);
+        const aiScene* scene = importer.ReadFile(assetFilePath, flags);
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
             SL_LOG_ERROR("Assimp Error: {}", importer.GetErrorString());
@@ -241,7 +240,7 @@ namespace Silex
             std::replace(aspath.begin(), aspath.end(), '\\', '/');
 
             // テクスチャファイルのディレクトリに変換
-            std::filesystem::path modelFilePath = m_FilePath;
+            std::filesystem::path modelFilePath = assetFilePath;
             std::string parentPath = modelFilePath.parent_path().string();
             std::string path       = parentPath + '/' + aspath;
 
@@ -249,5 +248,40 @@ namespace Silex
             tex.Path   = path;
             tex.Albedo = 0;
         }
+    }
+
+
+
+
+    Mesh* MeshFactory::Cube()
+    {
+        Mesh* mesh = slnew(Mesh);
+        mesh->Load("Assets/Models/Cube.fbx");
+
+        return mesh;
+    }
+
+    Mesh* MeshFactory::Sphere()
+    {
+        Mesh* mesh = slnew(Mesh);
+        mesh->Load("Assets/Models/Sphere.fbx");
+
+        return mesh;
+    }
+
+    Mesh* MeshFactory::Monkey()
+    {
+        Mesh* mesh = slnew(Mesh);
+        mesh->Load("Assets/Models/Monkey.fbx");
+
+        return mesh;
+    }
+
+    Mesh* MeshFactory::Sponza()
+    {
+        Mesh* mesh = slnew(Mesh);
+        mesh->Load("Assets/Models/Sponza/Sponza.fbx");
+
+        return mesh;
     }
 }

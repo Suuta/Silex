@@ -16,7 +16,7 @@ namespace Silex
         void Render(bool* showOutlinerPannel, bool* showPropertyPannel);
 
         // シーンを設定
-        void SetScene(const Shared<Scene>& scn) { scene = scn; selectEntity = {}; }
+        void SetScene(const Ref<Scene>& scn) { scene = scn; selectEntity = {}; }
 
         // 選択エンティティ
         Entity GetSelectedEntity() const        { return selectEntity;   }
@@ -43,7 +43,7 @@ namespace Silex
 
     private:
 
-        Shared<Scene> scene;
+        Ref<Scene> scene;
         Entity        selectEntity;
     };
 }

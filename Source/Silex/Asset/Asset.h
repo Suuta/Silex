@@ -10,26 +10,24 @@
 namespace Silex
 {
     class Material;
-
-
-
     using AssetID = uint64;
 
     enum class AssetType : uint32
     {
-        None      = 0,
-        Scene     = 1,
-        Mesh      = 2,
-        Texture2D = 4,
-        Material  = 8,
-        SkyLight  = 16,
+        Scene       = SL_BIT(0),
+        Mesh        = SL_BIT(1),
+        Texture     = SL_BIT(2),
+        Material    = SL_BIT(3),
+        Environment = SL_BIT(4),
+
+        None = 0,
     };
 
     struct AssetMetadata
     {
-        AssetID               ID;
-        AssetType             Type;
-        std::filesystem::path FilePath;
+        AssetID               id;
+        AssetType             type;
+        std::filesystem::path path;
     };
 
     class Asset : public Object
@@ -38,35 +36,35 @@ namespace Silex
 
     public:
 
-        bool IsAssetOf(AssetType flag)  { return m_AssetFlag == flag; }
-        bool operator==(AssetType flag) { return m_AssetFlag == flag; }
-        bool operator!=(AssetType flag) { return m_AssetFlag != flag; }
+        bool IsAssetOf(AssetType flag)  { return assetFlag == flag; }
+        bool operator==(AssetType flag) { return assetFlag == flag; }
+        bool operator!=(AssetType flag) { return assetFlag != flag; }
 
         // フラグ
-        void      SetAssetType(AssetType flag) { m_AssetFlag = flag; }
-        AssetType GetAssetType()               { return m_AssetFlag; }
+        void      SetAssetType(AssetType flag) { assetFlag = flag; }
+        AssetType GetAssetType()               { return assetFlag; }
 
         // ファイルパス
-        std::string& GetFilePath()                        { return m_FilePath; }
-        void         SetFilePath(const std::string& path) { m_FilePath = path; }
+        std::string& GetFilePath()                        { return assetFilePath; }
+        void         SetFilePath(const std::string& path) { assetFilePath = path; }
 
         // ID
-        AssetID GetAssetID() const     { return m_AssetID; }
-        void    SetAssetID(AssetID id) { m_AssetID = id;   }
+        AssetID GetAssetID() const     { return assetID; }
+        void    SetAssetID(AssetID id) { assetID = id;   }
 
         // 名前
-        void               SetName(const std::string& name) { m_Name = name; }
-        const std::string& GetName() const                  { return m_Name; }
+        void               SetName(const std::string& name) { assetName = name; }
+        const std::string& GetName() const                  { return assetName; }
 
         // プロパティ設定
         void SetupAssetProperties(const std::string& filePath, AssetType flag);
 
     protected:
 
-        AssetID     m_AssetID   = 0;
-        AssetType   m_AssetFlag = AssetType::None;
-        std::string m_FilePath  = {};
-        std::string m_Name      = {};
+        AssetID     assetID        = 0;
+        AssetType   assetFlag      = AssetType::None;
+        std::string assetFilePath  = {};
+        std::string assetName      = {};
     };
 
 
@@ -77,8 +75,10 @@ namespace Silex
         if      (extention == ".slmt")                       return AssetType::Material;
         else if (extention == ".slsc")                       return AssetType::Scene;
         else if (extention == ".fbx" || extention == ".obj") return AssetType::Mesh;
-        else if (extention == ".png" || extention == ".jpg") return AssetType::Texture2D;
-        else if (extention == ".hdr")                        return AssetType::SkyLight;
+        else if (extention == ".png" || extention == ".jpg") return AssetType::Texture;
+
+        // 環境マップは拡張子ではなく、マテリアルと同様な扱いに変更。ただし、シリアライズ化(.slenv) は未実装
+        //else if (extention == ".hdr") return AssetType::Environment;
 
         return AssetType::None;
     }
@@ -113,52 +113,52 @@ namespace Silex
         // アセット
         //=================================
         bool IsLoaded(const AssetID id);
-        std::unordered_map<AssetID, Shared<Asset>>& GetAllAssets();
+        std::unordered_map<AssetID, Ref<Asset>>& GetAllAssets();
 
         template<class T>
-        Shared<T> GetAssetAs(const AssetID id)
+        Ref<T> GetAssetAs(const AssetID id)
         {
-            return m_AssetData[id].As<T>();
+            return assetData[id].As<T>();
         }
 
-        Shared<Asset> GetAsset(const AssetID id)
+        Ref<Asset> GetAsset(const AssetID id)
         {
-            return m_AssetData[id];
+            return assetData[id];
         }
 
         template<class T, class... Args>
-        Shared<T> CreateAsset(const std::filesystem::path& directory, Args&&... args)
+        Ref<T> CreateAsset(const std::filesystem::path& directory, Args&&... args)
         {
             //　現状はマテリアルのみサポート (インポートと生成との意味合いが混同しているため)
             static_assert(Traits::IsSame<Material, T>() && Traits::IsBaseOf<Asset, T>());
 
-            AssetMetadata metadata = s_Instance->AddToMetadata(directory);
-            Shared<T> asset = AssetCreator<T>::Create(directory, Traits::Forward<Args>(args)...);
+            AssetMetadata metadata = instance->_AddToMetadata(directory);
+            Ref<T> asset = AssetCreator<T>::Create(directory, Traits::Forward<Args>(args)...);
 
-            s_Instance->AddToAssetAndID(metadata.ID, asset);
-            s_Instance->WriteDatabaseToFile(s_AssetDatabasePath);
+            instance->_AddToAssetAndID(metadata.id, asset);
+            instance->_WriteDatabaseToFile(assetDatabasePath);
 
             return asset;
         }
 
         void DeleteAsset(const AssetID id)
         {
-            AssetMetadata data = s_Instance->GetMetadata(id);
-            std::string path   = data.FilePath.string();
+            AssetMetadata data = instance->GetMetadata(id);
+            std::string path   = data.path.string();
 
             // アセットファイルを削除
             std::remove(path.c_str());
 
             // リストから削除
-            s_Instance->RemoveFromMetadata(id);
-            s_Instance->RemoveFromAsset(id);
+            instance->_RemoveFromMetadata(id);
+            instance->_RemoveFromAsset(id);
 
             // シリアライズ
-            s_Instance->WriteDatabaseToFile(s_AssetDatabasePath);
+            instance->_WriteDatabaseToFile(assetDatabasePath);
         }
 
         template<typename T>
-        Shared<Asset> LoadAssetFromFile(const std::string& filePath)
+        Ref<Asset> LoadAssetFromFile(const std::string& filePath)
         {
             static_assert(Traits::IsBaseOf<Asset, T>());
 
@@ -167,38 +167,41 @@ namespace Silex
 
     private:
 
+        // ビルトインアセット生成
+        void _CreateBuiltinAssets();
+
         // アセットデータベースファイルからメタデータを読み込む
-        void LoadAssetMetaDataFromDatabaseFile(const std::filesystem::path& filePath);
+        void _LoadAssetMetaDataFromDatabaseFile(const std::filesystem::path& filePath);
 
         // 物理ファイルとメタデータと照合しながら、アセットディレクトリ全体を走査
-        void InspectAssetDirectory(const std::filesystem::path& directory);
-        void InspectRecursive(const std::filesystem::path& directory);
+        void _InspectAssetDirectory(const std::filesystem::path& directory);
+        void _InspectRecursive(const std::filesystem::path& directory);
 
         // アセット・メタデータ追加
-        AssetMetadata AddToMetadata(const std::filesystem::path& directory);
-        void          AddToAssetAndID(const AssetID id, Shared<Asset> asset);
-        void          AddToAsset(Shared<Asset> asset);
+        AssetMetadata _AddToMetadata(const std::filesystem::path& directory);
+        void          _AddToAssetAndID(const AssetID id, Ref<Asset> asset);
+        void          _AddToAsset(Ref<Asset> asset);
 
         // アセット・メタデータ削除
-        void RemoveFromMetadata(const AssetID id);
-        void RemoveFromAsset(const AssetID id);
+        void _RemoveFromMetadata(const AssetID id);
+        void _RemoveFromAsset(const AssetID id);
 
         // アセットデータベースファイルにメタデータを書き込む
-        void WriteDatabaseToFile(const std::filesystem::path& directory);
+        void _WriteDatabaseToFile(const std::filesystem::path& directory);
 
         // メモリにアセットをロードする
-        void LoadAssetToMemory(const std::filesystem::path& filePath);
+        void _LoadAssetToMemory(const std::filesystem::path& filePath);
 
     private:
 
-        uint32 m_BuiltinAssetCount = 0;
+        uint32 builtinAssetCount = 0;
 
-        std::unordered_map<AssetID, Shared<Asset>> m_AssetData;
-        std::unordered_map<AssetID, AssetMetadata> m_Metadata;
+        std::unordered_map<AssetID, Ref<Asset>>    assetData;
+        std::unordered_map<AssetID, AssetMetadata> metadata;
 
-        static inline const char* s_AssetDatabasePath = "Assets/AssetDatabase.yml";
-        static inline const char* s_AssetDiectoryPath = "Assets";
+        static inline const char* assetDatabasePath = "Assets/AssetDatabase.yml";
+        static inline const char* assetDiectoryPath = "Assets";
 
-        static inline AssetManager* s_Instance;
+        static inline AssetManager* instance;
     };
 }

@@ -158,10 +158,10 @@ namespace Silex
         }
     }
 
-    AssetID AssetBrowserPanel::TraversePhysicalDirectories(const std::filesystem::path& directory, const Shared<DirectoryNode>& parentDirectory)
+    AssetID AssetBrowserPanel::TraversePhysicalDirectories(const std::filesystem::path& directory, const Ref<DirectoryNode>& parentDirectory)
     {
         // ディレクトリをアセットとして扱い、アセットIDを生成する（このIDシリアライズされず、起動の度に変化する）
-        Shared<DirectoryNode> node = CreateShared<DirectoryNode>();
+        Ref<DirectoryNode> node = CreateRef<DirectoryNode>();
         node->ID              = AssetManager::Get()->GenerateAssetID();
         node->ParentDirectory = parentDirectory;
 
@@ -182,7 +182,7 @@ namespace Silex
 
             // メタデータの検証
             auto metadata = AssetManager::Get()->GetMetadata(entry.path());
-            if (!AssetManager::Get()->IsValidID(metadata.ID))
+            if (!AssetManager::Get()->IsValidID(metadata.id))
             {
                 AssetType type = FileNameToAssetType(entry.path());
                 if (type == AssetType::None)
@@ -192,14 +192,14 @@ namespace Silex
                 // AssetManager::Get()->AddToMetadata(entry.path())
             }
 
-            node->Assets.push_back(metadata.ID);
+            node->Assets.push_back(metadata.id);
         }
 
         m_Directories[node->ID] = node;
         return node->ID;
     }
 
-    void AssetBrowserPanel::ChangeDirectory(const Shared<DirectoryNode>& directory)
+    void AssetBrowserPanel::ChangeDirectory(const Ref<DirectoryNode>& directory)
     {
         m_CurrentDirectoryAssetItems.clear();
 
@@ -207,26 +207,26 @@ namespace Silex
         for (auto& [id, node] : directory->ChildDirectory)
         {
             std::string fileName = node->FilePath.filename().string();
-            m_CurrentDirectoryAssetItems[id] = (CreateShared<AssetBrowserItem>(AssetItemType::Directory, id, std::move(fileName), m_DirectoryIcon));
+            m_CurrentDirectoryAssetItems[id] = (CreateRef<AssetBrowserItem>(AssetItemType::Directory, id, std::move(fileName), m_DirectoryIcon));
         }
 
         // アセットファイル追加
         for (auto& id : directory->Assets)
         {
             auto metadata = AssetManager::Get()->GetMetadata(id);
-            if (metadata.FilePath.empty())
+            if (metadata.path.empty())
             {
                 continue;
             }
 
-            std::string fileName = metadata.FilePath.filename().string();
-            m_CurrentDirectoryAssetItems[id] = (CreateShared<AssetBrowserItem>(AssetItemType::Asset, id, std::move(fileName), m_AssetIcons[metadata.Type]));
+            std::string fileName = metadata.path.filename().string();
+            m_CurrentDirectoryAssetItems[id] = (CreateRef<AssetBrowserItem>(AssetItemType::Asset, id, std::move(fileName), m_AssetIcons[metadata.type]));
         }
 
         m_CurrentDirectory = directory;
     }
 
-    void AssetBrowserPanel::DrawDirectory(const Shared<DirectoryNode>& node)
+    void AssetBrowserPanel::DrawDirectory(const Ref<DirectoryNode>& node)
     {
         std::string label    = node->FilePath.filename().string();
         bool open            = ImGui::TreeNode(label.c_str());
@@ -267,10 +267,10 @@ namespace Silex
                         std::string path      = directory + "/" + filename;
 
                         // 新規アセット生成
-                        Shared<Material> materialAsset = AssetManager::Get()->CreateAsset<Material>(path);
+                        Ref<Material> materialAsset = AssetManager::Get()->CreateAsset<Material>(path);
 
                         // アセットブラウザのアセットリストに追加
-                        m_CurrentDirectoryAssetItems[materialAsset->GetAssetID()] = (CreateShared<AssetBrowserItem>(AssetItemType::Asset, materialAsset->GetAssetID(), std::move(filename), m_AssetIcons[AssetType::Material]));
+                        m_CurrentDirectoryAssetItems[materialAsset->GetAssetID()] = (CreateRef<AssetBrowserItem>(AssetItemType::Asset, materialAsset->GetAssetID(), std::move(filename), m_AssetIcons[AssetType::Material]));
                     }
                 }
 
@@ -337,7 +337,7 @@ namespace Silex
 
         ImGui::Separator();
 
-        Shared<Material> material    = m_SelectAsset.As<Material>();
+        Ref<Material> material    = m_SelectAsset.As<Material>();
         uint32 albedoTextureThumnail = material->AlbedoMap? material->AlbedoMap->GetID() : 0;
 
         ImGui::Dummy({ 0, 4.0f });
@@ -363,7 +363,7 @@ namespace Silex
                     auto& database = AssetManager::Get()->GetAllAssets();
                     for (auto& [id, asset] : database)
                     {
-                        if (asset == nullptr || !asset->IsAssetOf(AssetType::Texture2D))
+                        if (asset == nullptr || !asset->IsAssetOf(AssetType::Texture))
                             continue;
 
                         selected = (current == id);
@@ -462,21 +462,21 @@ namespace Silex
     void AssetBrowserPanel::LoadAssetIcons()
     {
         AssetMetadata meta = AssetManager::Get()->GetMetadata("Assets/Editor/Directory.png");
-        m_DirectoryIcon = AssetManager::Get()->GetAssetAs<Texture2D>(meta.ID);
+        m_DirectoryIcon = AssetManager::Get()->GetAssetAs<Texture2D>(meta.id);
 
         meta = AssetManager::Get()->GetMetadata("Assets/Editor/Material.png");
-        m_AssetIcons[AssetType::Material] = AssetManager::Get()->GetAssetAs<Texture2D>(meta.ID);
+        m_AssetIcons[AssetType::Material] = AssetManager::Get()->GetAssetAs<Texture2D>(meta.id);
 
         meta = AssetManager::Get()->GetMetadata("Assets/Editor/Scene.png");
-        m_AssetIcons[AssetType::Scene] = AssetManager::Get()->GetAssetAs<Texture2D>(meta.ID);
+        m_AssetIcons[AssetType::Scene] = AssetManager::Get()->GetAssetAs<Texture2D>(meta.id);
 
         meta = AssetManager::Get()->GetMetadata("Assets/Editor/Texture.png");
-        m_AssetIcons[AssetType::Texture2D] = AssetManager::Get()->GetAssetAs<Texture2D>(meta.ID);
+        m_AssetIcons[AssetType::Texture] = AssetManager::Get()->GetAssetAs<Texture2D>(meta.id);
 
         meta = AssetManager::Get()->GetMetadata("Assets/Editor/File.png");
-        const auto& icon = AssetManager::Get()->GetAssetAs<Texture2D>(meta.ID);
-        m_AssetIcons[AssetType::None]      = icon;
-        m_AssetIcons[AssetType::SkyLight]  = icon;
-        m_AssetIcons[AssetType::Mesh]      = icon;
+        const auto& icon = AssetManager::Get()->GetAssetAs<Texture2D>(meta.id);
+        m_AssetIcons[AssetType::None]        = icon;
+        m_AssetIcons[AssetType::Environment] = icon;
+        m_AssetIcons[AssetType::Mesh]        = icon;
     }
 }

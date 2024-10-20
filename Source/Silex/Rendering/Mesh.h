@@ -31,9 +31,9 @@ namespace Silex
     //--------------------------------------------
     // 頂点データ・インデックスデータの管理
     //============================================
-    class MeshSource : public Object
+    class MeshSource : public Class
     {
-        SL_CLASS(MeshSource, Object)
+        SL_CLASS(MeshSource, Class)
 
     public:
 
@@ -48,22 +48,22 @@ namespace Silex
         uint32    GetMaterialIndex() const { return materialIndex;     }
         glm::mat4 GetTransform()     const { return relativeTransform; }
 
-        uint64    GetVertexCount()   const { return vertexCount;       }
-        uint64    GetIndexCount()    const { return indexCount;        }
-        BufferHandle*   GetVertexBuffer()  const { return vertexBuffer;      }
-        BufferHandle*   GetIndexBuffer()   const { return indexBuffer;       }
+        uint64        GetVertexCount()   const { return vertexCount;       }
+        uint64        GetIndexCount()    const { return indexCount;        }
+        BufferHandle* GetVertexBuffer()  const { return vertexBuffer;      }
+        BufferHandle* GetIndexBuffer()   const { return indexBuffer;       }
 
         void SetTransform(const glm::mat4& matrix) { relativeTransform = matrix; }
 
     private:
 
-        bool      hasIndex          = false;
-        uint32    materialIndex     = 0;
-        uint32    vertexCount       = 0;
-        uint32    indexCount        = 0;
-        BufferHandle*   vertexBuffer      = nullptr;
-        BufferHandle*   indexBuffer       = nullptr;
-        glm::mat4 relativeTransform = {};
+        bool          hasIndex          = false;
+        uint32        materialIndex     = 0;
+        uint32        vertexCount       = 0;
+        uint32        indexCount        = 0;
+        BufferHandle* vertexBuffer      = nullptr;
+        BufferHandle* indexBuffer       = nullptr;
+        glm::mat4     relativeTransform = {};
 
     private:
 
@@ -93,8 +93,8 @@ namespace Silex
         void AddSource(MeshSource* source);
 
         // プリミティブ
-        void SetPrimitiveType(rhi::PrimitiveType type) { primitiveType = type; }
-        rhi::PrimitiveType GetPrimitiveType()          { return primitiveType; }
+        // void SetPrimitiveType(rhi::PrimitiveType type) { primitiveType = type; }
+        // rhi::PrimitiveType GetPrimitiveType()          { return primitiveType; }
 
         // サブメッシュ
         std::vector<MeshSource*>& GetMeshSources()  { return subMeshes;        }
@@ -118,8 +118,20 @@ namespace Silex
         std::vector<MeshSource*>                subMeshes;
         uint32                                  numMaterialSlot;
 
-        rhi::PrimitiveType primitiveType = rhi::PrimitiveType::Triangle;
+        //rhi::PrimitiveType primitiveType = rhi::PrimitiveType::Triangle;
 
         friend class MeshSource;
+    };
+
+
+
+
+
+    struct MeshFactory
+    {
+        static Mesh* Cube();
+        static Mesh* Sphere();
+        static Mesh* Monkey();
+        static Mesh* Sponza();
     };
 }

@@ -1,8 +1,8 @@
 
 #pragma once
 
-#include "Core/SharedPointer.h"
-#include "Rendering/Camera.h"
+#include "Core/Ref.h"
+#include "Scene/Camera.h"
 #include "Scene/Components.h"
 #include <entt/entt.hpp>
 

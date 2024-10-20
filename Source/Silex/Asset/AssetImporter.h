@@ -1,7 +1,7 @@
 
 #pragma once
 #include "Core/Core.h"
-#include "Core/SharedPointer.h"
+#include "Core/Ref.h"
 
 
 namespace Silex
@@ -11,6 +11,6 @@ namespace Silex
     public:
 
         template<class T>
-        static Shared<T> Import(const std::string& filePath);
+        static Ref<T> Import(const std::string& filePath);
     };
 }

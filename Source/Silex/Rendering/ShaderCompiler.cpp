@@ -23,6 +23,13 @@
 
 namespace Silex
 {
+    //======================================
+    // シェーダーコンパイラのインスタンス
+    //======================================
+    static ShaderCompiler shaderCompiler;
+
+
+
     static bool ReadString(std::string& output, const std::string& filepath)
     {
         std::ifstream in(filepath, std::ios::in | std::ios::binary);

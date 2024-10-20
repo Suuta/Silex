@@ -187,7 +187,7 @@ namespace Silex
                     for (uint32 i = 0; i < numSlots; i++)
                     {
                         auto id = material[std::to_string(i)].as<AssetID>();
-                        Shared<Material> m = AssetManager::Get()->GetAssetAs<Material>(id);
+                        Ref<Material> m = AssetManager::Get()->GetAssetAs<Material>(id);
 
                         mc.materials.emplace_back(m);
                     }
@@ -209,7 +209,7 @@ namespace Silex
                 {
                     SkyLightComponent& sl = e.AddComponent<SkyLightComponent>();
 
-                    sl.sky       = AssetManager::Get()->GetAssetAs<SkyLight>(sky["sky"].as<uint64>());
+                    sl.sky       = AssetManager::Get()->GetAssetAs<Environment>(sky["sky"].as<uint64>());
                     sl.intencity = sky["intencity"].as<float>();
                     sl.renderSky = sky["renderSky"].as<bool>();
                     sl.enableIBL = sky["enableIBL"].as<bool>();

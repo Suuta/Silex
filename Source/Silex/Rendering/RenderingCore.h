@@ -15,22 +15,22 @@ namespace Silex
     //================================================
     using QueueID = uint32;
 
-    SL_HANDLE(SurfaceHandle);
-    SL_HANDLE(CommandQueueHandle);
-    SL_HANDLE(CommandPoolHandle);
-    SL_HANDLE(CommandBufferHandle);
-    SL_HANDLE(FenceHandle);
-    SL_HANDLE(SemaphoreHandle);
-    SL_HANDLE(SwapChainHandle);
-    SL_HANDLE(RenderPassHandle);
-    SL_HANDLE(BufferHandle);
-    SL_HANDLE(PipelineHandle);
-    SL_HANDLE(SamplerHandle);
-    SL_HANDLE(DescriptorSetHandle);
-    SL_HANDLE(FramebufferHandle);
-    SL_HANDLE(TextureViewHandle);
-    SL_HANDLE(TextureHandle);
-    SL_HANDLE(ShaderHandle);
+    SL_DECLARE_HANDLE(SurfaceHandle);
+    SL_DECLARE_HANDLE(CommandQueueHandle);
+    SL_DECLARE_HANDLE(CommandPoolHandle);
+    SL_DECLARE_HANDLE(CommandBufferHandle);
+    SL_DECLARE_HANDLE(FenceHandle);
+    SL_DECLARE_HANDLE(SemaphoreHandle);
+    SL_DECLARE_HANDLE(SwapChainHandle);
+    SL_DECLARE_HANDLE(RenderPassHandle);
+    SL_DECLARE_HANDLE(BufferHandle);
+    SL_DECLARE_HANDLE(PipelineHandle);
+    SL_DECLARE_HANDLE(SamplerHandle);
+    SL_DECLARE_HANDLE(DescriptorSetHandle);
+    SL_DECLARE_HANDLE(FramebufferHandle);
+    SL_DECLARE_HANDLE(TextureViewHandle);
+    SL_DECLARE_HANDLE(TextureHandle);
+    SL_DECLARE_HANDLE(ShaderHandle);
 
 
     //================================================

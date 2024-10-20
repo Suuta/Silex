@@ -16,41 +16,50 @@ namespace Silex
     //*********************************************************************************************************************
 
     template<typename T>
-    class Shared
+    class Ref
     {
+    private:
+
+        // 派生クラスに対して、アクセス権を渡す
+        template<typename T2> friend class Ref;
+
+    private:
+
+        T* instance = nullptr;
+
     public:
 
-        Shared()               {}
-        Shared(std::nullptr_t) {}
+        Ref()               {}
+        Ref(std::nullptr_t) {}
 
 
-        ~Shared()
+        ~Ref()
         {
             if (instance) DecRef((const Object*)(instance));
         }
 
         // ポインタ
         template<typename T2 = T>
-        explicit Shared(T2* ptr) : instance(ptr)
+        explicit Ref(T2* ptr) : instance(ptr)
         {
             if (instance) IncRef((const Object*)(instance));
         }
 
         // コピー
-        Shared(const Shared& r) : instance(r.instance)
+        Ref(const Ref& r) : instance(r.instance)
         {
             if (instance) IncRef((const Object*)(instance));
         }
 
         // 派生コピー
         template<typename T2 = T>
-        Shared(const Shared<T2>& r) : instance(r.instance)
+        Ref(const Ref<T2>& r) : instance(r.instance)
         {
             if (instance) IncRef((const Object*)(instance));
         }
 
         // ムーブ
-        Shared(Shared&& r) noexcept
+        Ref(Ref&& r) noexcept
         {
             instance   = r.instance;
             r.instance = nullptr;
@@ -58,14 +67,14 @@ namespace Silex
 
         // 派生ムーブ
         template<typename T2>
-        Shared(Shared<T2>&& r) noexcept
+        Ref(Ref<T2>&& r) noexcept
         {
             instance   = r.instance;
             r.instance = nullptr;
         }
 
         // コピー代入
-        Shared& operator=(const Shared& r) noexcept
+        Ref& operator=(const Ref& r) noexcept
         {
             if (r != *this)
             {
@@ -82,7 +91,7 @@ namespace Silex
 
         // 派生コピー代入
         template<typename T2>
-        Shared& operator=(const Shared<T2>& r) noexcept
+        Ref& operator=(const Ref<T2>& r) noexcept
         {
             if (r != *this)
             {
@@ -98,7 +107,7 @@ namespace Silex
         }
 
         // ムーブコピー
-        Shared& operator=(Shared&& r) noexcept
+        Ref& operator=(Ref&& r) noexcept
         {
             if (static_cast<void*>(&r) != this)
             {
@@ -113,7 +122,7 @@ namespace Silex
 
         // 派生ムーブコピー
         template<typename T2>
-        Shared& operator=(Shared<T2>&& r) noexcept
+        Ref& operator=(Ref<T2>&& r) noexcept
         {
             if (static_cast<void*>(&r) != this)
             {
@@ -142,13 +151,13 @@ namespace Silex
         }
 
         template<typename T2 = T>
-        bool operator==(const Shared<T2>& r) const
+        bool operator==(const Ref<T2>& r) const
         {
             return instance == r.instance;
         }
 
         template<typename T2 = T>
-        bool operator!=(const Shared<T2>& r) const
+        bool operator!=(const Ref<T2>& r) const
         {
             return instance != r.instance;
         }
@@ -175,15 +184,15 @@ namespace Silex
         operator bool() const { return instance != nullptr; }
         bool IsValid()  const { return instance != nullptr; }
 
-        void Swap(Shared& r) noexcept
+        void Swap(Ref& r) noexcept
         {
             std::swap(instance, r.instance);
         }
 
         template<class T2>
-        Shared<T2> As() const
+        Ref<T2> As() const
         {
-            return Shared<T2>(static_cast<T2*>(this->Get()));
+            return Ref<T2>(static_cast<T2*>(this->Get()));
         }
 
     private:
@@ -202,21 +211,13 @@ namespace Silex
                 sldelete(object);
             }
         }
-
-        T* instance = nullptr;
-
-    private:
-
-        // 派生クラスに対して、アクセス権を渡す
-        template<typename T2>
-        friend class Shared;
     };
 
 
     template<class T, class... Args>
-    static Shared<T> CreateShared(Args&&... args)
+    static Ref<T> CreateRef(Args&&... args)
     {
-        return Shared<T>(slnew(T, Traits::Forward<Args>(args)...));
+        return Ref<T>(slnew(T, Traits::Forward<Args>(args)...));
     }
 
 

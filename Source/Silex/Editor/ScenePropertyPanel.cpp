@@ -2,9 +2,9 @@
 #include "PCH.h"
 
 #include "Editor/ScenePropertyPanel.h"
-#include "Rendering/Texture.h"
+#include "Rendering/Environment.h"
+#include "Rendering/RenderingStructures.h"
 #include "Rendering/Renderer.h"
-#include "Rendering/OpenGL/GLTexture.h"
 
 #include <imgui/imgui_internal.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -242,7 +242,7 @@ namespace Silex
                                     modified = true;
                                     meshName = asset->GetName().c_str();
 
-                                    Shared<Mesh> m = asset.As<Mesh>();
+                                    Ref<Mesh> m = asset.As<Mesh>();
                                     component.mesh = m;
 
                                     uint32 numSlots = m->GetMaterialSlotCount();
@@ -396,7 +396,7 @@ namespace Silex
                             if (asset == nullptr)
                                 continue;
 
-                            if (!asset->IsAssetOf(AssetType::SkyLight))
+                            if (!asset->IsAssetOf(AssetType::Environment))
                                 continue;
 
                             selected = (current == id);
@@ -406,7 +406,7 @@ namespace Silex
                                 modified = true;
                                 skyName  = asset->GetName().c_str();
 
-                                component.sky = AssetManager::Get()->GetAssetAs<SkyLight>(id);
+                                component.sky = AssetManager::Get()->GetAssetAs<Environment>(id);
                             }
 
                             if (selected)
