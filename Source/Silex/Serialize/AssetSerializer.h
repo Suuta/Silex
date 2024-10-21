@@ -7,9 +7,6 @@
 
 namespace Silex
 {
-    class Asset;
-
-
     template<class T>
     class AssetSerializer
     {

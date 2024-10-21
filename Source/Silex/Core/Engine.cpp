@@ -67,6 +67,9 @@ namespace Silex
 
     bool Engine::Initialize()
     {
+        GlobalClassDataBase::DumpClassInfoList();
+
+
         bool result = false;
 
         // ウィンドウ
@@ -80,8 +83,8 @@ namespace Silex
         SL_CHECK(!result, false);
 
         // API抽象化レイヤー生成
-        rhi = slnew(Renderer);
-        result = rhi->Initialize(context);
+        renderer = slnew(Renderer);
+        result = renderer->Initialize(context);
         SL_CHECK(!result, false);
 
         // ウィンドウコンテキスト生成
@@ -94,21 +97,18 @@ namespace Silex
         mainWindow->BindMouseMoveEvent(this,    &Engine::OnMouseMove);
         mainWindow->BindMouseScrollEvent(this,  &Engine::OnMouseScroll);
 
-        // レンダラー
-        //Renderer::Get()->Init();
-
         // アセットマネージャー
-        AssetManager::Init();
+        //AssetManager::Init();
 
         // エディターUI (ImGui)
-        gui = GUI::Create();
-        gui->Init(context);
+        editorUI = GUI::Create();
+        editorUI->Init(context);
 
         // エディター
         editor = slnew(Editor);
         editor->Init();
 
-        rhi->TEST();
+        renderer->TEST();
 
 
         // ウィンドウ表示
@@ -123,16 +123,15 @@ namespace Silex
         sldelete(editor);
 
         // ImGui 破棄
-        sldelete(gui);
+        sldelete(editorUI);
 
-        AssetManager::Shutdown();
-        //Renderer::Get()->Shutdown();
+        //AssetManager::Shutdown();
 
         // ウィンドウコンテキスト破棄
         mainWindow->CleanupWindowContext(context);
 
-        // レンダリングデバイス破棄
-        sldelete(rhi);
+        // レンダラー破棄
+        sldelete(renderer);
 
         // レンダリングコンテキスト破棄
         sldelete(context);
@@ -148,25 +147,25 @@ namespace Silex
         if (!minimized)
         {
             // wait
-            rhi->BeginFrame();
-            gui->BeginFrame();
+            renderer->BeginFrame();
+            editorUI->BeginFrame();
 
             // update
             editor->Update(deltaTime);
-            rhi->Update(editor->GetEditorCamera());
-            gui->Update();
+            renderer->Update(editor->GetEditorCamera());
+            editorUI->Update();
 
             // render
-            rhi->Render(deltaTime);
-            gui->Render();
+            renderer->Render(deltaTime);
+            editorUI->Render();
 
             // submit
-            rhi->EndFrame();
-            gui->EndFrame();
+            renderer->EndFrame();
+            editorUI->EndFrame();
 
             // present
-            rhi->Present();
-            gui->ViewportPresent();
+            renderer->Present();
+            editorUI->ViewportPresent();
 
             Input::Flush();
         }

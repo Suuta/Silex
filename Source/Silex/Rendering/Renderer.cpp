@@ -2568,6 +2568,11 @@ namespace Silex
         api->EndRenderPass(frame.commandBuffer);
     }
 
+    void Renderer::ImmidiateExcute(std::function<void(CommandBufferHandle*)>&& func)
+    {
+        api->ImmidiateCommands(graphicsQueue, immidiateContext.commandBuffer, immidiateContext.fence, std::move(func));
+    }
+
 
 
     void Renderer::_DestroyPendingResources(uint32 frame)

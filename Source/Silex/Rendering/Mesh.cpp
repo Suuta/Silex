@@ -67,7 +67,6 @@ namespace Silex
 
     Mesh::Mesh()
     {
-        SetAssetType(AssetType::Mesh);
         numMaterialSlot = 1;
     }
 
@@ -78,7 +77,7 @@ namespace Silex
 
     void Mesh::Load(const std::filesystem::path& filePath)
     {
-        assetFilePath = filePath.string();
+        std::string assetPath = filePath.string();
 
         uint32 flags = 0;
         flags |= aiProcess_OptimizeMeshes;
@@ -90,14 +89,14 @@ namespace Silex
 
         // メッシュファイルを読み込み
         Assimp::Importer importer;
-        const aiScene* scene = importer.ReadFile(assetFilePath, flags);
+        const aiScene* scene = importer.ReadFile(assetPath, flags);
         if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
         {
             SL_LOG_ERROR("Assimp Error: {}", importer.GetErrorString());
         }
 
         // 各メッシュ情報を読み込み
-        ProcessNode(scene->mRootNode, scene);
+        ProcessNode(scene->mRootNode, scene, assetPath);
 
         // マテリアル数
         numMaterialSlot = scene->mNumMaterials;
@@ -117,14 +116,14 @@ namespace Silex
         subMeshes.push_back(source);
     }
 
-    void Mesh::ProcessNode(aiNode* node, const aiScene* scene)
+    void Mesh::ProcessNode(aiNode* node, const aiScene* scene, const std::string& path)
     {
         for (uint32 i = 0; i < node->mNumMeshes; i++)
         {
             uint32 subMeshIndex = node->mMeshes[i];
             aiMesh* mesh = scene->mMeshes[subMeshIndex];
 
-            MeshSource* ms = ProcessMesh(mesh, scene);
+            MeshSource* ms = ProcessMesh(mesh, scene, path);
             ms->relativeTransform = Internal::aiMatrixToGLMMatrix(node->mTransformation);
 
             subMeshes.emplace_back(ms);
@@ -132,11 +131,11 @@ namespace Silex
 
         for (uint32 i = 0; i < node->mNumChildren; i++)
         {
-            ProcessNode(node->mChildren[i], scene);
+            ProcessNode(node->mChildren[i], scene, path);
         }
     }
     
-    MeshSource* Mesh::ProcessMesh(aiMesh* mesh, const aiScene* scene)
+    MeshSource* Mesh::ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& path)
     {
         std::vector<Vertex> vertices;
         std::vector<uint32> indices;
@@ -215,14 +214,14 @@ namespace Silex
         //==============================================
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
 
-        LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_DIFFUSE);           // ディフューズ
-      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_NORMALS);           // ノーマル
+        LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_DIFFUSE, path);           // ディフューズ
+      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_NORMALS, path);           // ノーマル
 
-      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_DIFFUSE_ROUGHNESS); // 
-      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_AMBIENT_OCCLUSION); // AO
-      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_SPECULAR);          // スペキュラ
-      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_EMISSIVE);          // 
-      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_EMISSION_COLOR);    // 
+      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_DIFFUSE_ROUGHNESS, path); // 
+      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_AMBIENT_OCCLUSION, path); // AO
+      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_SPECULAR, path);          // スペキュラ
+      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_EMISSIVE, path);          // 
+      //LoadMaterialTextures(mesh->mMaterialIndex, material, aiTextureType_EMISSION_COLOR, path);    // 
 
         //==============================================
         // メッシュソース生成
@@ -230,7 +229,7 @@ namespace Silex
         return slnew(MeshSource, vertices, indices, mesh->mMaterialIndex);
     }
     
-    void Mesh::LoadMaterialTextures(uint32 materialInddex, aiMaterial* material, aiTextureType type)
+    void Mesh::LoadMaterialTextures(uint32 materialInddex, aiMaterial* material, aiTextureType type, const std::string& path)
     {
         for (uint32 i = 0; i < material->GetTextureCount(type); i++)
         {
@@ -240,7 +239,7 @@ namespace Silex
             std::replace(aspath.begin(), aspath.end(), '\\', '/');
 
             // テクスチャファイルのディレクトリに変換
-            std::filesystem::path modelFilePath = assetFilePath;
+            std::filesystem::path modelFilePath = path;
             std::string parentPath = modelFilePath.parent_path().string();
             std::string path       = parentPath + '/' + aspath;
 

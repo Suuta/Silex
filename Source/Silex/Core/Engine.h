@@ -49,10 +49,10 @@ namespace Silex
 
     private:
 
-        Renderer*         rhi        = nullptr;
+        Renderer*         renderer   = nullptr;
         RenderingContext* context    = nullptr;
         Editor*           editor     = nullptr;
-        GUI*              gui        = nullptr;
+        GUI*              editorUI   = nullptr;
         Window*           mainWindow = nullptr;
 
         // フラグ

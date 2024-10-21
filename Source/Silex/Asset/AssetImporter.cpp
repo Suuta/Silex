@@ -13,43 +13,49 @@
 namespace Silex
 {
     template<>
-    Ref<Mesh> AssetImporter::Import<Mesh>(const std::string& filePath)
+    Ref<MeshAsset> AssetImporter::Import<MeshAsset>(const std::string& filePath)
     {
-        Mesh* m = slnew(Mesh);
-        m->Load(filePath);
+        Mesh* mesh = slnew(Mesh);
+        mesh->Load(filePath);
 
-        m->SetupAssetProperties(filePath, AssetType::Mesh);
-        return Ref<Mesh>(m);
+        Ref<MeshAsset> asset = CreateRef<MeshAsset>(mesh);
+        asset->SetupAssetProperties(filePath, AssetType::Mesh);
+
+        return asset;
     }
 
     template<>
-    Ref<Texture2D> AssetImporter::Import<Texture2D>(const std::string& filePath)
+    Ref<Texture2DAsset> AssetImporter::Import<Texture2DAsset>(const std::string& filePath)
     {
         TextureHandle* t = Renderer::Get()->CreateTextureFromMemory((const float*)nullptr, 1, 0, 0, true);
+        Texture2D* texture = nullptr;
 
-        Ref<Texture2DAsset> asset = CreateRef<Texture2DAsset>(t);
+        Ref<Texture2DAsset> asset = CreateRef<Texture2DAsset>(texture);
         asset->SetupAssetProperties(filePath, AssetType::Texture);
 
         return asset;
     }
 
     template<>
-    Ref<Environment> AssetImporter::Import<Environment>(const std::string& filePath)
+    Ref<EnvironmentAsset> AssetImporter::Import<EnvironmentAsset>(const std::string& filePath)
     {
-        Ref<Environment> s = Environment::Create(filePath);
-        s->SetupAssetProperties(filePath, AssetType::Environment);
+        Environment* environment = nullptr;
+        // environment = Renderer::Get()->CreateEnvironment(filePath);
 
-        return s;
+        Ref<EnvironmentAsset> asset = CreateRef<EnvironmentAsset>(environment);
+        asset->SetupAssetProperties(filePath, AssetType::Environment);
+
+        return asset;
     }
 
     template<>
-    Ref<Material> AssetImporter::Import<Material>(const std::string& filePath)
+    Ref<MaterialAsset> AssetImporter::Import<MaterialAsset>(const std::string& filePath)
     {
         // マテリアルはデータファイルではなくパラメータファイルなのでデシリアライズしたファイルから生成する
         // 逆に、シリアライズはエディターの保存時に行う
-        Ref<Material> m = AssetSerializer<Material>::Deserialize(filePath);
-        m->SetupAssetProperties(filePath, AssetType::Material);
+        Ref<MaterialAsset> asset = AssetSerializer<MaterialAsset>::Deserialize(filePath);
+        asset->SetupAssetProperties(filePath, AssetType::Material);
 
-        return m;
+        return asset;
     }
 }

@@ -4,7 +4,7 @@
 #include "Core/Random.h"
 #include "Core/Timer.h"
 #include "Scene/Scene.h"
-#include "Scene/SceneRenderer.h"
+//#include "Scene/SceneRenderer.h"
 #include "Scene/Entity.h"
 
 #include <glm/glm.hpp>
@@ -67,7 +67,7 @@ namespace Silex
     void Scene::Update(float deltaTime, Camera& camera, SceneRenderer* renderer)
     {
         // 描画データ更新
-        renderer->BeginFrame(this, &camera);
+        //renderer->BeginFrame(this, &camera);
 
         {
             SL_SCOPE_PROFILE("Update - Scene");
@@ -83,7 +83,7 @@ namespace Silex
                 auto [sc, ic] = sky.get<SkyLightComponent, InstanceComponent>(entity);
                 if (ic.active)
                 {
-                    renderer->SetSkyLight(sc);
+                    //renderer->SetSkyLight(sc);
                 }
 
                 // 1つしか存在しないから、Unity/Environment ように別で管理する方が良いか？
@@ -96,8 +96,8 @@ namespace Silex
                 auto [pc, ic] = postProcess.get<PostProcessComponent, InstanceComponent>(entity);
                 if (ic.active)
                 {
-                    auto& option = renderer->GetRenderOption();
-                    option.postProcess = pc;
+                    // auto& option = renderer->GetRenderOption();
+                    // option.postProcess = pc;
                 }
 
                 // 現状1つのみ受け付ける
@@ -113,7 +113,7 @@ namespace Silex
                 {
                     // (0, 0, 1)ベクトル を基準（0°）として回転させた値を適応
                     dc.direction = -glm::mat3(tc.GetTransform()) * glm::vec3(0.0f, 0.0f, 1.0f);
-                    renderer->SetDirectionalLight(dc);
+                    //renderer->SetDirectionalLight(dc);
                 }
 
                 // 現状1つのみ受け付ける
@@ -133,12 +133,12 @@ namespace Silex
                     data.entityID  = (int32)entity;
 
                     // シーンレンダラーの描画リストへ追加
-                    renderer->AddMeshDrawList(data);
+                    //renderer->AddMeshDrawList(data);
                 }
             }
         }
 
         // 描画パス実行
-        renderer->EndFrame();
+        //renderer->EndFrame();
     }
 }

@@ -18,9 +18,9 @@ namespace Silex
         template<typename T>
         static uint64 Register(const char* className)
         {
-            auto type = TypeInfo::Query<T>();
-
             SL_ASSERT(!classInfoMap.contains(className));
+
+            auto type = TypeInfo::Query<T>();
             classInfoMap.emplace(className, type);
 
             return type.hashID;
@@ -36,7 +36,7 @@ namespace Silex
 
     private:
 
-        static inline std::unordered_map<const char*, TypeInfo> classInfoMap;
+        static inline std::unordered_map<std::string, TypeInfo> classInfoMap;
     };
 
 

@@ -7,7 +7,9 @@
 
 namespace Silex
 {
+    class Sampler;
     class Texture;
+    class TextureView;
     class Buffer;
     class DescriptorSet;
     class Shader;
@@ -16,7 +18,9 @@ namespace Silex
     class Pipeline;
 
     template<class T> struct RenderingTypeTraits {};
+    template<> struct RenderingTypeTraits<Sampler>       { using InternalType = SamplerHandle;       };
     template<> struct RenderingTypeTraits<Texture>       { using InternalType = TextureHandle;       };
+    template<> struct RenderingTypeTraits<TextureView>   { using InternalType = TextureViewHandle;   };
     template<> struct RenderingTypeTraits<Buffer>        { using InternalType = BufferHandle;        };
     template<> struct RenderingTypeTraits<DescriptorSet> { using InternalType = DescriptorSetHandle; };
     template<> struct RenderingTypeTraits<Shader>        { using InternalType = ShaderHandle;        };
@@ -31,13 +35,21 @@ namespace Silex
     template<class T>
     class RenderingStructure : public Class
     {
-    public: SL_CLASS(RenderingStructure, Class)
+    public:
+        
+        // 実体化時にハッシュ値が衝突するので宣言できない（現状問題ないので使用しないことで対応）
+        // SL_CLASS(RenderingStructure, Class)
 
         using ResourceType = typename RenderingTypeTraits<T>::InternalType;
 
         ResourceType* GetHandle(uint32 index = 0)
         {
             return handle[index];
+        }
+
+        void SetHandle(ResourceType* resource, uint32 index = 0)
+        {
+            handle[index] = resource;
         }
 
     protected:
@@ -52,6 +64,7 @@ namespace Silex
     class Texture : public RenderingStructure<Texture>
     {
     public:
+
         SL_CLASS(Texture, RenderingStructure<Texture>)
 
         const TextureInfo& GetInfo()       { return textureInfo; }
@@ -220,7 +233,7 @@ namespace Silex
         
         SL_CLASS(DescriptorSet, RenderingStructure<DescriptorSet>)
 
-        void Update();
+        void Flush();
 
         void SetResource(uint32 index, TextureView* view, Sampler* sampler);
         void SetResource(uint32 index, UniformBuffer* uniformBuffer);
@@ -244,7 +257,7 @@ namespace Silex
         // コピーステージ待機によって同期しているようなので、変更があるたびにデスクリプター自体を再生成している
         // ようにみえる。
         // 
-        // hazel エンジンでは、リソースをダブルバッファリングし、
+        // hazel エンジンでは、リソースをダブルバッファリングし、毎フレーム変更点を検知し、変更部分を更新する
         //=====================================================================================
 
         DescriptorSetInfo descriptorSetInfo[2];

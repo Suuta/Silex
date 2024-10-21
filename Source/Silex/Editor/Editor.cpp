@@ -23,7 +23,7 @@ namespace Silex
         SL_LOG_TRACE("Editor::Init");
 
         // シーン生成
-        //m_Scene = CreateShared<Scene>();
+        //m_Scene = CreateRef<Scene>();
 
         // アウトラウナーにシーンを登録
         //m_ScenePropertyPanel.SetScene(m_Scene);
@@ -78,7 +78,11 @@ namespace Silex
     void Editor::Render()
     {
         SL_SCOPE_PROFILE("Render - Editor");
-        Renderer::Get()->SetDefaultFramebuffer();
+
+        //-----------------------------------------------
+        // Vulkan では必要ない
+        // Renderer::Get()->SetDefaultFramebuffer();
+        //-----------------------------------------------
 
         ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(viewport->Pos);
@@ -176,11 +180,11 @@ namespace Silex
                     m_SceneViewportFramebufferSize.y = content.y;
 
                     m_EditorCamera.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
-                    m_SceneRenderer.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
+                    //m_SceneRenderer.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
                 }
 
                 // シーン描画
-                ImGui::Image((void*)m_SceneRenderer.GetFinalRenderPassID(), content, { 0, 1 }, { 1, 0 });
+                //ImGui::Image((void*)m_SceneRenderer.GetFinalRenderPassID(), content, { 0, 1 }, { 1, 0 });
             }
 
             // ギズモ
@@ -273,10 +277,10 @@ namespace Silex
 
             ImGui::SeparatorText("");
 
-            SceneRenderStats stats = m_SceneRenderer.GetRenderStats();
-            ImGui::Text("GeometryDrawCall: %d", stats.numGeometryDrawCall);
-            ImGui::Text("ShadowDrawCall:   %d", stats.numShadowDrawCall);
-            ImGui::Text("NumMesh:          %d", stats.numRenderMesh);
+            //SceneRenderStats stats = m_SceneRenderer.GetRenderStats();
+            //ImGui::Text("GeometryDrawCall: %d", stats.numGeometryDrawCall);
+            //ImGui::Text("ShadowDrawCall:   %d", stats.numShadowDrawCall);
+            //ImGui::Text("NumMesh:          %d", stats.numRenderMesh);
 
             ImGui::SeparatorText("");
 
@@ -392,7 +396,7 @@ namespace Silex
         pos.x -= m_RelativeViewportRect[0].x;
         pos.y -= m_RelativeViewportRect[0].y;
 
-        m_SelectionID = m_SceneRenderer.ReadEntityIDFromPixcel(pos.x, pos.y);
+        // m_SelectionID = m_SceneRenderer.ReadEntityIDFromPixcel(pos.x, pos.y);
 
         if (m_SelectionID >= 0)
         {
@@ -419,13 +423,13 @@ namespace Silex
 
     void Editor::OpenScene(const std::string& filePath)
     {
-        Ref<Scene> newScene = CreateShared<Scene>();
+        Ref<Scene> newScene = CreateRef<Scene>();
 
         SceneSerializer serializer(newScene.Get());
         serializer.Deserialize(filePath);
 
         m_Scene = newScene;
-        m_SceneRenderer.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
+        // m_SceneRenderer.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
 
         m_ScenePropertyPanel.SetScene(m_Scene);
         m_CurrentScenePath = filePath;
@@ -472,10 +476,10 @@ namespace Silex
 
     void Editor::NewScene()
     {
-        Ref<Scene> newScene = CreateShared<Scene>();
+        Ref<Scene> newScene = CreateRef<Scene>();
 
         m_Scene = newScene;
-        m_SceneRenderer.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
+        // m_SceneRenderer.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
 
         m_ScenePropertyPanel.SetScene(m_Scene);
         m_CurrentScenePath = "";

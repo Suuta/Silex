@@ -1,2 +1,9 @@
+
 #include "PCH.h"
-#include "Environment.h"
+#include "Rendering/Environment.h"
+
+
+namespace Silex
+{
+}
+

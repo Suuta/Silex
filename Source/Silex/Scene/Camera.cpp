@@ -1,6 +1,6 @@
 
 #include "PCH.h"
-#include "Rendering/Camera.h"
+#include "Scene/Camera.h"
 
 
 namespace Silex

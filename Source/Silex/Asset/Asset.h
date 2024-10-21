@@ -9,7 +9,11 @@
 
 namespace Silex
 {
+    class Mesh;
     class Material;
+    class Texture2D;
+    class Environment;
+
     using AssetID = uint64;
 
     enum class AssetType : uint32
@@ -45,8 +49,8 @@ namespace Silex
         AssetType GetAssetType()               { return assetFlag; }
 
         // ファイルパス
-        std::string& GetFilePath()                        { return assetFilePath; }
-        void         SetFilePath(const std::string& path) { assetFilePath = path; }
+        const std::string& GetFilePath() const                  { return assetFilePath; }
+        void               SetFilePath(const std::string& path) { assetFilePath = path; }
 
         // ID
         AssetID GetAssetID() const     { return assetID; }
@@ -82,6 +86,85 @@ namespace Silex
 
         return AssetType::None;
     }
+
+
+    class MeshAsset : public Asset
+    {
+    public:
+
+        SL_CLASS(MeshAsset, Asset)
+
+        MeshAsset();
+        MeshAsset(Mesh* asset);
+        ~MeshAsset();
+
+        Mesh* Get() const      { return mesh;  }
+        void  Set(Mesh* asset) { mesh = asset; }
+
+    private:
+
+        Mesh* mesh;
+    };
+
+    class MaterialAsset : public Asset
+    {
+    public:
+
+        SL_CLASS(MaterialAsset, Asset)
+
+        MaterialAsset();
+        MaterialAsset(Material* asset);
+        ~MaterialAsset();
+
+        Material* Get() const          { return material;  }
+        void      Set(Material* asset) { material = asset; }
+
+    private:
+
+        Material* material;
+    };
+
+    class Texture2DAsset : public Asset
+    {
+    public:
+
+        SL_CLASS(Texture2DAsset, Asset)
+
+        Texture2DAsset();
+        Texture2DAsset(Texture2D* asset);
+        ~Texture2DAsset();
+
+        Texture2D* Get() const           { return texture;  }
+        void       Set(Texture2D* asset) { texture = asset; }
+
+    private:
+
+        Texture2D* texture;
+    };
+
+
+    class EnvironmentAsset : public Asset
+    {
+    public:
+
+        SL_CLASS(EnvironmentAsset, Asset)
+
+        EnvironmentAsset();
+        EnvironmentAsset(Environment* asset);
+        ~EnvironmentAsset();
+
+        Environment* Get() const             { return environment;  }
+        void         Set(Environment* asset) { environment = asset; }
+
+    private:
+
+        Environment* environment;
+    };
+
+
+
+
+
 
 
     class AssetManager
@@ -130,10 +213,10 @@ namespace Silex
         Ref<T> CreateAsset(const std::filesystem::path& directory, Args&&... args)
         {
             //　現状はマテリアルのみサポート (インポートと生成との意味合いが混同しているため)
-            static_assert(Traits::IsSame<Material, T>() && Traits::IsBaseOf<Asset, T>());
+            // static_assert(Traits::IsSame<MaterialAsset, T>() && Traits::IsBaseOf<Asset, T>());
 
             AssetMetadata metadata = instance->_AddToMetadata(directory);
-            Ref<T> asset = AssetCreator<T>::Create(directory, Traits::Forward<Args>(args)...);
+            Ref<T> asset = AssetCreator::Create<T>(directory, Traits::Forward<Args>(args)...);
 
             instance->_AddToAssetAndID(metadata.id, asset);
             instance->_WriteDatabaseToFile(assetDatabasePath);

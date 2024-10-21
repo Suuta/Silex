@@ -25,7 +25,7 @@ namespace Silex
         {
         }
 
-        AssetBrowserItem(AssetItemType type, AssetID id, const std::string& name, const Ref<Texture2D>& icon)
+        AssetBrowserItem(AssetItemType type, AssetID id, const std::string& name, const Ref<Texture2DAsset>& icon)
             : m_Type(type)
             , m_ID(id)
             , m_FileName(name)
@@ -39,15 +39,15 @@ namespace Silex
         AssetItemType      GetType() const { return m_Type; }
         const std::string& GetName() const { return m_FileName; }
 
-        const Ref<Texture2D>& GetIcon() const    { return m_Icon; }
-        void SetIcon(const Ref<Texture2D>& icon) { m_Icon = icon; }
+        const Ref<Texture2DAsset>& GetIcon() const    { return m_Icon; }
+        void SetIcon(const Ref<Texture2DAsset>& icon) { m_Icon = icon; }
 
     protected:
 
-        AssetItemType     m_Type;
-        AssetID           m_ID;
-        std::string       m_FileName;
-        Ref<Texture2D> m_Icon;
+        AssetItemType       m_Type;
+        AssetID             m_ID;
+        std::string         m_FileName;
+        Ref<Texture2DAsset> m_Icon;
     };
 
     struct DirectoryNode : Object
@@ -85,16 +85,16 @@ namespace Silex
 
     private:
 
-        AssetID                                               m_MoveRequestDirectoryAssetID;
-        AssetID                                               m_DeleteRequestItemAssetID;
+        AssetID                                            m_MoveRequestDirectoryAssetID;
+        AssetID                                            m_DeleteRequestItemAssetID;
         Ref<Asset>                                         m_SelectAsset;
         Ref<DirectoryNode>                                 m_CurrentDirectory;
         Ref<DirectoryNode>                                 m_RootDirectory;
         std::unordered_map<AssetID, Ref<AssetBrowserItem>> m_CurrentDirectoryAssetItems;
         std::unordered_map<AssetID, Ref<DirectoryNode>>    m_Directories;
 
-        std::unordered_map<AssetType, Ref<Texture2D>> m_AssetIcons;
-        Ref<Texture2D>                                m_DirectoryIcon;
+        std::unordered_map<AssetType, Ref<Texture2DAsset>> m_AssetIcons;
+        Ref<Texture2DAsset>                                m_DirectoryIcon;
 
     private: 
 

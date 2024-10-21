@@ -1,5 +1,11 @@
+
 #pragma once
-class Environment
+
+
+namespace Silex
 {
-};
+    class Environment
+    {
+    };
+}
 

@@ -242,10 +242,10 @@ namespace Silex
                                     modified = true;
                                     meshName = asset->GetName().c_str();
 
-                                    Ref<Mesh> m = asset.As<Mesh>();
+                                    Ref<MeshAsset> m = asset.As<MeshAsset>();
                                     component.mesh = m;
 
-                                    uint32 numSlots = m->GetMaterialSlotCount();
+                                    uint32 numSlots = m->Get()->GetMaterialSlotCount();
                                     component.materials.resize(numSlots);
                                 }
 
@@ -316,7 +316,7 @@ namespace Silex
                                     current = id;
                                     modified = true;
                                     materialName = asset->GetName().c_str();
-                                    material     = asset.As<Material>();
+                                    material     = asset.As<MaterialAsset>();
                                 }
 
                                 if (selected)
@@ -406,7 +406,7 @@ namespace Silex
                                 modified = true;
                                 skyName  = asset->GetName().c_str();
 
-                                component.sky = AssetManager::Get()->GetAssetAs<Environment>(id);
+                                component.sky = AssetManager::Get()->GetAssetAs<EnvironmentAsset>(id);
                             }
 
                             if (selected)

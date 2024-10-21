@@ -73,8 +73,8 @@ namespace Silex
                 uint32 index = 0;
                 for (auto& material : mc.materials)
                 {
-                    AssetID id = material ? material->GetAssetID() : Renderer::Get()->GetDefaultMaterial()->GetAssetID();
-                    out << YAML::Key << std::to_string(index++) << id;
+                    // AssetID id = material ? material->GetAssetID() : Renderer::Get()->GetDefaultMaterial()->GetAssetID();
+                    // out << YAML::Key << std::to_string(index++) << id;
                 }
 
                 out << YAML::EndMap;
@@ -104,7 +104,7 @@ namespace Silex
                 out << YAML::BeginMap;
 
                 auto& sl = entity.GetComponent<SkyLightComponent>();
-                out << YAML::Key << "sky"          << YAML::Value << sl.sky->GetAssetID();
+                // out << YAML::Key << "sky"          << YAML::Value << sl.sky->GetAssetID();
                 out << YAML::Key << "intencity"    << YAML::Value << sl.intencity;
                 out << YAML::Key << "renderSky"    << YAML::Value << sl.renderSky;
                 out << YAML::Key << "enableIBL"    << YAML::Value << sl.enableIBL;
@@ -177,17 +177,17 @@ namespace Silex
                     MeshComponent& mc = e.AddComponent<MeshComponent>();
 
                     AssetID id = mesh["mesh"].as<uint64>();
-                    mc.mesh = AssetManager::Get()->GetAssetAs<Mesh>(id);
+                    mc.mesh = AssetManager::Get()->GetAssetAs<MeshAsset>(id);
 
                     mc.castShadow = mesh["castShadow"].as<bool>();
 
                     auto material = mesh["material"];
-                    auto numSlots = mc.mesh->GetMaterialSlotCount();
+                    auto numSlots = mc.mesh->Get()->GetMaterialSlotCount();
 
                     for (uint32 i = 0; i < numSlots; i++)
                     {
                         auto id = material[std::to_string(i)].as<AssetID>();
-                        Ref<Material> m = AssetManager::Get()->GetAssetAs<Material>(id);
+                        Ref<MaterialAsset> m = AssetManager::Get()->GetAssetAs<MaterialAsset>(id);
 
                         mc.materials.emplace_back(m);
                     }
@@ -209,7 +209,7 @@ namespace Silex
                 {
                     SkyLightComponent& sl = e.AddComponent<SkyLightComponent>();
 
-                    sl.sky       = AssetManager::Get()->GetAssetAs<Environment>(sky["sky"].as<uint64>());
+                    sl.sky       = AssetManager::Get()->GetAssetAs<EnvironmentAsset>(sky["sky"].as<uint64>());
                     sl.intencity = sky["intencity"].as<float>();
                     sl.renderSky = sky["renderSky"].as<bool>();
                     sl.enableIBL = sky["enableIBL"].as<bool>();

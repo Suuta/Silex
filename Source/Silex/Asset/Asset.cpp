@@ -1,12 +1,13 @@
 
 #include "PCH.h"
 
-#include "Asset/Asset.h"
 #include "Core/Random.h"
+#include "Asset/Asset.h"
 #include "Editor/SplashImage.h"
 #include "Rendering/Mesh.h"
 #include "Rendering/Environment.h"
 #include "Rendering/RenderingStructures.h"
+#include "Rendering/Renderer.h"
 #include "Serialize/AssetSerializer.h"
 
 #include <yaml-cpp/yaml.h>
@@ -107,6 +108,23 @@ namespace Silex
     }
 #endif
 
+    MeshAsset::MeshAsset() {}
+    MeshAsset::MeshAsset(Mesh* asset) : mesh(asset) {}
+    MeshAsset::~MeshAsset() { sldelete(mesh); }
+
+    MaterialAsset::MaterialAsset() {}
+    MaterialAsset::MaterialAsset(Material* asset) : material(asset) {}
+    MaterialAsset::~MaterialAsset() { sldelete(material); }
+
+    Texture2DAsset::Texture2DAsset() {}
+    Texture2DAsset::Texture2DAsset(Texture2D* asset) : texture(asset) {}
+    Texture2DAsset::~Texture2DAsset() { sldelete(texture); }
+
+    EnvironmentAsset::EnvironmentAsset() {}
+    EnvironmentAsset::EnvironmentAsset(Environment* asset) : environment(asset) {}
+    EnvironmentAsset::~EnvironmentAsset() { sldelete(environment); }
+
+
 
 
     AssetManager* AssetManager::Get()
@@ -121,6 +139,7 @@ namespace Silex
 
         // ビルトインデータ(ID: 1 - 5 に割り当て)
         // アセットデータベースには登録されない（メモリオンリーアセット）
+#if 0
         {
             auto& tex = Renderer::Get()->GetDefaultTexture();
             tex->SetAssetType(AssetType::Texture);
@@ -153,6 +172,7 @@ namespace Silex
             instance->_AddToAssetAndID(5, material);
             instance->builtinAssetCount++;
         }
+#endif
 
         if (std::filesystem::exists(assetDatabasePath))
         {
@@ -231,6 +251,10 @@ namespace Silex
     bool AssetManager::IsValidID(AssetID id)
     {
         return id != 0 && id > builtinAssetCount;
+    }
+
+    void AssetManager::_CreateBuiltinAssets()
+    {
     }
 
     void AssetManager::_LoadAssetMetaDataFromDatabaseFile(const std::filesystem::path& filePath)
@@ -384,7 +408,7 @@ namespace Silex
                 std::string path = md.path.string();
 
                 Ref<Asset> asset = nullptr;
-                asset = LoadAssetFromFile<Texture2D>(path);
+                asset = LoadAssetFromFile<Texture2DAsset>(path);
 
                 instance->_AddToAssetAndID(id, asset);
             }
@@ -400,7 +424,7 @@ namespace Silex
                 AssetID id       = md.id;
                 std::string path = md.path.string();
 
-                Ref<Asset> asset = LoadAssetFromFile<Environment>(path);
+                Ref<Asset> asset = LoadAssetFromFile<EnvironmentAsset>(path);
                 instance->_AddToAssetAndID(id, asset);
             }
         }
@@ -415,7 +439,7 @@ namespace Silex
                 AssetID id       = md.id;
                 std::string path = md.path.string();
 
-                Ref<Asset> asset = LoadAssetFromFile<Material>(path);
+                Ref<Asset> asset = LoadAssetFromFile<MaterialAsset>(path);
                 instance->_AddToAssetAndID(id, asset);
             }
         }
@@ -430,7 +454,7 @@ namespace Silex
                 AssetID id       = md.id;
                 std::string path = md.path.string();
 
-                Ref<Asset> asset = LoadAssetFromFile<Mesh>(path);
+                Ref<Asset> asset = LoadAssetFromFile<MeshAsset>(path);
                 instance->_AddToAssetAndID(id, asset);
             }
         }

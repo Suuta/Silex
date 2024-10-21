@@ -3,7 +3,7 @@
 
 #include "Asset/Asset.h"
 #include "Rendering/Mesh.h"
-#include "Rendering/SkyLight.h"
+#include "Rendering/Environment.h"
 #include "Rendering/Material.h"
 #include <glm/gtx/quaternion.hpp>
 
@@ -42,9 +42,9 @@ namespace Silex
     {
         SL_CLASS(MeshComponent, Class)
 
-        Ref<Mesh>                  mesh       = nullptr;
-        std::vector<Ref<Material>> materials  = {};
-        bool                          castShadow = true;
+        Ref<MeshAsset>                  mesh       = nullptr;
+        std::vector<Ref<MaterialAsset>> materials  = {};
+        bool                            castShadow = true;
     };
 
     struct DirectionalLightComponent : public Class
@@ -67,7 +67,7 @@ namespace Silex
         bool  enableIBL = true;
         float intencity = 1.0f;
 
-        Ref<Environment> sky;
+        Ref<EnvironmentAsset> sky;
     };
 
     struct PostProcessComponent : public Class

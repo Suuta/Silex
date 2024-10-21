@@ -79,8 +79,10 @@ namespace Silex
     // メッシュをアタッチし、描画を行うのが理想だが、
     // 現状は、1つのエンティティがソース全体を描画する
     //===========================================
-    class Mesh : public Asset
+    class Mesh : public Class
     {
+        SL_CLASS(Mesh, Class)
+
     public:
 
         Mesh();
@@ -108,9 +110,9 @@ namespace Silex
 
     private:
 
-        void        ProcessNode(aiNode* node, const aiScene* scene);
-        MeshSource* ProcessMesh(aiMesh* mesh, const aiScene* scene);
-        void        LoadMaterialTextures(uint32 materialInddex, aiMaterial* mat, aiTextureType type);
+        void        ProcessNode(aiNode* node, const aiScene* scene, const std::string& path);
+        MeshSource* ProcessMesh(aiMesh* mesh, const aiScene* scene, const std::string& path);
+        void        LoadMaterialTextures(uint32 materialInddex, aiMaterial* mat, aiTextureType type, const std::string& path);
 
     private:
 

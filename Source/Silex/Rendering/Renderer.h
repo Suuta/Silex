@@ -232,6 +232,9 @@ namespace Silex
         bool             Present();
         void             BeginSwapChainPass();
         void             EndSwapChainPass();
+
+        // 即時コマンド
+        void ImmidiateExcute(std::function<void(CommandBufferHandle*)>&& func);
     
     private:
 
@@ -254,7 +257,7 @@ namespace Silex
         RenderingContext* context = nullptr;
         RenderingAPI*     api     = nullptr;
 
-        QueueID       graphicsQueueID = RENDER_INVALID_ID;
+        QueueID             graphicsQueueID = RENDER_INVALID_ID;
         CommandQueueHandle* graphicsQueue   = nullptr;
 
         //===========================================================

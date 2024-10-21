@@ -1,9 +1,10 @@
 
 #include "PCH.h"
-#include "Editor/AssetBrowserPanel.h"
 #include "Core/Engine.h"
+#include "Asset/Asset.h"
 #include "Rendering/Material.h"
 #include "Serialize/AssetSerializer.h"
+#include "Editor/AssetBrowserPanel.h"
 
 #include <imgui/imgui.h>
 #include <imgui/imgui_internal.h>
@@ -51,14 +52,14 @@ namespace Silex
         ImGui::PushStyleColor(ImGuiCol_Button,        color);
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, color);
         ImGui::PushStyleColor(ImGuiCol_ButtonActive,  color);
-        ImGui::ImageButton(ImTextureID(m_Icon ? m_Icon->GetID() : 0), { size.x - 10.0f, size.y - 10.0f }, { 0, 0 }, { 1, 1 }, 2);
+      //ImGui::ImageButton(ImTextureID(m_Icon ? m_Icon->GetID() : 0), { size.x - 10.0f, size.y - 10.0f }, { 0, 0 }, { 1, 1 }, 2);
         ImGui::PopStyleColor(3);
 
         // 左クリック（選択）
         if (ImGui::IsItemHovered())
         {
             if (ImGui::IsMouseClicked(ImGuiMouseButton_Left))
-                panel->m_SelectAsset = AssetManager::Get()->GetAssetAs<Material>(m_ID);
+                panel->m_SelectAsset = AssetManager::Get()->GetAssetAs<MaterialAsset>(m_ID);
 
             if (ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && m_Type == AssetItemType::Directory)
                 panel->m_MoveRequestDirectoryAssetID = m_ID;
@@ -267,7 +268,7 @@ namespace Silex
                         std::string path      = directory + "/" + filename;
 
                         // 新規アセット生成
-                        Ref<Material> materialAsset = AssetManager::Get()->CreateAsset<Material>(path);
+                        Ref<MaterialAsset> materialAsset = AssetManager::Get()->CreateAsset<MaterialAsset>(path);
 
                         // アセットブラウザのアセットリストに追加
                         m_CurrentDirectoryAssetItems[materialAsset->GetAssetID()] = (CreateRef<AssetBrowserItem>(AssetItemType::Asset, materialAsset->GetAssetID(), std::move(filename), m_AssetIcons[AssetType::Material]));
@@ -332,13 +333,20 @@ namespace Silex
         
         if (ImGui::Button("Save", { windowWidth * 0.25f - offset - 4.0f, 25}))
         {
-            AssetSerializer<Material>::Serialize(m_SelectAsset.As<Material>(), m_SelectAsset->GetFilePath());
+            AssetSerializer<MaterialAsset>::Serialize(m_SelectAsset.As<MaterialAsset>(), m_SelectAsset->GetFilePath());
         }
 
         ImGui::Separator();
 
-        Ref<Material> material    = m_SelectAsset.As<Material>();
-        uint32 albedoTextureThumnail = material->AlbedoMap? material->AlbedoMap->GetID() : 0;
+        Ref<MaterialAsset> material  = m_SelectAsset.As<MaterialAsset>();
+
+        //---------------------------------------------------
+        // OpenGL　実装だったので、TextureID を渡すことを期待している
+        // Vulkan 実装では、デスクリプターセットを渡す必要がある
+        // 詳細は vulkanGUI に記載
+        //---------------------------------------------------
+        // uint32 albedoTextureThumnail = material->Get()->AlbedoMap? material->Get()->AlbedoMap->Get()->GetID() : 0;
+        // DescriptorSet* albedoTextureThumnail = material->Get()->AlbedoMap? material->Get()->AlbedoMap->Get()->GetID() : 0;
 
         ImGui::Dummy({ 0, 4.0f });
         ImGui::Columns(2);
@@ -347,8 +355,8 @@ namespace Silex
         {
             ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0, lineHeight * 0.5f));
 
-            if (ImGui::ImageButton((ImTextureID)albedoTextureThumnail, { lineHeight * 0.8f, lineHeight * 0.8f }, { 0, 0 }, { 1, 1 }, 1))
-                ImGui::OpenPopup("##AlbedoPopup");
+            // if (ImGui::ImageButton((ImTextureID)albedoTextureThumnail, { lineHeight * 0.8f, lineHeight * 0.8f }, { 0, 0 }, { 1, 1 }, 1))
+            //      ImGui::OpenPopup("##AlbedoPopup");
 
             if (ImGui::BeginPopup("##AlbedoPopup", ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize))
             {
@@ -372,7 +380,7 @@ namespace Silex
                             current  = id;
                             modified = true;
 
-                            material->AlbedoMap = asset.As<Texture2D>();
+                            material->Get()->AlbedoMap = asset.As<Texture2DAsset>();
                         }
 
                         if (selected)
@@ -411,11 +419,11 @@ namespace Silex
         {
             ImGui::PushItemWidth(ImGui::GetColumnWidth(1) - 10);
 
-            ImGui::PushID("Albedo");        ImGui::ColorEdit3("",  glm::value_ptr(material->Albedo));              ImGui::PopID();
-            ImGui::PushID("Emission");      ImGui::ColorEdit3("",  glm::value_ptr(material->Emission));            ImGui::PopID();
-            ImGui::PushID("Metallic");      ImGui::SliderFloat("", &material->Metallic, 0.0f, 1.0f);               ImGui::PopID();
-            ImGui::PushID("Roughness");     ImGui::SliderFloat("", &material->Roughness, 0.0f, 1.0f);              ImGui::PopID();
-            ImGui::PushID("TextureTiling"); ImGui::DragFloat2("",  glm::value_ptr(material->TextureTiling), 0.1f); ImGui::PopID();
+            ImGui::PushID("Albedo");        ImGui::ColorEdit3("",  glm::value_ptr(material->Get()->Albedo));              ImGui::PopID();
+            ImGui::PushID("Emission");      ImGui::ColorEdit3("",  glm::value_ptr(material->Get()->Emission));            ImGui::PopID();
+            ImGui::PushID("Metallic");      ImGui::SliderFloat("", &material->Get()->Metallic, 0.0f, 1.0f);               ImGui::PopID();
+            ImGui::PushID("Roughness");     ImGui::SliderFloat("", &material->Get()->Roughness, 0.0f, 1.0f);              ImGui::PopID();
+            ImGui::PushID("TextureTiling"); ImGui::DragFloat2("",  glm::value_ptr(material->Get()->TextureTiling), 0.1f); ImGui::PopID();
 
             ImGui::PushID("ShadingModel");
 
@@ -429,7 +437,7 @@ namespace Silex
             itemList[0] = {ShadingModelType::BlinnPhong, "BlinnPhong"};
             itemList[1] = {ShadingModelType::BRDF,       "BRDF"};
 
-            static const char* s_currentItem = itemList[material->ShadingModel].name;
+            static const char* s_currentItem = itemList[material->Get()->ShadingModel].name;
 
             if (ImGui::BeginCombo("", s_currentItem))
             {
@@ -440,7 +448,7 @@ namespace Silex
                     if (ImGui::Selectable(itemList[i].name, isSelected))
                     {
                         s_currentItem = itemList[i].name;
-                        material->ShadingModel = itemList[i].model;
+                        material->Get()->ShadingModel = itemList[i].model;
                     }
 
                     if (isSelected)
@@ -462,19 +470,19 @@ namespace Silex
     void AssetBrowserPanel::LoadAssetIcons()
     {
         AssetMetadata meta = AssetManager::Get()->GetMetadata("Assets/Editor/Directory.png");
-        m_DirectoryIcon = AssetManager::Get()->GetAssetAs<Texture2D>(meta.id);
+        m_DirectoryIcon = AssetManager::Get()->GetAssetAs<Texture2DAsset>(meta.id);
 
         meta = AssetManager::Get()->GetMetadata("Assets/Editor/Material.png");
-        m_AssetIcons[AssetType::Material] = AssetManager::Get()->GetAssetAs<Texture2D>(meta.id);
+        m_AssetIcons[AssetType::Material] = AssetManager::Get()->GetAssetAs<Texture2DAsset>(meta.id);
 
         meta = AssetManager::Get()->GetMetadata("Assets/Editor/Scene.png");
-        m_AssetIcons[AssetType::Scene] = AssetManager::Get()->GetAssetAs<Texture2D>(meta.id);
+        m_AssetIcons[AssetType::Scene] = AssetManager::Get()->GetAssetAs<Texture2DAsset>(meta.id);
 
         meta = AssetManager::Get()->GetMetadata("Assets/Editor/Texture.png");
-        m_AssetIcons[AssetType::Texture] = AssetManager::Get()->GetAssetAs<Texture2D>(meta.id);
+        m_AssetIcons[AssetType::Texture] = AssetManager::Get()->GetAssetAs<Texture2DAsset>(meta.id);
 
         meta = AssetManager::Get()->GetMetadata("Assets/Editor/File.png");
-        const auto& icon = AssetManager::Get()->GetAssetAs<Texture2D>(meta.id);
+        const auto& icon = AssetManager::Get()->GetAssetAs<Texture2DAsset>(meta.id);
         m_AssetIcons[AssetType::None]        = icon;
         m_AssetIcons[AssetType::Environment] = icon;
         m_AssetIcons[AssetType::Mesh]        = icon;

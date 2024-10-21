@@ -37,7 +37,7 @@ namespace Silex
         Renderer::Get()->UpdateBufferData(handle[frameindex], data, writeByteSize);
     }
 
-    void DescriptorSet::Update()
+    void DescriptorSet::Flush()
     {
         Renderer::Get()->UpdateDescriptorSet(handle[0], descriptorSetInfo[0]);
         Renderer::Get()->UpdateDescriptorSet(handle[1], descriptorSetInfo[1]);

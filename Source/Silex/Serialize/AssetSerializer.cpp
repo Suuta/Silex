@@ -6,6 +6,7 @@
 #include "Serialize/Serialize.h"
 #include "Serialize/AssetSerializer.h"
 #include "Rendering/Material.h"
+#include "Rendering/Renderer.h"
 
 /*
     MeshComponent:
@@ -64,21 +65,22 @@
 namespace Silex
 {
     template<>
-    void AssetSerializer<Material>::Serialize(const Ref<Material>& aseet, const std::string& filePath)
+    void AssetSerializer<MaterialAsset>::Serialize(const Ref<MaterialAsset>& aseet, const std::string& filePath)
     {
-        AssetID albedoAssetID = Renderer::Get()->GetDefaultTexture()->GetAssetID();
-        if (aseet->AlbedoMap) albedoAssetID = aseet->AlbedoMap->GetAssetID();
+        //AssetID albedoAssetID = Renderer::Get()->GetDefaultTexture()->GetAssetID();
+        //if (aseet->AlbedoMap)
+        //    albedoAssetID = aseet->AlbedoMap->GetAssetID();
 
         YAML::Emitter out;
 
         out << YAML::BeginMap;
-        out << YAML::Key << "shadingModel"  << YAML::Value << aseet->ShadingModel;
-        out << YAML::Key << "albedo"        << YAML::Value << aseet->Albedo;
-        out << YAML::Key << "albedoMap"     << YAML::Value << albedoAssetID;
-        out << YAML::Key << "emission"      << YAML::Value << aseet->Emission;
-        out << YAML::Key << "metallic"      << YAML::Value << aseet->Metallic;
-        out << YAML::Key << "roughness"     << YAML::Value << aseet->Roughness;
-        out << YAML::Key << "textureTiling" << YAML::Value << aseet->TextureTiling;
+        out << YAML::Key << "shadingModel"  << YAML::Value << aseet->Get()->ShadingModel;
+        out << YAML::Key << "albedo"        << YAML::Value << aseet->Get()->Albedo;
+        //out << YAML::Key << "albedoMap"     << YAML::Value << albedoAssetID;
+        out << YAML::Key << "emission"      << YAML::Value << aseet->Get()->Emission;
+        out << YAML::Key << "metallic"      << YAML::Value << aseet->Get()->Metallic;
+        out << YAML::Key << "roughness"     << YAML::Value << aseet->Get()->Roughness;
+        out << YAML::Key << "textureTiling" << YAML::Value << aseet->Get()->TextureTiling;
         out << YAML::EndMap;
 
         std::ofstream fout(filePath);
@@ -87,9 +89,11 @@ namespace Silex
     }
 
     template<>
-    Ref<Material> AssetSerializer<Material>::Deserialize(const std::string& filePath)
+    Ref<MaterialAsset> AssetSerializer<MaterialAsset>::Deserialize(const std::string& filePath)
     {
-        Ref<Material> material = CreateRef<Material>();
+        Material* material = slnew(Material);
+        Ref<MaterialAsset> asset = CreateRef<MaterialAsset>(material);
+
 
         YAML::Node data = YAML::LoadFile(filePath);
 
@@ -101,17 +105,17 @@ namespace Silex
         auto roughness     = data["roughness"].as<float>();
         auto textureTiling = data["textureTiling"].as<glm::vec2>();
 
-        material->ShadingModel  = (ShadingModelType)shadingModel;
-        material->Emission      = emission;
-        material->Metallic      = metallic;
-        material->Roughness     = roughness;
-        material->TextureTiling = textureTiling;
-        material->Albedo        = albedo;
+        asset->Get()->ShadingModel  = (ShadingModelType)shadingModel;
+        asset->Get()->Emission      = emission;
+        asset->Get()->Metallic      = metallic;
+        asset->Get()->Roughness     = roughness;
+        asset->Get()->TextureTiling = textureTiling;
+        asset->Get()->Albedo        = albedo;
 
         // テクスチャ読み込み完了を前提とする
-        const Ref<Texture2D>& texture = AssetManager::Get()->GetAssetAs<Texture2D>(albedoMap);
-        material->AlbedoMap = texture;
+        const Ref<Texture2DAsset>& texture = AssetManager::Get()->GetAssetAs<Texture2DAsset>(albedoMap);
+        asset->Get()->AlbedoMap = texture;
 
-        return material;
+        return asset;
     }
 }

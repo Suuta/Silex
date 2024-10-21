@@ -188,10 +188,36 @@ namespace Silex
 
 #if SL_RENDERER_VULKAN
 
+    //==========================================================================================
+    // OpenGL　実装だったので、TextureID を渡すことを期待している
+    // Vulkan 実装では、デスクリプターセットを渡す必要がある
+    // また、ImGuiは 以下のように "イメージサンプラー x 1" レイアウトの デスクリプターセットを要求する
+    //==========================================================================================
+    // imgui_impl_vulkan.cpp [1026]
+    //==========================================================================================
+    // VkDescriptorSetLayoutBinding binding[1] = {};
+    // binding[0].descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    // binding[0].descriptorCount = 1;
+    // binding[0].stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+    // 
+    // VkDescriptorSetLayoutCreateInfo info = {};
+    // info.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    // info.bindingCount = 1;
+    // info.pBindings    = binding;
+    // 
+    // vkCreateDescriptorSetLayout(v->Device, &info, v->Allocator, &bd->DescriptorSetLayout);
+    //==========================================================================================
+
     void GUI::Image(DescriptorSetHandle* set, float width, float height)
     {
         VulkanDescriptorSet* descriptorset = (VulkanDescriptorSet*)set;
         ImGui::Image(descriptorset->descriptorSet, { width, height });
+    }
+
+    void GUI::ImageButton(DescriptorSetHandle* set, float width, float height, uint32 framePadding)
+    {
+        VulkanDescriptorSet* descriptorset = (VulkanDescriptorSet*)set;
+        ImGui::ImageButton(descriptorset->descriptorSet, { width, height }, {0, 0}, {1, 1}, framePadding);
     }
 
 #endif
