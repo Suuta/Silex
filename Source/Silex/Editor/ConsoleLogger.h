@@ -14,49 +14,49 @@ namespace Silex
 
         void Log(const std::string& message)
         {
-            m_LogData += message;
+            logData += message;
         }
 
         void Log(LogLevel level, const std::string& message)
         {
             // 一定サイズなら、先頭要素を消す
-            if (m_LogEntries.size() > m_MaxLogEntory)
+            if (logEntries.size() > maxLogEntory)
             {
-                m_LogEntries.pop_front();
+                logEntries.pop_front();
             }
 
             LogEntry entry;
-            entry.Level = level;
-            entry.Text  = message;
+            entry.level = level;
+            entry.text  = message;
 
-            m_LogEntries.emplace_back(entry);
+            logEntries.emplace_back(entry);
         }
 
         void Clear()
         {
-            m_LogData.clear();
+            logData.clear();
 
             // queue に clearメンバ関数が無いので空オブジェクトとスワップ
             //std::queue<LogEntry> empty;
             //std::swap(m_LogEntries, empty);
 
-            m_LogEntries.clear();
+            logEntries.clear();
         }
 
         const char* Data()
         {
-            return m_LogData.c_str();
+            return logData.c_str();
         }
 
         void LogData()
         {
             ImGui::BeginChild("ScrollingRegion", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
-            for (auto& entry : m_LogEntries)
+            for (auto& entry : logEntries)
             {
                 ImVec4 color;
                 
-                switch(entry.Level)
+                switch(entry.level)
                 {
                     case LogLevel::Fatal : color = ImVec4(0.8f, 0.0f, 0.8f, 1.0f); break;
                     case LogLevel::Error : color = ImVec4(0.8f, 0.2f, 0.2f, 1.0f); break;
@@ -69,7 +69,7 @@ namespace Silex
                 }
 
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
-                ImGui::Text("%s", entry.Text.c_str());
+                ImGui::Text("%s", entry.text.c_str());
                 ImGui::PopStyleColor();
             }
 
@@ -80,16 +80,16 @@ namespace Silex
 
         struct LogEntry
         {
-            std::string Text;
-            LogLevel    Level;
+            std::string text;
+            LogLevel    level;
         };
 
     private:
 
-        uint64 m_MaxLogEntory = 1024;
+        const uint64 maxLogEntory = 1024;
 
-        std::deque<LogEntry> m_LogEntries;
-        std::string          m_LogData;
+        std::deque<LogEntry> logEntries;
+        std::string          logData;
     };
 }
 

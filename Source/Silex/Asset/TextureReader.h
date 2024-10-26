@@ -24,6 +24,7 @@ namespace Silex
         byte*  Read(const char* path, bool flipOnRead = false);
         float* ReadHDR(const char* path, bool flipOnRead = false);
 
+        bool IsHDR(const char* path);
         void Unload(void* data);
 
         TextureSourceData data;

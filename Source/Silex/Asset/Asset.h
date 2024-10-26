@@ -213,7 +213,7 @@ namespace Silex
         Ref<T> CreateAsset(const std::filesystem::path& directory, Args&&... args)
         {
             //　現状はマテリアルのみサポート (インポートと生成との意味合いが混同しているため)
-            // static_assert(Traits::IsSame<MaterialAsset, T>() && Traits::IsBaseOf<Asset, T>());
+            static_assert(Traits::IsSame<MaterialAsset, T>() && Traits::IsBaseOf<Asset, T>());
 
             AssetMetadata metadata = instance->_AddToMetadata(directory);
             Ref<T> asset = AssetCreator::Create<T>(directory, Traits::Forward<Args>(args)...);
@@ -250,8 +250,9 @@ namespace Silex
 
     private:
 
-        // ビルトインアセット生成
+        // ビルトインアセット (レンダラーと密な依存関係あり)
         void _CreateBuiltinAssets();
+        void _DestroyBuiltinAssets();
 
         // アセットデータベースファイルからメタデータを読み込む
         void _LoadAssetMetaDataFromDatabaseFile(const std::filesystem::path& filePath);

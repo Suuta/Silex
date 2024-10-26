@@ -6,6 +6,9 @@
 
 namespace Silex
 {
+    //==============================================================
+    // テクスチャ
+    //==============================================================
     void Texture2D::Resize(uint32 width, uint32 height)
     {
         Renderer::Get()->DestroyTexture(handle[0]);
@@ -15,48 +18,59 @@ namespace Silex
         handle[0] = Renderer::Get()->CreateTexture(textureInfo);
     }
 
-    void* UniformBuffer::GetData()
-    {
-        return data;
-    }
-
+    //==============================================================
+    // ユニフォームバッファ
+    //==============================================================
     void UniformBuffer::SetData(const void* data, uint64 writeByteSize)
     {
         uint32 frameindex = Renderer::Get()->GetCurrentFrameIndex();
         Renderer::Get()->UpdateBufferData(handle[frameindex], data, writeByteSize);
     }
 
-    void* StorageBuffer::GetData()
-    {
-        return data;
-    }
-
+    //==============================================================
+    // ストレージバッファ
+    //==============================================================
     void StorageBuffer::SetData(const void* data, uint64 writeByteSize)
     {
         uint32 frameindex = Renderer::Get()->GetCurrentFrameIndex();
         Renderer::Get()->UpdateBufferData(handle[frameindex], data, writeByteSize);
     }
 
+    //==============================================================
+    // デスクリプターセット
+    //==============================================================
+
+    DescriptorSet::DescriptorSet()
+    {
+        descriptorSetInfo.resize(handle.size());
+    }
+
     void DescriptorSet::Flush()
     {
-        Renderer::Get()->UpdateDescriptorSet(handle[0], descriptorSetInfo[0]);
-        Renderer::Get()->UpdateDescriptorSet(handle[1], descriptorSetInfo[1]);
+        for (uint32 i = 0; i < handle.size(); i++)
+        {
+            Renderer::Get()->UpdateDescriptorSet(handle[i], descriptorSetInfo[i]);
+        }
     }
 
-    void DescriptorSet::SetResource(uint32 index, TextureView* view, Sampler* sampler)
+    void DescriptorSet::SetResource(uint32 setIndex, TextureView* view, Sampler* sampler)
     {
-        descriptorSetInfo[0].BindTexture(index, DESCRIPTOR_TYPE_IMAGE_SAMPLER, view->GetHandle(), sampler->GetHandle());
+        descriptorSetInfo[0].BindTexture(setIndex, DESCRIPTOR_TYPE_IMAGE_SAMPLER, view->GetHandle(), sampler->GetHandle());
     }
 
-    void DescriptorSet::SetResource(uint32 index, UniformBuffer* uniformBuffer)
+    void DescriptorSet::SetResource(uint32 setIndex, UniformBuffer* uniformBuffer)
     {
-        descriptorSetInfo[0].BindBuffer(index, DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniformBuffer->GetHandle(0));
-        descriptorSetInfo[1].BindBuffer(index, DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniformBuffer->GetHandle(1));
+        for (uint32 i = 0; i < descriptorSetInfo.size(); i++)
+        {
+            descriptorSetInfo[i].BindBuffer(setIndex, DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniformBuffer->GetHandle(i));
+        }
     }
 
-    void DescriptorSet::SetResource(uint32 index, StorageBuffer* storageBuffer)
+    void DescriptorSet::SetResource(uint32 setIndex, StorageBuffer* storageBuffer)
     {
-        descriptorSetInfo[0].BindBuffer(index, DESCRIPTOR_TYPE_STORAGE_BUFFER, storageBuffer->GetHandle(0));
-        descriptorSetInfo[1].BindBuffer(index, DESCRIPTOR_TYPE_STORAGE_BUFFER, storageBuffer->GetHandle(1));
+        for (uint32 i = 0; i < descriptorSetInfo.size(); i++)
+        {
+            descriptorSetInfo[i].BindBuffer(setIndex, DESCRIPTOR_TYPE_STORAGE_BUFFER, storageBuffer->GetHandle(i));
+        }
     }
 }

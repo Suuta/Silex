@@ -28,9 +28,11 @@ namespace Silex
     {
         // 長さが不確定な文字配列のハッシュ
         template<typename T = uint64>
-        static T FNV(const char* str, size_t length)
+        static T FNV(const char* str)
         {
+            uint64 length = std::strlen(str);
             T value = fnv1a_constant<T>::offset;
+
             for (uint64 i = 0; i < length; ++i)
             {
                 value ^= *str++;

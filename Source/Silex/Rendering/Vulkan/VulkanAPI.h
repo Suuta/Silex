@@ -168,22 +168,22 @@ namespace Silex
     private:
 
         // デスクリプタプールの管理
-        VkDescriptorPool _FindOrCreateDescriptorPool(const DescriptorSetPoolKey& key);
-        void             _DecrementPoolRefCount(VkDescriptorPool pool, DescriptorSetPoolKey& poolKey);
+        VkDescriptorPool _FindOrCreateDescriptorPool(const VulkanDescriptorSet::PoolKey& key);
+        void             _DecrementPoolRefCount(VkDescriptorPool pool, VulkanDescriptorSet::PoolKey& poolKey);
 
         // 利用可能サンプル数のチェック
         VkSampleCountFlagBits _CheckSupportedSampleCounts(TextureSamples samples);
 
         // スワップチェイン共通処理
-        VulkanSwapChain*  _CreateSwapChain_Internal(VulkanSwapChain* swapchain, const SwapChainCapability& cap);
+        VulkanSwapChain*  _CreateSwapChain_Internal(VulkanSwapChain* swapchain, const VulkanSwapChain::Capability& cap);
         void              _DestroySwapChain_Internal(VulkanSwapChain* swapchain);
         VulkanRenderPass* _CreateSwapChainRenderPass(VkFormat format);
-        bool              _QuerySwapChainCapability(VkSurfaceKHR surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VkPresentModeKHR mode, SwapChainCapability& out_cap);
+        bool              _QuerySwapChainCapability(VkSurfaceKHR surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VkPresentModeKHR mode, VulkanSwapChain::Capability& out_cap);
 
     private:
 
         // デスクリプター型と個数では一意のハッシュ値を生成できないので、unordered_mapではなく、mapを採用
-        std::map<DescriptorSetPoolKey, std::unordered_map<VkDescriptorPool, uint32>> descriptorsetPools;
+        std::map<VulkanDescriptorSet::PoolKey, std::unordered_map<VkDescriptorPool, uint32>> descriptorsetPools;
 
         // デバイス拡張機能関数
         PFN_vkCreateSwapchainKHR    CreateSwapchainKHR    = nullptr;

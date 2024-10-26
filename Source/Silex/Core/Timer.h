@@ -31,7 +31,7 @@ namespace Silex
             return Elapsed() * 1000.0f;
         }
 
-        float ElapsedMicron()
+        float ElapsedMicro()
         {
             return Elapsed();
         }

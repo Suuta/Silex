@@ -14,7 +14,7 @@ layout (location = 0) out vec3 outPosAsUV;
 
 void main()
 {
-    outPosAsUV  = inPos;
+    outPosAsUV = inPos;
 }
 
 
@@ -44,8 +44,12 @@ void main()
 
         for (int i = 0; i < 3; i++)
         {
-            outPosAsUV  = inPos[i];
+            vec3 uv = inPos[i];
+            uv.y *= -1.0;
+
+            outPosAsUV  = uv;
             gl_Position = cubeProj * cubeView[face] * vec4(inPos[i], 1.0);
+
             EmitVertex();
         }
 

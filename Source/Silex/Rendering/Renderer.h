@@ -10,6 +10,15 @@ namespace Silex
     class RenderingAPI;
     class RenderingContext;
 
+    class Sampler;
+    class Texture;
+    class TextureView;
+    class Buffer;
+    class DescriptorSet;
+    class Shader;
+    class RenderPass;
+    class Framebuffer;
+    class Pipeline;
 
 
     struct GBufferData
@@ -164,7 +173,7 @@ namespace Silex
         static Renderer* Get();
 
         // 初期化
-        bool Initialize(RenderingContext* renderingContext);
+        bool Initialize(RenderingContext* renderingContext, uint32 framesInFlight = 2, uint32 numSwapchainBuffer = 3);
 
         // フレーム同期
         bool BeginFrame();
@@ -183,8 +192,9 @@ namespace Silex
         CommandQueueHandle* GetGraphicsCommandQueue() const;
 
         // フレームデータ
-        const FrameData& GetFrameData()         const;
-        uint32           GetCurrentFrameIndex() const;
+        const FrameData& GetFrameData()          const;
+        uint32           GetCurrentFrameIndex()  const;
+        uint32           GetFrameCountInFlight() const;
 
         // デバイス情報
         const DeviceInfo& GetDeviceInfo() const;
@@ -250,15 +260,18 @@ namespace Silex
         //===========================================================
         // メンバ
         //===========================================================
-        ImmidiateCommandData     immidiateContext = {};
-        std::array<FrameData, 2> frameData        = {};
-        uint64                   frameIndex       = 0;
+        ImmidiateCommandData   immidiateContext = {};
+        std::vector<FrameData> frameData        = {};
+        uint64                 frameIndex       = 0;
 
         RenderingContext* context = nullptr;
         RenderingAPI*     api     = nullptr;
 
         QueueID             graphicsQueueID = RENDER_INVALID_ID;
         CommandQueueHandle* graphicsQueue   = nullptr;
+
+        uint32 numSwapchainFrameBuffer = 3;
+        uint32 numFramesInFlight       = 2;
 
         //===========================================================
         // インスタンス

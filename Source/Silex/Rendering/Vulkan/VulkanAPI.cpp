@@ -16,7 +16,7 @@ namespace Silex
     static constexpr uint32 MaxDescriptorsetPerPool = 64;
 
     // デスクリプターセットシグネチャから同一シグネチャのプールがあれば取得、なければ新規生成
-    VkDescriptorPool VulkanAPI::_FindOrCreateDescriptorPool(const DescriptorSetPoolKey& key)
+    VkDescriptorPool VulkanAPI::_FindOrCreateDescriptorPool(const VulkanDescriptorSet::PoolKey& key)
     {
         // プールが既に存在し、そのプールの参照カウントが MaxDescriptorsetPerPool 以下ならそのプールを使用
         const auto& find = descriptorsetPools.find(key);
@@ -130,7 +130,7 @@ namespace Silex
     }
 
     // プールの参照カウントを減らす、0なら破棄
-    void VulkanAPI::_DecrementPoolRefCount(VkDescriptorPool pool, DescriptorSetPoolKey& poolKey)
+    void VulkanAPI::_DecrementPoolRefCount(VkDescriptorPool pool, VulkanDescriptorSet::PoolKey& poolKey)
     {
         const auto& itr = descriptorsetPools.find(poolKey);
         itr->second[pool]--;
@@ -177,7 +177,7 @@ namespace Silex
     }
 
     // スワップチェイン生成 共通処理
-    VulkanSwapChain* VulkanAPI::_CreateSwapChain_Internal(VulkanSwapChain* swapchain, const SwapChainCapability& cap)
+    VulkanSwapChain* VulkanAPI::_CreateSwapChain_Internal(VulkanSwapChain* swapchain, const VulkanSwapChain::Capability& cap)
     {
         // スワップチェイン生成
         VkSwapchainCreateInfoKHR swapCreateInfo = {};
@@ -335,7 +335,7 @@ namespace Silex
     }
 
     // スワップチェイン仕様のクエリ
-    bool VulkanAPI::_QuerySwapChainCapability(VkSurfaceKHR surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VkPresentModeKHR mode, SwapChainCapability& out_cap)
+    bool VulkanAPI::_QuerySwapChainCapability(VkSurfaceKHR surface, uint32 width, uint32 height, uint32 requestFramebufferCount, VkPresentModeKHR mode, VulkanSwapChain::Capability& out_cap)
     {
         VkPhysicalDevice physicalDevice = context->GetPhysicalDevice();
 
@@ -870,14 +870,13 @@ namespace Silex
             return nullptr;
         }
 
-        SwapChainCapability queryResult;
+        VulkanSwapChain::Capability queryResult;
         SL_CHECK(!_QuerySwapChainCapability(VulkanCast(surface)->surface, width, height, requestFramebufferCount, (VkPresentModeKHR)mode, queryResult), nullptr);
 
         VulkanSwapChain* swapchain = slnew(VulkanSwapChain);
         swapchain->renderpass = _CreateSwapChainRenderPass(queryResult.format);
         swapchain->surface    = VulkanCast(surface);
-        swapchain->format     = queryResult.format;
-        swapchain->colorspace = queryResult.colorspace;
+        swapchain->capability = queryResult;
 
         _CreateSwapChain_Internal(swapchain, queryResult);
 
@@ -901,7 +900,7 @@ namespace Silex
         SL_CHECK_VKRESULT(result, false);
 
         // スワップチェイン仕様クエリ
-        SwapChainCapability queryResult;
+        VulkanSwapChain::Capability queryResult;
         SL_CHECK(!_QuerySwapChainCapability(vkSurface->surface, width, height, requestFramebufferCount, (VkPresentModeKHR)mode, queryResult), false);
         
         // スワップチェイン破棄
@@ -921,7 +920,7 @@ namespace Silex
         SL_CHECK_VKRESULT(result, std::make_pair(nullptr, nullptr));
 
         FramebufferHandle* fb = vkswapchain->framebuffers[vkswapchain->imageIndex];
-        TextureViewHandle*       tv = vkswapchain->views[vkswapchain->imageIndex];
+        TextureViewHandle* tv = vkswapchain->views[vkswapchain->imageIndex];
 
         return {fb, tv};
     }
@@ -954,7 +953,7 @@ namespace Silex
     RenderingFormat VulkanAPI::GetSwapChainFormat(SwapChainHandle* swapchain)
     {
         VulkanSwapChain* vkswapchain = VulkanCast(swapchain);
-        return RenderingFormat(vkswapchain->format);
+        return RenderingFormat(vkswapchain->capability.format);
     }
 
     void VulkanAPI::DestroySwapChain(SwapChainHandle* swapchain)
@@ -2155,7 +2154,7 @@ namespace Silex
         ShaderReflectionData* reflection = vkShader->reflection;
 
         // デスクリプターセットのシグネチャ（データ型と数の一致）を識別するキー
-        DescriptorSetPoolKey key = {};
+        VulkanDescriptorSet::PoolKey key = {};
         uint32 numDescriptor = 0;
 
         // シェーダーリフレクションからキーを生成

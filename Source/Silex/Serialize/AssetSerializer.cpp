@@ -8,59 +8,6 @@
 #include "Rendering/Material.h"
 #include "Rendering/Renderer.h"
 
-/*
-    MeshComponent:
-      Mesh: 2
-      Material :
-        ShadingModel : 1
-        Table :
-          0 :
-            Albedo: [1, 1, 1]
-            AlbedoMap: 2
-            Emission: [0, 0, 0]
-            Metallic: 1
-            Roughness: 1
-            TextureTiling: [1, 1]
-            CastShadow: true
-          1 :
-            Albedo: [1, 1, 1]
-            AlbedoMap: 2
-            Emission: [0, 0, 0]
-            Metallic: 1
-            Roughness: 1
-            TextureTiling: [1, 1]
-            CastShadow: true
-
-        ↓
-
-    // マテリアル
-    ShadingModel: 1
-    Albedo: [1, 1, 1]
-    AlbedoMap : 0
-    Emission: [0, 0, 0]
-    Metallic: 1
-    Roughness: 1
-    TextureTiling: [1, 1]
-    CastShadow: true
-
-    ShadingModel: 1
-    Albedo: [1, 1, 1]
-    AlbedoMap: 0
-    Emission: [0, 0, 0]
-    Metallic: 1
-    Roughness: 1
-    TextureTiling: [1, 1]
-    CastShadow: true
-
-    // シーン
-    MeshComponent:
-      Mesh: 2
-      Material:
-        0: 5372816381729 // assetID
-        1: 7894653678935 // assetID
-        ...
-*/
-
 
 namespace Silex
 {

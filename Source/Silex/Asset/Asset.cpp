@@ -118,7 +118,7 @@ namespace Silex
 
     Texture2DAsset::Texture2DAsset() {}
     Texture2DAsset::Texture2DAsset(Texture2D* asset) : texture(asset) {}
-    Texture2DAsset::~Texture2DAsset() { sldelete(texture); }
+    Texture2DAsset::~Texture2DAsset() { Renderer::Get()->DestroyTexture(texture->GetHandle()); }
 
     EnvironmentAsset::EnvironmentAsset() {}
     EnvironmentAsset::EnvironmentAsset(Environment* asset) : environment(asset) {}
@@ -139,40 +139,8 @@ namespace Silex
 
         // ビルトインデータ(ID: 1 - 5 に割り当て)
         // アセットデータベースには登録されない（メモリオンリーアセット）
-#if 0
-        {
-            auto& tex = Renderer::Get()->GetDefaultTexture();
-            tex->SetAssetType(AssetType::Texture);
-            tex->SetName("Default");
-            instance->_AddToAssetAndID(1, tex);
-            instance->builtinAssetCount++;
+        instance->_CreateBuiltinAssets();
 
-            auto& checker = Renderer::Get()->GetCheckerboardexture();
-            checker->SetAssetType(AssetType::Texture);
-            checker->SetName("Checkerboard");
-            instance->_AddToAssetAndID(2, checker);
-            instance->builtinAssetCount++;
-
-            auto& cube = Renderer::Get()->GetCubeMesh();
-            cube->SetAssetType(AssetType::Mesh);
-            cube->SetName("Cube");
-            instance->_AddToAssetAndID(3, cube);
-            instance->builtinAssetCount++;
-
-            auto& sphere = Renderer::Get()->GetSphereMesh();
-            sphere->SetAssetType(AssetType::Mesh);
-            sphere->SetName("Sphere");
-            instance->_AddToAssetAndID(4, sphere);
-            instance->builtinAssetCount++;
-
-            auto& material = Renderer::Get()->GetDefaultMaterial();
-            material->SetAssetType(AssetType::Material);
-            material->SetName("DefaultMaterial");
-            material->AlbedoMap = checker;
-            instance->_AddToAssetAndID(5, material);
-            instance->builtinAssetCount++;
-        }
-#endif
 
         if (std::filesystem::exists(assetDatabasePath))
         {
@@ -194,6 +162,8 @@ namespace Silex
     {
         // データベースファイルのメタデータを更新する
         instance->_WriteDatabaseToFile(assetDatabasePath);
+
+        instance->_DestroyBuiltinAssets();
 
         if (instance)
         {
@@ -255,6 +225,62 @@ namespace Silex
 
     void AssetManager::_CreateBuiltinAssets()
     {
+        Ref<Texture2DAsset> white = AssetImporter::Import<Texture2DAsset>("Assets/Editor/WhiteTexture.png");
+        white->SetAssetType(AssetType::Texture);
+        white->SetName("WhiteTexture");
+        instance->_AddToAssetAndID(1, white);
+        instance->builtinAssetCount++;
+
+        Ref<Texture2DAsset> checker = AssetImporter::Import<Texture2DAsset>("Assets/Editor/CheckerboardTexture.png");
+        checker->SetAssetType(AssetType::Texture);
+        checker->SetName("CheckerboardTexture");
+        instance->_AddToAssetAndID(2, checker);
+        instance->builtinAssetCount++;
+
+        Ref<MeshAsset> cube = AssetImporter::Import<MeshAsset>("Assets/Editor/Cube.fbx");
+        cube->SetAssetType(AssetType::Mesh);
+        cube->SetName("Cube");
+        instance->_AddToAssetAndID(3, cube);
+        instance->builtinAssetCount++;
+
+        Ref<MeshAsset> sphere = AssetImporter::Import<MeshAsset>("Assets/Editor/Sphere.fbx");
+        sphere->SetAssetType(AssetType::Mesh);
+        sphere->SetName("Sphere");
+        instance->_AddToAssetAndID(4, sphere);
+        instance->builtinAssetCount++;
+
+        Ref<MaterialAsset> material = AssetImporter::Import<MaterialAsset>("Assets/Editor/DefaultMaterial.slmt");
+        material->SetAssetType(AssetType::Material);
+        material->SetName("DefaultMaterial");
+        instance->_AddToAssetAndID(5, material);
+        instance->builtinAssetCount++;
+    }
+
+    void AssetManager::_DestroyBuiltinAssets()
+    {
+        //=================================================================================
+        // アセットは参照カウンタでラップするから、マネージャー解放時に全アセットが自動解放されるようになる
+        //
+        // ・各アセットは、リソースクラスをデストラクタで開放するようになっているので、各リソースが内部で
+        //   レンダーAPI の Destroy関数を呼ぶとよい。
+        //   Ref<Texture2DAsset>
+        //      -> ~Texture2DAsset() -> delete (Texture2D)
+        //      -> ~Texture2D()      -> Renderer::Get()->DestroyTexture()
+        // 
+        // ✔ レンダーAPI（Destroy系）が実装済みなので、統一するためにも、破棄はRHIレイヤーで行うべき
+        //   Ref<Texture2DAsset>
+        //      -> ~Texture2DAsset() -> Renderer::Get()->DestroyTexture()
+        //=================================================================================
+#if 0
+        const auto& white = GetAssetAs<Texture2DAsset>(1);
+        Renderer::Get()->DestroyTexture(white->Get()->GetHandle());
+
+        const auto& checker = GetAssetAs<Texture2DAsset>(2);
+        Renderer::Get()->DestroyTexture(checker->Get()->GetHandle());
+
+        const auto& cube = GetAssetAs<MeshAsset>(3);
+        cube->Get();
+#endif
     }
 
     void AssetManager::_LoadAssetMetaDataFromDatabaseFile(const std::filesystem::path& filePath)

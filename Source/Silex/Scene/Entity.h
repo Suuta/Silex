@@ -16,8 +16,8 @@ namespace Silex
         Entity() {};
 
         Entity(entt::entity handle, Scene* scene)
-            : m_EntityHandle(handle)
-            , m_Scene(scene)
+            : entityHandle(handle)
+            , scene(scene)
         {
         }
 
@@ -25,7 +25,7 @@ namespace Silex
         T& AddComponent(Args&&... args)
         {
             SL_ASSERT(!HasComponent<T>());
-            T& component = m_Scene->registry.emplace<T>(m_EntityHandle, Traits::Forward<Args>(args)...);
+            T& component = scene->registry.emplace<T>(entityHandle, Traits::Forward<Args>(args)...);
             return component;
         }
 
@@ -33,32 +33,32 @@ namespace Silex
         void RemoveComponent()
         {
             SL_ASSERT(HasComponent<T>());
-            m_Scene->registry.remove<T>(m_EntityHandle);
+            scene->registry.remove<T>(entityHandle);
         }
 
         template<typename T>
         T& GetComponent()
         {
             SL_ASSERT(HasComponent<T>());
-            return m_Scene->registry.get<T>(m_EntityHandle);
+            return scene->registry.get<T>(entityHandle);
         }
 
         template<typename T>
         bool HasComponent()
         {
-            return m_Scene->registry.has<T>(m_EntityHandle);
+            return scene->registry.has<T>(entityHandle);
         }
 
-        operator bool()         const { return m_EntityHandle != entt::null; }
-        operator entt::entity() const { return m_EntityHandle;               }
-        operator uint32()       const { return (uint32)m_EntityHandle;       }
+        operator bool()         const { return entityHandle != entt::null; }
+        operator entt::entity() const { return entityHandle;               }
+        operator uint32()       const { return (uint32)entityHandle;       }
 
         uint64             GetID()   { return GetComponent<InstanceComponent>().id;   }
         const std::string& GetName() { return GetComponent<InstanceComponent>().name; }
 
         bool operator==(const Entity& other) const
         {
-            return m_EntityHandle == other.m_EntityHandle && m_Scene == other.m_Scene;
+            return entityHandle == other.entityHandle && scene == other.scene;
         }
 
         bool operator!=(const Entity& other) const
@@ -68,8 +68,8 @@ namespace Silex
 
     private:
 
-        entt::entity m_EntityHandle = entt::null;
-        Scene*       m_Scene        = nullptr;
+        entt::entity entityHandle = entt::null;
+        Scene*       scene        = nullptr;
 
     private:
 

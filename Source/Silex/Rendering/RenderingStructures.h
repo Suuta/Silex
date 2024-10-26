@@ -2,7 +2,7 @@
 #pragma once
 
 #include "Rendering/RenderingCore.h"
-#include "Rendering/RenderingAPI.h"
+#include "Rendering/Renderer.h"
 
 
 namespace Silex
@@ -42,6 +42,12 @@ namespace Silex
 
         using ResourceType = typename RenderingTypeTraits<T>::InternalType;
 
+        RenderingStructure()
+        {
+            uint32 numFrameResouces = Renderer::Get()->GetFrameCountInFlight();
+            handle.resize(numFrameResouces);
+        }
+
         ResourceType* GetHandle(uint32 index = 0)
         {
             return handle[index];
@@ -54,7 +60,7 @@ namespace Silex
 
     protected:
 
-        ResourceType* handle[2] = {};
+        std::vector<ResourceType*> handle = {};
     };
 
 
@@ -183,8 +189,6 @@ namespace Silex
     public:
         
         SL_CLASS(UniformBuffer, Buffer)
-
-        void* GetData();
         void  SetData(const void* data, uint64 writeByteSize);
 
     private:
@@ -200,8 +204,6 @@ namespace Silex
     public:
 
         SL_CLASS(StorageBuffer, Buffer)
-
-        void* GetData();
         void  SetData(const void* data, uint64 writeByteSize);
 
     private:
@@ -232,12 +234,13 @@ namespace Silex
     public:
         
         SL_CLASS(DescriptorSet, RenderingStructure<DescriptorSet>)
+        DescriptorSet();
 
         void Flush();
 
-        void SetResource(uint32 index, TextureView* view, Sampler* sampler);
-        void SetResource(uint32 index, UniformBuffer* uniformBuffer);
-        void SetResource(uint32 index, StorageBuffer* storageBuffer);
+        void SetResource(uint32 setIndex, TextureView* view, Sampler* sampler);
+        void SetResource(uint32 setIndex, UniformBuffer* uniformBuffer);
+        void SetResource(uint32 setIndex, StorageBuffer* storageBuffer);
 
     private:
 
@@ -260,6 +263,6 @@ namespace Silex
         // hazel エンジンでは、リソースをダブルバッファリングし、毎フレーム変更点を検知し、変更部分を更新する
         //=====================================================================================
 
-        DescriptorSetInfo descriptorSetInfo[2];
+        std::vector<DescriptorSetInfo> descriptorSetInfo;
     };
 }

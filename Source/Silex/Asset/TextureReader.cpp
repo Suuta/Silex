@@ -60,6 +60,11 @@ namespace Silex
         return (float*)_Read(path, true, flipOnRead, this);
     }
 
+    bool TextureReader::IsHDR(const char* path)
+    {
+        return stbi_is_hdr(path);
+
+    }
     void TextureReader::Unload(void* pixelData)
     {
         if (pixelData)

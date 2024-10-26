@@ -206,9 +206,11 @@ namespace Silex
         instance = nullptr;
     }
 
-    bool Renderer::Initialize(RenderingContext* renderingContext)
+    bool Renderer::Initialize(RenderingContext* renderingContext, uint32 framesInFlight, uint32 numSwapchainBuffer)
     {
-        context = renderingContext;
+        context                 = renderingContext;
+        numFramesInFlight       = framesInFlight;
+        numSwapchainFrameBuffer = numSwapchainBuffer;
 
         // レンダーAPI実装クラスを生成
         api = context->CreateRendringAPI();
@@ -223,6 +225,7 @@ namespace Silex
         SL_CHECK(!graphicsQueue, false);
       
         // フレームデータ生成
+        frameData.resize(numFramesInFlight);
         for (uint32 i = 0; i < frameData.size(); i++)
         {
             frameData[i].pendingResources = slnew(PendingDestroyResourceQueue);
@@ -521,7 +524,7 @@ namespace Silex
             api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
 
             //-------------------------------------------------------------------------------------------------------------------------
-            // このレイアウト移行を実行しない場合、shader_read_only に移行していなので、リソースの利用時に バリデーションエラーが発生するはずだが、
+            // ↑このレイアウト移行を実行しない場合、shader_read_only に移行していなので、リソースの利用時に バリデーションエラーが発生する
             // レンダーパスとして mip[0] のみを使用した場合はその例外となる状態が発生した。（mip[0]を書き込みに使用し、残りのレベルは Blitでコピー）
             //-------------------------------------------------------------------------------------------------------------------------
             // 移行しない場合、イメージのすべてのサブリソースが undefine 状態であり、その状態で書き込み後のレイアウト遷移では shader_read_only を期待している
@@ -645,7 +648,7 @@ namespace Silex
 
         // キューブマップ
         prefilterTexture     = CreateTextureCube(RENDERING_FORMAT_R8G8B8A8_UNORM, prefilterResolution, prefilterResolution, true);
-        prefilterTextureView = CreateTextureView(prefilterTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT);
+        prefilterTextureView = CreateTextureView(prefilterTexture, TEXTURE_TYPE_CUBE, TEXTURE_ASPECT_COLOR_BIT, 0, 6, 0, 5);
 
         // 生成用ビュー（ミップレベル分用意）
         std::array<TextureViewHandle*, prefilterMipCount> prefilterViews;
@@ -696,14 +699,14 @@ namespace Silex
             // 現状は 再度 0~ALL に対して 'UNDEFINED' -> 'SHADER_READ_ONLY' を実行しても 検証エラーが出ないので
             // このままにしておく。 Vulkan の仕様なのか、NVIDIA だから問題ないのかは 現状不明
             //==========================================================================================
-            TextureBarrierInfo info = {};
-            info.texture      = prefilterTexture;
-            info.subresources = {};
-            info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
-            info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
-            info.oldLayout    = TEXTURE_LAYOUT_UNDEFINED;
-            info.newLayout    = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
+            //TextureBarrierInfo info = {};
+            //info.texture      = prefilterTexture;
+            //info.subresources = {};
+            //info.srcAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            //info.dstAccess    = BARRIER_ACCESS_MEMORY_WRITE_BIT;
+            //info.oldLayout    = TEXTURE_LAYOUT_UNDEFINED;
+            //info.newLayout    = TEXTURE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            //api->PipelineBarrier(cmd, PIPELINE_STAGE_ALL_COMMANDS_BIT, PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, nullptr, 0, nullptr, 1, &info);
         });
 
         // テンポラリオブジェクト破棄
@@ -1802,7 +1805,7 @@ namespace Silex
             matData.albedo        = glm::vec3(1.0);
             matData.emission      = glm::vec3(0.0);
             matData.metallic      = 0.0f;
-            matData.roughness     = 0.2f;
+            matData.roughness     = 0.1f;
             matData.textureTiling = glm::vec2(1.0, 1.0);
             UpdateBufferData(gbuffer->materialUBO[frameIndex], &matData, sizeof(Test::MaterialUBO));
         }
@@ -2659,6 +2662,11 @@ namespace Silex
     uint32 Renderer::GetCurrentFrameIndex() const
     {
         return frameIndex;
+    }
+
+    uint32 Renderer::GetFrameCountInFlight() const
+    {
+        return numFramesInFlight;
     }
 
     CommandQueueHandle* Renderer::GetGraphicsCommandQueue() const
