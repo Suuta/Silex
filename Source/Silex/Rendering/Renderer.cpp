@@ -335,7 +335,7 @@ namespace Silex
         TextureReader reader;
         byte* pixels;
 
-        pixels = reader.Read("Assets/Textures/gray.png");
+        pixels = reader.Read("Assets/Textures/default.png");
         defaultTexture = CreateTextureFromMemory(pixels, reader.data.byteSize, reader.data.width, reader.data.height, true);
         defaultTextureView = CreateTextureView(defaultTexture, TEXTURE_TYPE_2D, TEXTURE_ASPECT_COLOR_BIT);
         reader.Unload(pixels);
@@ -1805,7 +1805,7 @@ namespace Silex
             matData.albedo        = glm::vec3(1.0);
             matData.emission      = glm::vec3(0.0);
             matData.metallic      = 0.0f;
-            matData.roughness     = 0.1f;
+            matData.roughness     = 0.5f;
             matData.textureTiling = glm::vec2(1.0, 1.0);
             UpdateBufferData(gbuffer->materialUBO[frameIndex], &matData, sizeof(Test::MaterialUBO));
         }
@@ -2023,8 +2023,8 @@ namespace Silex
             // スポンザ
             for (MeshSource* source : sponzaMesh->GetMeshSources())
             {
-                BufferHandle* vb        = source->GetVertexBuffer();
-                BufferHandle* ib        = source->GetIndexBuffer();
+                BufferHandle* vb = source->GetVertexBuffer();
+                BufferHandle* ib = source->GetIndexBuffer();
                 uint32 indexCount = source->GetIndexCount();
                 api->BindVertexBuffer(frame.commandBuffer, vb, 0);
                 api->BindIndexBuffer(frame.commandBuffer, ib, INDEX_BUFFER_FORMAT_UINT32, 0);
@@ -2071,7 +2071,7 @@ namespace Silex
             api->EndRenderPass(frame.commandBuffer);
         }
 
-        if (1) // スカイパス
+        if (0) // スカイパス
         {
             TextureViewHandle* views[] = { lighting.view, gbuffer->depthView };
             api->BeginRenderPass(frame.commandBuffer, environment.pass, environment.framebuffer, 2, views);
@@ -2108,7 +2108,7 @@ namespace Silex
                 api->BeginRenderPass(frame.commandBuffer, bloom->pass, bloom->bloomFB, 1, &bloom->prefilterView);
                 api->BindPipeline(frame.commandBuffer, bloom->prefilterPipeline);
 
-                float threshold = 1.0f;
+                float threshold = 10.0f;
                 api->PushConstants(frame.commandBuffer, bloom->prefilterShader, &threshold, 1);
                 api->BindDescriptorSet(frame.commandBuffer, bloom->prefilterSet, 0);
                 api->Draw(frame.commandBuffer, 3, 1, 0, 0);
@@ -2170,7 +2170,7 @@ namespace Silex
                 api->SetViewport(frame.commandBuffer, 0, 0, viewportSize.x, viewportSize.y);
                 api->SetScissor(frame.commandBuffer,  0, 0, viewportSize.x, viewportSize.y);
 
-                float intencity = 1.0f;
+                float intencity = 0.1f;
                 api->PushConstants(frame.commandBuffer, bloom->bloomShader, &intencity, 1);
 
                 api->BindDescriptorSet(frame.commandBuffer, bloom->bloomSet, 0);

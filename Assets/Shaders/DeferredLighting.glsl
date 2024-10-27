@@ -374,13 +374,14 @@ vec3 BRDF()
 
     // 拡散反射
     vec3 irradiance  = texture(irradianceMap, N).rgb;
-    vec3 diffuse     = irradiance * albedo;
+    vec3 diffuse     = albedo * irradiance;
 
     // 鏡面反射
-    const float MAX_REFLECTION_LOD = 4.0;
+    const float MAX_REFLECTION_LOD = 5.0;
     vec3 prefilteredColor = textureLod(prefilterMap, R,  roughness * MAX_REFLECTION_LOD).rgb;
     vec2 brdf             = texture(brdfMap, vec2(max(dot(N, V), 0.0), roughness)).rg;
-    specular              = prefilteredColor * (F * brdf.x + brdf.y);
+
+    specular              =  (F * brdf.x + brdf.y) * prefilteredColor;
 
     //========================================
     // シャドウ (Directional Light)
