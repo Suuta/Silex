@@ -50,8 +50,8 @@ namespace Silex
 
         uint64        GetVertexCount()   const { return vertexCount;       }
         uint64        GetIndexCount()    const { return indexCount;        }
-        BufferHandle* GetVertexBuffer()  const { return vertexBuffer;      }
-        BufferHandle* GetIndexBuffer()   const { return indexBuffer;       }
+        VertexBuffer* GetVertexBuffer()  const { return vertexBuffer;      }
+        IndexBuffer*  GetIndexBuffer()   const { return indexBuffer;       }
 
         void SetTransform(const glm::mat4& matrix) { relativeTransform = matrix; }
 
@@ -61,8 +61,8 @@ namespace Silex
         uint32        materialIndex     = 0;
         uint32        vertexCount       = 0;
         uint32        indexCount        = 0;
-        BufferHandle* vertexBuffer      = nullptr;
-        BufferHandle* indexBuffer       = nullptr;
+        VertexBuffer* vertexBuffer      = nullptr;
+        IndexBuffer*  indexBuffer       = nullptr;
         glm::mat4     relativeTransform = {};
 
     private:

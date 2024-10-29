@@ -118,7 +118,7 @@ namespace Silex
 
     Texture2DAsset::Texture2DAsset() {}
     Texture2DAsset::Texture2DAsset(Texture2D* asset) : texture(asset) {}
-    Texture2DAsset::~Texture2DAsset() { Renderer::Get()->DestroyTexture(texture->GetHandle()); }
+    Texture2DAsset::~Texture2DAsset() { Renderer::Get()->DestroyTexture(texture); }
 
     EnvironmentAsset::EnvironmentAsset() {}
     EnvironmentAsset::EnvironmentAsset(Environment* asset) : environment(asset) {}

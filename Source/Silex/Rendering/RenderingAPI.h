@@ -83,6 +83,7 @@ namespace Silex
         virtual void* MapBuffer(BufferHandle* buffer) = 0;
         virtual void UnmapBuffer(BufferHandle* buffer) = 0;
         virtual bool UpdateBufferData(BufferHandle* buffer, const void* data, uint64 dataByte) = 0;
+        virtual void* GetBufferMappedPointer(BufferHandle* buffer) = 0;
 
         //--------------------------------------------------
         // テクスチャ

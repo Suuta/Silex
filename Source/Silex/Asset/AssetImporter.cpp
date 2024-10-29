@@ -28,25 +28,19 @@ namespace Silex
     template<>
     Ref<Texture2DAsset> AssetImporter::Import<Texture2DAsset>(const std::string& filePath)
     {
-        TextureHandle* textureHandle = nullptr;
+        Texture2D* texture = nullptr;
 
         TextureReader reader;
         if (reader.IsHDR(filePath.c_str()))
         {
             float* pixelData = reader.ReadHDR(filePath.c_str());
-            textureHandle = Renderer::Get()->CreateTextureFromMemory(pixelData, reader.data.byteSize, reader.data.width, reader.data.height, true);
+            texture = Renderer::Get()->CreateTextureFromMemory(pixelData, reader.data.byteSize, reader.data.width, reader.data.height, true);
         }
         else
         {
             byte* pixelData = reader.Read(filePath.c_str());
-            textureHandle = Renderer::Get()->CreateTextureFromMemory(pixelData, reader.data.byteSize, reader.data.width, reader.data.height, true);
+            texture = Renderer::Get()->CreateTextureFromMemory(pixelData, reader.data.byteSize, reader.data.width, reader.data.height, true);
         }
-
-        // TODO: この部分も、新実装レンダラーのテクスチャ生成関数内で行う
-        //==============================================
-        Texture2D* texture = slnew(Texture2D);
-        texture->SetHandle(textureHandle);
-        //==============================================
 
         Ref<Texture2DAsset> asset = CreateRef<Texture2DAsset>(texture);
         asset->SetupAssetProperties(filePath, AssetType::Texture);

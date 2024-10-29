@@ -11,7 +11,7 @@ namespace Silex
     //==============================================================
     void Texture2D::Resize(uint32 width, uint32 height)
     {
-        Renderer::Get()->DestroyTexture(handle[0]);
+        Renderer::Get()->DestroyTexture(this);
 
         textureInfo.width  = width;
         textureInfo.height = width;
@@ -53,24 +53,31 @@ namespace Silex
         }
     }
 
-    void DescriptorSet::SetResource(uint32 setIndex, TextureView* view, Sampler* sampler)
+    void DescriptorSet::SetResource(uint32 binding, TextureViewHandle* view, SamplerHandle* sampler)
     {
-        descriptorSetInfo[0].BindTexture(setIndex, DESCRIPTOR_TYPE_IMAGE_SAMPLER, view->GetHandle(), sampler->GetHandle());
-    }
-
-    void DescriptorSet::SetResource(uint32 setIndex, UniformBuffer* uniformBuffer)
-    {
+        // 現状、サンプラーはCPUからの書き込みをせず、ダブルバッファリングをしていないが、
+        // 他のデスクリプター（ubo, ssbo）がダブルバッファリングでCPUからの書き込みを行っているので
+        // 空の参照デスクリプターを含む状態でデスクリプターを更新できないので、
+        // 他のデスクリプターに合わせる形で、サンプラーも同じデスクリプターの参照で更新する
         for (uint32 i = 0; i < descriptorSetInfo.size(); i++)
         {
-            descriptorSetInfo[i].BindBuffer(setIndex, DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniformBuffer->GetHandle(i));
+            descriptorSetInfo[i].BindTexture(binding, DESCRIPTOR_TYPE_IMAGE_SAMPLER, view, sampler);
         }
     }
 
-    void DescriptorSet::SetResource(uint32 setIndex, StorageBuffer* storageBuffer)
+    void DescriptorSet::SetResource(uint32 binding, UniformBuffer* uniformBuffer)
     {
         for (uint32 i = 0; i < descriptorSetInfo.size(); i++)
         {
-            descriptorSetInfo[i].BindBuffer(setIndex, DESCRIPTOR_TYPE_STORAGE_BUFFER, storageBuffer->GetHandle(i));
+            descriptorSetInfo[i].BindBuffer(binding, DESCRIPTOR_TYPE_UNIFORM_BUFFER, uniformBuffer->GetHandle(i));
+        }
+    }
+
+    void DescriptorSet::SetResource(uint32 binding, StorageBuffer* storageBuffer)
+    {
+        for (uint32 i = 0; i < descriptorSetInfo.size(); i++)
+        {
+            descriptorSetInfo[i].BindBuffer(binding, DESCRIPTOR_TYPE_STORAGE_BUFFER, storageBuffer->GetHandle(i));
         }
     }
 }

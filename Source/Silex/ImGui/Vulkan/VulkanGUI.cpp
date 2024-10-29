@@ -2,7 +2,7 @@
 #include "PCH.h"
 
 #include "Core/Engine.h"
-#include "Rendering/Renderer.h"
+#include "Rendering/RenderingStructures.h"
 #include "Rendering/RenderingContext.h"
 #include "Rendering/Vulkan/VulkanStructures.h"
 #include "Rendering/Vulkan/VulkanContext.h"
@@ -208,9 +208,11 @@ namespace Silex
     // vkCreateDescriptorSetLayout(v->Device, &info, v->Allocator, &bd->DescriptorSetLayout);
     //==========================================================================================
 
-    void GUI::Image(DescriptorSetHandle* set, float width, float height)
+    void GUI::Image(DescriptorSet* set, float width, float height)
     {
-        VulkanDescriptorSet* descriptorset = (VulkanDescriptorSet*)set;
+        DescriptorSetHandle* h = set->GetHandle(0);
+
+        VulkanDescriptorSet* descriptorset = VulkanCast(h);
         ImGui::Image(descriptorset->descriptorSet, { width, height });
     }
 

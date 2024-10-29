@@ -79,6 +79,7 @@ namespace Silex
         void* MapBuffer(BufferHandle* buffer) override;
         void UnmapBuffer(BufferHandle* buffer) override;
         bool UpdateBufferData(BufferHandle* buffer, const void* data, uint64 dataByte) override;
+        void* GetBufferMappedPointer(BufferHandle* buffer) override;
 
         //--------------------------------------------------
         // テクスチャ

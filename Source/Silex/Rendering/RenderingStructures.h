@@ -7,26 +7,54 @@
 
 namespace Silex
 {
+    class Buffer;
+    class IndexBuffer;
+    class VertexBuffer;
+    class UniformBuffer;
+    class StorageBuffer;
     class Sampler;
     class Texture;
+    class Texture2D;
+    class Texture2DArray;
+    class TextureCube;
     class TextureView;
-    class Buffer;
     class DescriptorSet;
+    class CommandQueue;
+    class CommandBuffer;
+    class CommandPool;
+    class Fence;
+    class Semaphore;
+    class Surface;
     class Shader;
+    class SwapChain;
     class RenderPass;
     class Framebuffer;
     class Pipeline;
 
     template<class T> struct RenderingTypeTraits {};
-    template<> struct RenderingTypeTraits<Sampler>       { using InternalType = SamplerHandle;       };
-    template<> struct RenderingTypeTraits<Texture>       { using InternalType = TextureHandle;       };
-    template<> struct RenderingTypeTraits<TextureView>   { using InternalType = TextureViewHandle;   };
-    template<> struct RenderingTypeTraits<Buffer>        { using InternalType = BufferHandle;        };
-    template<> struct RenderingTypeTraits<DescriptorSet> { using InternalType = DescriptorSetHandle; };
-    template<> struct RenderingTypeTraits<Shader>        { using InternalType = ShaderHandle;        };
-    template<> struct RenderingTypeTraits<RenderPass>    { using InternalType = RenderPassHandle;    };
-    template<> struct RenderingTypeTraits<Framebuffer>   { using InternalType = FramebufferHandle;   };
-    template<> struct RenderingTypeTraits<Pipeline>      { using InternalType = PipelineHandle;      };
+    template<> struct RenderingTypeTraits<Sampler>        { using InternalType = SamplerHandle;       };
+    template<> struct RenderingTypeTraits<Texture>        { using InternalType = TextureHandle;       };
+    template<> struct RenderingTypeTraits<Texture2D>      { using InternalType = TextureHandle;       };
+    template<> struct RenderingTypeTraits<Texture2DArray> { using InternalType = TextureHandle;       };
+    template<> struct RenderingTypeTraits<TextureCube>    { using InternalType = TextureHandle;       };
+    template<> struct RenderingTypeTraits<TextureView>    { using InternalType = TextureViewHandle;   };
+    template<> struct RenderingTypeTraits<Buffer>         { using InternalType = BufferHandle;        };
+    template<> struct RenderingTypeTraits<IndexBuffer>    { using InternalType = BufferHandle;        };
+    template<> struct RenderingTypeTraits<VertexBuffer>   { using InternalType = BufferHandle;        };
+    template<> struct RenderingTypeTraits<UniformBuffer>  { using InternalType = BufferHandle;        };
+    template<> struct RenderingTypeTraits<StorageBuffer>  { using InternalType = BufferHandle;        };
+    template<> struct RenderingTypeTraits<DescriptorSet>  { using InternalType = DescriptorSetHandle; };
+    template<> struct RenderingTypeTraits<Shader>         { using InternalType = ShaderHandle;        };
+    template<> struct RenderingTypeTraits<RenderPass>     { using InternalType = RenderPassHandle;    };
+    template<> struct RenderingTypeTraits<Framebuffer>    { using InternalType = FramebufferHandle;   };
+    template<> struct RenderingTypeTraits<Pipeline>       { using InternalType = PipelineHandle;      };
+    template<> struct RenderingTypeTraits<Surface>        { using InternalType = SurfaceHandle;       };
+    template<> struct RenderingTypeTraits<SwapChain>      { using InternalType = SwapChainHandle;     };
+    template<> struct RenderingTypeTraits<Semaphore>      { using InternalType = SemaphoreHandle;     };
+    template<> struct RenderingTypeTraits<Fence>          { using InternalType = FenceHandle;         };
+    template<> struct RenderingTypeTraits<CommandQueue>   { using InternalType = CommandQueueHandle;  };
+    template<> struct RenderingTypeTraits<CommandBuffer>  { using InternalType = CommandBufferHandle; };
+    template<> struct RenderingTypeTraits<CommandPool>    { using InternalType = CommandPoolHandle;   };
 
 
     //==============================================================
@@ -35,6 +63,8 @@ namespace Silex
     template<class T>
     class RenderingStructure : public Class
     {
+        friend class Renderer;
+
     public:
         
         // 実体化時にハッシュ値が衝突するので宣言できない（現状問題ないので使用しないことで対応）
@@ -69,6 +99,8 @@ namespace Silex
     //==============================================================
     class Texture : public RenderingStructure<Texture>
     {
+        friend class Renderer;
+
     public:
 
         SL_CLASS(Texture, RenderingStructure<Texture>)
@@ -90,6 +122,8 @@ namespace Silex
     //==============================================================
     class Texture2D : public Texture
     {
+        friend class Renderer;
+
     public:
 
         SL_CLASS(Texture2D, Texture)
@@ -101,6 +135,8 @@ namespace Silex
     //==============================================================
     class Texture2DArray : public Texture
     {
+        friend class Renderer;
+
     public:
 
         SL_CLASS(Texture2DArray, Texture)
@@ -115,6 +151,8 @@ namespace Silex
     //==============================================================
     class TextureCube : public Texture
     {
+        friend class Renderer;
+
     public:
 
         SL_CLASS(TextureCube, Texture)
@@ -132,19 +170,23 @@ namespace Silex
     //==============================================================
     class Buffer : public RenderingStructure<Buffer>
     {
+        friend class Renderer;
+
     public:
 
         SL_CLASS(Buffer, RenderingStructure<Buffer>)
 
-        uint64 GetByteSize() { return byteSize; }
-        bool   IsMapped()    { return isMapped; }
-        bool   IsCPU()       { return isInCPU;  }
+        uint64 GetByteSize()      { return byteSize;  }
+        bool   IsMapped()         { return isMapped;  }
+        bool   IsCPU()            { return isInCPU;   }
+        void*  GetMappedPointer() { return mappedPtr; }
 
     private:
 
-        uint64 byteSize = 0;
-        bool   isMapped = false;
-        bool   isInCPU  = false;
+        uint64 byteSize  = 0;
+        bool   isMapped  = false;
+        bool   isInCPU   = false;
+        void*  mappedPtr = nullptr;
     };
 
     //==============================================================
@@ -152,6 +194,8 @@ namespace Silex
     //==============================================================
     class VertexBuffer : public Buffer
     {
+        friend class Renderer;
+
     public:
 
         SL_CLASS(VertexBuffer, Buffer)
@@ -170,7 +214,11 @@ namespace Silex
     //==============================================================
     class IndexBuffer : public Buffer
     {
-    public: SL_CLASS(IndexBuffer, Buffer)
+        friend class Renderer;
+
+    public:
+        
+        SL_CLASS(IndexBuffer, Buffer)
 
         uint64 GetIndexCount()    { return indexCount;    }
         uint64 GetIndexByteSize() { return indexByteSize; }
@@ -186,14 +234,16 @@ namespace Silex
     //==============================================================
     class UniformBuffer : public Buffer
     {
+        friend class Renderer;
+
     public:
         
         SL_CLASS(UniformBuffer, Buffer)
-        void  SetData(const void* data, uint64 writeByteSize);
+        void SetData(const void* data, uint64 writeByteSize);
 
     private:
 
-        void* data = nullptr;
+        //void* data = nullptr;
     };
 
     //==============================================================
@@ -201,27 +251,36 @@ namespace Silex
     //==============================================================
     class StorageBuffer : public Buffer
     {
+        friend class Renderer;
+
     public:
 
         SL_CLASS(StorageBuffer, Buffer)
-        void  SetData(const void* data, uint64 writeByteSize);
+
+        void SetData(const void* data, uint64 writeByteSize);
 
     private:
 
-        void* data = nullptr;
+        //void* data = nullptr;
     };
 
 
 
     class TextureView : public RenderingStructure<TextureView>
     {
+        friend class Renderer;
+
     public:
+
         SL_CLASS(TextureView, RenderingStructure<TextureView>)
     };
 
     class Sampler : public RenderingStructure<Sampler>
     {
+        friend class Renderer;
+
     public:
+
         SL_CLASS(Sampler, RenderingStructure<Sampler>)
     };
 
@@ -231,6 +290,8 @@ namespace Silex
     //==============================================================
     class DescriptorSet : public RenderingStructure<DescriptorSet>
     {
+        friend class Renderer;
+
     public:
         
         SL_CLASS(DescriptorSet, RenderingStructure<DescriptorSet>)
@@ -238,9 +299,11 @@ namespace Silex
 
         void Flush();
 
-        void SetResource(uint32 setIndex, TextureView* view, Sampler* sampler);
-        void SetResource(uint32 setIndex, UniformBuffer* uniformBuffer);
-        void SetResource(uint32 setIndex, StorageBuffer* storageBuffer);
+        //TODO: ビュー/サンプラー もラップクラスが実装後に変更する
+        void SetResource(uint32 binding, TextureViewHandle* view, SamplerHandle* sampler);
+
+        void SetResource(uint32 binding, UniformBuffer* uniformBuffer);
+        void SetResource(uint32 binding, StorageBuffer* storageBuffer);
 
     private:
 

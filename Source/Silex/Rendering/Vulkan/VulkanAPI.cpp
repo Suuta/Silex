@@ -1092,6 +1092,12 @@ namespace Silex
         }
     }
 
+    void* VulkanAPI::GetBufferMappedPointer(BufferHandle* buffer)
+    {
+        VulkanBuffer* vb = VulkanCast(buffer);
+        return vb->pointer;
+    }
+
 
     //==================================================================================
     // テクスチャ
@@ -2371,6 +2377,14 @@ namespace Silex
                 {
                     SL_ASSERT(false, "未実装");
                     break;
+                }
+
+                case DESCRIPTOR_TYPE_MAX:
+                {
+                    // デフォルトの値が DESCRIPTOR_TYPE_MAX なので
+                    // サンプラーなど、ダブルバッファーでリソースを更新する必要ない
+                    // 場合にこのステートを通過するので、更新対象にしないようにしている
+                    continue;
                 }
 
                 default: SL_ASSERT(false);
