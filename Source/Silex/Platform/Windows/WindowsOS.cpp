@@ -8,6 +8,12 @@
 
 #include <GLFW/glfw3.h>
 #include <dwmapi.h>
+#include <strsafe.h>
+#include <wincodec.h>
+
+#pragma comment(lib, "windowscodecs.lib")
+#pragma warning(disable: 4267)
+#pragma warning(disable: 4244)
 
 
 #if SL_RELEASE
@@ -272,6 +278,175 @@ namespace Silex
     {
         uint32 messageType = type == OS_MESSEGA_TYPE_ALERT ? MB_OK | MB_ICONERROR : MB_OK | MB_ICONINFORMATION;
         return ::MessageBoxW(NULL, message.c_str(), L"Error", messageType);
+    }
+
+    HBITMAP WindowsOS::LoadBitmapFile(const std::wstring& filePath)
+    {
+        HRESULT hr = CoInitialize(NULL);
+
+        IWICImagingFactory* Factory = NULL;
+
+        hr = CoCreateInstance(
+            CLSID_WICImagingFactory,
+            NULL,
+            CLSCTX_INPROC_SERVER,
+            IID_PPV_ARGS(&Factory)
+        );
+
+        IWICBitmapDecoder* Decoder = NULL;
+
+        hr = Factory->CreateDecoderFromFilename(
+            filePath.c_str(),
+            NULL,
+            GENERIC_READ,
+            WICDecodeMetadataCacheOnDemand,
+            &Decoder
+        );
+
+        IWICBitmapFrameDecode* Frame = NULL;
+
+        if (SUCCEEDED(hr))
+        {
+            hr = Decoder->GetFrame(0, &Frame);
+        }
+
+        IWICBitmapSource* OriginalBitmapSource = NULL;
+        if (SUCCEEDED(hr))
+        {
+            hr = Frame->QueryInterface(IID_IWICBitmapSource, reinterpret_cast<void**>(&OriginalBitmapSource));
+        }
+
+        IWICBitmapSource* ToRenderBitmapSource = NULL;
+
+        if (SUCCEEDED(hr))
+        {
+            IWICFormatConverter* Converter = NULL;
+            hr = Factory->CreateFormatConverter(&Converter);
+
+            if (SUCCEEDED(hr))
+            {
+                hr = Converter->Initialize(
+                    Frame,
+                    GUID_WICPixelFormat32bppBGR,
+                    WICBitmapDitherTypeNone,
+                    NULL,
+                    0.f,
+                    WICBitmapPaletteTypeCustom
+                );
+
+                if (SUCCEEDED(hr))
+                {
+                    hr = Converter->QueryInterface(IID_PPV_ARGS(&ToRenderBitmapSource));
+                }
+            }
+
+            Converter->Release();
+        }
+
+        HBITMAP hDIBBitmap = 0;
+        if (SUCCEEDED(hr))
+        {
+            UINT width = 0;
+            UINT height = 0;
+
+            void* ImageBits = NULL;
+
+            WICPixelFormatGUID pixelFormat;
+            hr = ToRenderBitmapSource->GetPixelFormat(&pixelFormat);
+
+            if (SUCCEEDED(hr))
+            {
+                hr = (pixelFormat == GUID_WICPixelFormat32bppBGR) ? S_OK : E_FAIL;
+            }
+
+            if (SUCCEEDED(hr))
+            {
+                hr = ToRenderBitmapSource->GetSize(&width, &height);
+            }
+
+            if (SUCCEEDED(hr))
+            {
+                BITMAPINFO bminfo;
+                ZeroMemory(&bminfo, sizeof(bminfo));
+                bminfo.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+                bminfo.bmiHeader.biWidth = width;
+                bminfo.bmiHeader.biHeight = -(LONG)height;
+                bminfo.bmiHeader.biPlanes = 1;
+                bminfo.bmiHeader.biBitCount = 32;
+                bminfo.bmiHeader.biCompression = BI_RGB;
+
+                HDC hdcScreen = GetDC(NULL);
+                hr = hdcScreen ? S_OK : E_FAIL;
+
+                if (SUCCEEDED(hr))
+                {
+                    if (hDIBBitmap)
+                    {
+                        DeleteObject(hDIBBitmap);
+                    }
+
+                    hDIBBitmap = CreateDIBSection(hdcScreen, &bminfo, DIB_RGB_COLORS, &ImageBits, NULL, 0);
+
+                    ReleaseDC(NULL, hdcScreen);
+
+                    hr = hDIBBitmap ? S_OK : E_FAIL;
+                }
+            }
+
+            UINT cbStride = 0;
+            if (SUCCEEDED(hr))
+            {
+                hr = UIntMult(width, sizeof(DWORD), &cbStride);
+            }
+
+            UINT cbImage = 0;
+            if (SUCCEEDED(hr))
+            {
+                hr = UIntMult(cbStride, height, &cbImage);
+            }
+
+            if (SUCCEEDED(hr) && ToRenderBitmapSource)
+            {
+                hr = ToRenderBitmapSource->CopyPixels(
+                    NULL,
+                    cbStride,
+                    cbImage,
+                    reinterpret_cast<BYTE*>(ImageBits));
+            }
+
+            if (FAILED(hr) && hDIBBitmap)
+            {
+                DeleteObject(hDIBBitmap);
+                hDIBBitmap = NULL;
+            }
+        }
+
+        if (OriginalBitmapSource)
+        {
+            OriginalBitmapSource->Release();
+        }
+
+        if (ToRenderBitmapSource)
+        {
+            ToRenderBitmapSource->Release();
+        }
+
+        if (Decoder)
+        {
+            Decoder->Release();
+        }
+
+        if (Frame)
+        {
+            Frame->Release();
+        }
+
+        if (Factory)
+        {
+            Factory->Release();
+        }
+
+        return hDIBBitmap;
     }
 
 

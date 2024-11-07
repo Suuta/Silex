@@ -3,7 +3,7 @@
 
 #include "Editor/Editor.h"
 #include "Editor/ConsoleLogger.h"
-#include "Editor/SplashImage.h"
+#include "Editor/EditorSplashImage.h"
 
 #include "Core/Timer.h"
 #include "Core/Random.h"

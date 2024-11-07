@@ -51,8 +51,7 @@ namespace Silex
     template<>
     Ref<EnvironmentAsset> AssetImporter::Import<EnvironmentAsset>(const std::string& filePath)
     {
-        Environment* environment = nullptr;
-        // environment = Renderer::Get()->CreateEnvironment(filePath);
+        Environment* environment = slnew(Environment);
 
         Ref<EnvironmentAsset> asset = CreateRef<EnvironmentAsset>(environment);
         asset->SetupAssetProperties(filePath, AssetType::Environment);

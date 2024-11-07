@@ -3,7 +3,8 @@
 
 #include "Core/Engine.h"
 #include "Asset/Asset.h"
-#include "Editor/SplashImage.h"
+#include "Editor/EditorSplashImage.h"
+#include "Core/ThreadPool.h"
 #include "Rendering/RenderingContext.h"
 
 
@@ -17,25 +18,25 @@ namespace Silex
         // OS初期化
         OS::Get()->Initialize();
 
-        // スプラッシュイメージ表示
-        SplashImage::Show();
-
         // コア機能初期化
         Logger::Initialize();
         Memory::Initialize();
         Input::Initialize();
+        ThreadPool::Initialize();
 
-        SL_LOG_INFO("***** Launch Engine *****");
+        // スプラッシュイメージ表示
+        EditorSplashImage::Show();
 
         // エンジン初期化
         engine = slnew(Engine);
         if (!engine->Initialize())
         {
+            EditorSplashImage::Hide();
             return false;
         }
 
         // スプラッシュイメージ非表示
-        SplashImage::Hide();
+        EditorSplashImage::Hide();
 
         return true;
     }
@@ -48,8 +49,7 @@ namespace Silex
             sldelete(engine);
         }
 
-        SL_LOG_INFO("***** Shutdown Engine *****");
-
+        ThreadPool::Finalize();
         Input::Finalize();
         Memory::Finalize();
         Logger::Finalize();
@@ -67,9 +67,6 @@ namespace Silex
 
     bool Engine::Initialize()
     {
-        GlobalClassDataBase::DumpClassInfoList();
-
-
         bool result = false;
 
         // ウィンドウ
@@ -98,7 +95,7 @@ namespace Silex
         mainWindow->BindMouseScrollEvent(this,  &Engine::OnMouseScroll);
 
         // アセットマネージャー
-        //AssetManager::Init();
+        AssetManager::Init();
 
         // エディターUI (ImGui)
         editorUI = GUI::Create();
@@ -125,7 +122,7 @@ namespace Silex
         // ImGui 破棄
         sldelete(editorUI);
 
-        //AssetManager::Shutdown();
+        AssetManager::Shutdown();
 
         // ウィンドウコンテキスト破棄
         mainWindow->CleanupWindowContext(context);

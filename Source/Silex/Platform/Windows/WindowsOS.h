@@ -37,7 +37,12 @@ namespace Silex
         int32 Message(OSMessageType type, const std::string& message) override;
         int32 Message(OSMessageType type, const std::wstring& message) override;
 
-    private:
+    public:
+
+        // ビットマップ
+        static HBITMAP LoadBitmapFile(const std::wstring& filePath);
+
+    public:
 
         HRESULT TrySetWindowCornerStyle(HWND hWnd, bool tryRound);
         void    CheckOSVersion();
@@ -45,8 +50,8 @@ namespace Silex
     private:
 
         // コンソール
-        void* outputHandle      = nullptr;
-        void* errorHandle       = nullptr;
+        void*  outputHandle      = nullptr;
+        void*  errorHandle       = nullptr;
         uint32 defaultConsoleCP = 0;
 
         // バージョン

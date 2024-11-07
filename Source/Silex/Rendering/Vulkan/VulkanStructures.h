@@ -57,12 +57,6 @@ namespace Silex
     }
 
     template<typename T>
-    SL_FORCEINLINE typename VulkanTypeTraits<T>::Internal* VulkanCast(const T* type)
-    {
-        return static_cast<const typename VulkanTypeTraits<T>::Internal*>(type);
-    }
-
-    template<typename T>
     SL_FORCEINLINE typename VulkanTypeTraits<T>::Internal** VulkanCast(T** type)
     {
         return reinterpret_cast<typename VulkanTypeTraits<T>::Internal**>(type);

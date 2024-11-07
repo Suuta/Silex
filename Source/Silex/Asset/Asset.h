@@ -61,7 +61,29 @@ namespace Silex
         const std::string& GetName() const                  { return assetName; }
 
         // プロパティ設定
-        void SetupAssetProperties(const std::string& filePath, AssetType flag);
+        void SetupAssetProperties(const std::string& filePath, AssetType flag)
+        {
+            SetAssetType(flag);
+            SetFilePath(filePath);
+
+            std::filesystem::path path(filePath);
+            SetName(path.stem().string());
+        }
+
+        static AssetType FileNameToAssetType(const std::filesystem::path& filePath)
+        {
+            std::string extention = filePath.extension().string();
+
+            if      (extention == ".slmt")                       return AssetType::Material;
+            else if (extention == ".slsc")                       return AssetType::Scene;
+            else if (extention == ".fbx" || extention == ".obj") return AssetType::Mesh;
+            else if (extention == ".png" || extention == ".jpg") return AssetType::Texture;
+
+            // 環境マップは拡張子ではなく、マテリアルと同様な扱いに変更。ただし、シリアライズ化(.slenv) は未実装
+            //else if (extention == ".hdr") return AssetType::Environment;
+
+            return AssetType::None;
+        }
 
     protected:
 
@@ -70,22 +92,6 @@ namespace Silex
         std::string assetFilePath  = {};
         std::string assetName      = {};
     };
-
-
-    inline AssetType FileNameToAssetType(const std::filesystem::path& filePath)
-    {
-        std::string extention = filePath.extension().string();
-
-        if      (extention == ".slmt")                       return AssetType::Material;
-        else if (extention == ".slsc")                       return AssetType::Scene;
-        else if (extention == ".fbx" || extention == ".obj") return AssetType::Mesh;
-        else if (extention == ".png" || extention == ".jpg") return AssetType::Texture;
-
-        // 環境マップは拡張子ではなく、マテリアルと同様な扱いに変更。ただし、シリアライズ化(.slenv) は未実装
-        //else if (extention == ".hdr") return AssetType::Environment;
-
-        return AssetType::None;
-    }
 
 
     class MeshAsset : public Asset
@@ -182,11 +188,12 @@ namespace Silex
         //=================================
         uint64 GenerateAssetID();
         bool IsValidID(AssetID id);
+        bool IsBuiltInAssetID(AssetID id);
 
         //=================================
         // メタデータ
         //=================================
-        bool          HasMetadata(const std::filesystem::path& directory);
+        bool          IsExistInMetadata(const std::filesystem::path& directory);
         AssetMetadata GetMetadata(const std::filesystem::path& directory);
         AssetMetadata GetMetadata(AssetID id);
 
@@ -250,6 +257,29 @@ namespace Silex
 
     private:
 
+        template<class T>
+        void _LoadBuiltinAsset(const std::string& filePath)
+        {
+            currentBuiltinAssetCount++;
+            AssetType type = Asset::FileNameToAssetType(filePath);
+
+            std::filesystem::path assetName = filePath;
+            std::string name = assetName.stem().string();
+
+            Ref<T> asset = AssetImporter::Import<T>(filePath);
+            asset->SetAssetType(type);
+            asset->SetName(name);
+            instance->_AddToAssetAndID(currentBuiltinAssetCount, asset);
+
+            AssetMetadata md = {};
+            md.id   = currentBuiltinAssetCount;
+            md.path = filePath;
+            md.type = type;
+
+            instance->metadata[currentBuiltinAssetCount] = md;
+        }
+
+
         // ビルトインアセット (レンダラーと密な依存関係あり)
         void _CreateBuiltinAssets();
         void _DestroyBuiltinAssets();
@@ -278,7 +308,8 @@ namespace Silex
 
     private:
 
-        uint32 builtinAssetCount = 0;
+        uint32 currentBuiltinAssetCount  = 0;
+        const uint32 reservedBuiltinAssetCount = 256;
 
         std::unordered_map<AssetID, Ref<Asset>>    assetData;
         std::unordered_map<AssetID, AssetMetadata> metadata;

@@ -37,8 +37,8 @@
 // 引数オーバーロード解決に使用
 #define SL_ARG3(_1, _2, _3, ...) _3
 
-// インターフェース抽象化ハンドル
-#define SL_DECLARE_HANDLE(name) class name : public Handle {};
+// 不透明型ハンドルの定義
+#define SL_DECLARE_HANDLE(name) class name : public Handle { SL_CLASS(name, Handle) };
 
 
 // C++20 からは STLでも 分岐予測のヒントが可能になった

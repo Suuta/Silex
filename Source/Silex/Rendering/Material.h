@@ -27,10 +27,6 @@ namespace Silex
         glm::vec2           TextureTiling = { 1.0f, 1.0f };
         ShadingModelType    ShadingModel  = BRDF;
 
-
-        //======================================
-        //TODO: デスクリプターをここに含める
-        //======================================
-        // Descriptor* descriptor;
+        DescriptorSet* descriptorset;
     };
 }

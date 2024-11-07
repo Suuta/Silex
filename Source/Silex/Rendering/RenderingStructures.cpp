@@ -7,20 +7,61 @@
 namespace Silex
 {
     //==============================================================
-    // テクスチャ
+    // テクスチャ2D
     //==============================================================
-    void Texture2D::Resize(uint32 width, uint32 height)
+    Texture2D::Texture2D(uint32 frames)
     {
-        Renderer::Get()->DestroyTexture(this);
+        handle.resize(frames);
+    }
 
-        textureInfo.width  = width;
-        textureInfo.height = width;
-        handle[0] = Renderer::Get()->CreateTexture(textureInfo);
+    //==============================================================
+    // テクスチャ2D配列
+    //==============================================================
+    Texture2DArray::Texture2DArray(uint32 frames)
+    {
+        handle.resize(frames);
+    }
+
+    //==============================================================
+    // テクスチャキューブ
+    //==============================================================
+    TextureCube::TextureCube(uint32 frames)
+    {
+        handle.resize(frames);
+    }
+
+    //==============================================================
+    // テクスチャビュー
+    //==============================================================
+    TextureView::TextureView(uint32 frames)
+    {
+        handle.resize(frames);
+    }
+
+    //==============================================================
+    // サンプラー
+    //==============================================================
+    Sampler::Sampler(uint32 frames)
+    {
+        handle.resize(frames);
+    }
+
+    //==============================================================
+    // バッファ
+    //==============================================================
+    Buffer::Buffer(uint32 frames)
+    {
+        handle.resize(frames);
     }
 
     //==============================================================
     // ユニフォームバッファ
     //==============================================================
+    UniformBuffer::UniformBuffer(uint32 frames)
+    {
+        handle.resize(frames);
+    }
+
     void UniformBuffer::SetData(const void* data, uint64 writeByteSize)
     {
         uint32 frameindex = Renderer::Get()->GetCurrentFrameIndex();
@@ -30,6 +71,11 @@ namespace Silex
     //==============================================================
     // ストレージバッファ
     //==============================================================
+    StorageBuffer::StorageBuffer(uint32 frames)
+    {
+        handle.resize(frames);
+    }
+
     void StorageBuffer::SetData(const void* data, uint64 writeByteSize)
     {
         uint32 frameindex = Renderer::Get()->GetCurrentFrameIndex();
@@ -37,23 +83,39 @@ namespace Silex
     }
 
     //==============================================================
+    // 頂点バッファ
+    //==============================================================
+    VertexBuffer::VertexBuffer(uint32 frames)
+    {
+        handle.resize(frames);
+    }
+
+    //==============================================================
+    // インデックスバッファ
+    //==============================================================
+    IndexBuffer::IndexBuffer(uint32 frames)
+    {
+        handle.resize(frames);
+    }
+
+    //==============================================================
     // デスクリプターセット
     //==============================================================
-
-    DescriptorSet::DescriptorSet()
+    DescriptorSet::DescriptorSet(uint32 frames)
     {
-        descriptorSetInfo.resize(handle.size());
+        handle.resize(frames);
+        descriptorSetInfo.resize(frames);
     }
 
     void DescriptorSet::Flush()
     {
-        for (uint32 i = 0; i < handle.size(); i++)
+        for (uint32 i = 0; i < descriptorSetInfo.size(); i++)
         {
             Renderer::Get()->UpdateDescriptorSet(handle[i], descriptorSetInfo[i]);
         }
     }
 
-    void DescriptorSet::SetResource(uint32 binding, TextureViewHandle* view, SamplerHandle* sampler)
+    void DescriptorSet::SetResource(uint32 binding, TextureView* view, Sampler* sampler)
     {
         // 現状、サンプラーはCPUからの書き込みをせず、ダブルバッファリングをしていないが、
         // 他のデスクリプター（ubo, ssbo）がダブルバッファリングでCPUからの書き込みを行っているので
@@ -61,7 +123,7 @@ namespace Silex
         // 他のデスクリプターに合わせる形で、サンプラーも同じデスクリプターの参照で更新する
         for (uint32 i = 0; i < descriptorSetInfo.size(); i++)
         {
-            descriptorSetInfo[i].BindTexture(binding, DESCRIPTOR_TYPE_IMAGE_SAMPLER, view, sampler);
+            descriptorSetInfo[i].BindTexture(binding, DESCRIPTOR_TYPE_IMAGE_SAMPLER, view->GetHandle(0), sampler->GetHandle(0));
         }
     }
 

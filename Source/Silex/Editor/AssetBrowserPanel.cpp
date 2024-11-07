@@ -185,7 +185,7 @@ namespace Silex
             auto metadata = AssetManager::Get()->GetMetadata(entry.path());
             if (!AssetManager::Get()->IsValidID(metadata.id))
             {
-                AssetType type = FileNameToAssetType(entry.path());
+                AssetType type = Asset::FileNameToAssetType(entry.path());
                 if (type == AssetType::None)
                     continue;
 

@@ -3,37 +3,13 @@
 
 #include "Scene/Camera.h"
 #include "Rendering/ShaderCompiler.h"
+#include "Rendering/RenderingStructures.h"
 
 
 namespace Silex
 {
     class RenderingAPI;
     class RenderingContext;
-
-    class Buffer;
-    class IndexBuffer;
-    class VertexBuffer;
-    class UniformBuffer;
-    class StorageBuffer;
-    class Sampler;
-    class Texture;
-    class Texture2D;
-    class Texture2DArray;
-    class TextureCube;
-    class TextureView;
-    class DescriptorSet;
-    class CommandQueue;
-    class CommandBuffer;
-    class CommandPool;
-    class Fence;
-    class Semaphore;
-    class Surface;
-    class Shader;
-    class SwapChain;
-    class RenderPass;
-    class Framebuffer;
-    class Pipeline;
-
 
     struct GBufferData
     {
@@ -48,11 +24,11 @@ namespace Silex
         Texture2D* id       = nullptr;
         Texture2D* depth    = nullptr;
 
-        TextureViewHandle* albedoView   = nullptr;
-        TextureViewHandle* normalView   = nullptr;
-        TextureViewHandle* emissionView = nullptr;
-        TextureViewHandle* idView       = nullptr;
-        TextureViewHandle* depthView    = nullptr;
+        TextureView* albedoView   = nullptr;
+        TextureView* normalView   = nullptr;
+        TextureView* emissionView = nullptr;
+        TextureView* idView       = nullptr;
+        TextureView* depthView    = nullptr;
 
         UniformBuffer* materialUBO;
         UniformBuffer* transformUBO;
@@ -66,7 +42,7 @@ namespace Silex
         RenderPassHandle*  pass        = nullptr;
         FramebufferHandle* framebuffer = nullptr;
         Texture2D*         color       = nullptr;
-        TextureViewHandle* view        = nullptr;
+        TextureView*       view        = nullptr;
 
         PipelineHandle* pipeline = nullptr;
         ShaderHandle*   shader   = nullptr;
@@ -93,7 +69,7 @@ namespace Silex
         RenderPassHandle*  pass        = nullptr;
         FramebufferHandle* framebuffer = nullptr;
         Texture2DArray*    depth       = nullptr;
-        TextureViewHandle* depthView   = nullptr;
+        TextureView*       depthView   = nullptr;
         PipelineHandle*    pipeline    = nullptr;
         ShaderHandle*      shader      = nullptr;
 
@@ -112,11 +88,11 @@ namespace Silex
 
         std::vector<FramebufferHandle*> samplingFB    = {};
         std::vector<Texture2D*>         sampling      = {};
-        std::vector<TextureViewHandle*> samplingView  = {};
+        std::vector<TextureView*>       samplingView  = {};
         Texture2D*                      prefilter     = {};
-        TextureViewHandle*              prefilterView = {};
+        TextureView*                    prefilterView = {};
         Texture2D*                      bloom         = {};
-        TextureViewHandle*              bloomView     = {};
+        TextureView*                    bloomView     = {};
         FramebufferHandle*              bloomFB       = {};
 
         PipelineHandle* prefilterPipeline = nullptr;
@@ -162,7 +138,7 @@ namespace Silex
         SemaphoreHandle*             renderSemaphore  = nullptr;
         FenceHandle*                 fence            = nullptr;
         bool                         waitingSignal    = false;
-        PendingDestroyResourceQueue* pendingResources;
+        PendingDestroyResourceQueue* pendingResources = nullptr;
     };
 
     // 即時コマンドデータ
@@ -223,15 +199,18 @@ namespace Silex
         Texture2D* CreateTextureFromMemory(const float* pixelData, uint64 dataSize, uint32 width, uint32 height, bool genMipmap);
 
         // レンダーテクスチャ
-        TextureHandle*  CreateTexture(const TextureInfo& info);
         Texture2D*      CreateTexture2D(RenderingFormat format, uint32 width, uint32 height, bool genMipmap = false, TextureUsageFlags additionalFlags = 0);
         Texture2DArray* CreateTexture2DArray(RenderingFormat format, uint32 width, uint32 height, uint32 array, bool genMipmap = false, TextureUsageFlags additionalFlags = 0);
         TextureCube*    CreateTextureCube(RenderingFormat format, uint32 width, uint32 height, bool genMipmap = false, TextureUsageFlags additionalFlags = 0);
         void            DestroyTexture(Texture* texture);
 
         // テクスチャビュー
-        TextureViewHandle* CreateTextureView(TextureHandle* texture, TextureType type, TextureAspectFlags aspect, uint32 baseArrayLayer = 0, uint32 numArrayLayer = UINT32_MAX, uint32 baseMipLevel = 0, uint32 numMipLevel = UINT32_MAX);
-        void               DestroyTextureView(TextureViewHandle* view);
+        TextureView* CreateTextureView(Texture* texture, TextureType type, TextureAspectFlags aspect, uint32 baseArrayLayer = 0, uint32 numArrayLayer = UINT32_MAX, uint32 baseMipLevel = 0, uint32 numMipLevel = UINT32_MAX);
+        void         DestroyTextureView(TextureView* view);
+
+        // サンプラー
+        Sampler* CreateSampler(SamplerFilter filter, SamplerRepeatMode mode, bool enableCompare = false, CompareOperator compareOp = COMPARE_OP_LESS_OR_EQUAL);
+        void     DestroySampler(Sampler* sampler);
 
         // バッファ
         Buffer*        CreateBuffer(void* data, uint64 size);
@@ -262,6 +241,23 @@ namespace Silex
         // 即時コマンド
         void ImmidiateExcute(std::function<void(CommandBufferHandle*)>&& func);
     
+    public:
+
+        // ネイティブハンドル破棄
+        void DestroyNativeHandle(Handle* handle)
+        {
+            FrameData& frame = frameData[frameIndex];
+
+            if      (handle->IsClassOf<TextureHandle>())       frame.pendingResources->texture.push_back((TextureHandle*)handle);
+            else if (handle->IsClassOf<BufferHandle>())        frame.pendingResources->buffer.push_back((BufferHandle*)handle);
+            else if (handle->IsClassOf<TextureViewHandle>())   frame.pendingResources->textureView.push_back((TextureViewHandle*)handle);
+            else if (handle->IsClassOf<SamplerHandle>())       frame.pendingResources->sampler.push_back((SamplerHandle*)handle);
+            else if (handle->IsClassOf<DescriptorSetHandle>()) frame.pendingResources->descriptorset.push_back((DescriptorSetHandle*)handle);
+            else if (handle->IsClassOf<FramebufferHandle>())   frame.pendingResources->framebuffer.push_back((FramebufferHandle*)handle);
+            else if (handle->IsClassOf<ShaderHandle>())        frame.pendingResources->shader.push_back((ShaderHandle*)handle);
+            else if (handle->IsClassOf<PipelineHandle>())      frame.pendingResources->pipeline.push_back((PipelineHandle*)handle);
+        }
+
     private:
 
         BufferHandle* _CreateAndMapBuffer(BufferUsageFlags type, const void* data, uint64 dataSize, void** outMappedPtr);
@@ -374,35 +370,35 @@ namespace Silex
         PipelineHandle*    equirectangularPipeline = nullptr;
         ShaderHandle*      equirectangularShader   = nullptr;
         TextureCube*       cubemapTexture          = nullptr;
-        TextureViewHandle* cubemapTextureView      = nullptr;
+        TextureView*       cubemapTextureView      = nullptr;
         DescriptorSet*     equirectangularSet      = nullptr;
 
         // irradiance
         PipelineHandle*    irradiancePipeline    = nullptr;
         ShaderHandle*      irradianceShader      = nullptr;
         TextureCube*       irradianceTexture     = nullptr;
-        TextureViewHandle* irradianceTextureView = nullptr;
+        TextureView*       irradianceTextureView = nullptr;
         DescriptorSet*     irradianceSet         = nullptr;
 
         // prefilter
         PipelineHandle*    prefilterPipeline    = nullptr;
         ShaderHandle*      prefilterShader      = nullptr;
         TextureCube*       prefilterTexture     = nullptr;
-        TextureViewHandle* prefilterTextureView = nullptr;
+        TextureView*       prefilterTextureView = nullptr;
         DescriptorSet*     prefilterSet         = nullptr;
 
         // BRDF-LUT
         PipelineHandle*    brdflutPipeline    = nullptr;
         ShaderHandle*      brdflutShader      = nullptr;
         Texture2D*         brdflutTexture     = nullptr;
-        TextureViewHandle* brdflutTextureView = nullptr;
+        TextureView*       brdflutTextureView = nullptr;
 
     public:
 
         // シーンBlit
         FramebufferHandle* compositeFB          = nullptr;
         Texture2D*         compositeTexture     = nullptr;
-        TextureViewHandle* compositeTextureView = nullptr;
+        TextureView*       compositeTextureView = nullptr;
         RenderPassHandle*  compositePass        = nullptr;
         ShaderHandle*      compositeShader      = nullptr;
         PipelineHandle*    compositePipeline    = nullptr;
@@ -423,14 +419,14 @@ namespace Silex
 
         // swapchain
         FramebufferHandle* currentSwapchainFramebuffer = nullptr;
-        TextureViewHandle*       currentSwapchainView        = nullptr;
-        RenderPassHandle*        swapchainPass               = nullptr;
+        TextureViewHandle* currentSwapchainView        = nullptr;
+        RenderPassHandle*  swapchainPass               = nullptr;
 
     public:
 
         // サンプラー
-        SamplerHandle*   linearSampler = nullptr;
-        SamplerHandle*   shadowSampler = nullptr;
+        Sampler*   linearSampler = nullptr;
+        Sampler*   shadowSampler = nullptr;
 
         // 頂点レイアウト
         InputLayout defaultLayout;
@@ -441,11 +437,11 @@ namespace Silex
     public:
 
         // テクスチャ
-        Texture2D*         defaultTexture     = nullptr;
-        TextureViewHandle* defaultTextureView = nullptr;
+        Texture2D*   defaultTexture     = nullptr;
+        TextureView* defaultTextureView = nullptr;
 
-        Texture2D*         envTexture     = nullptr;
-        TextureViewHandle* envTextureView = nullptr;
+        Texture2D*   envTexture     = nullptr;
+        TextureView* envTextureView = nullptr;
     };
 }
 

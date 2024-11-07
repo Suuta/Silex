@@ -7,10 +7,6 @@
 
 namespace Silex
 {
-    //============================
-    // 実体は "AssetCreator.cpp"
-    //============================
-    
     class AssetCreator
     {
     public:

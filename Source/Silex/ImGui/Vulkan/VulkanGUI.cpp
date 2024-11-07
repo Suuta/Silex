@@ -177,7 +177,7 @@ namespace Silex
         const FrameData& frame = Renderer::Get()->GetFrameData();
 
         Renderer::Get()->BeginSwapChainPass();
-        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), ((VulkanCommandBuffer*)(frame.commandBuffer))->commandBuffer);
+        ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), VulkanCast(frame.commandBuffer)->commandBuffer);
         Renderer::Get()->EndSwapChainPass();
     }
 
@@ -210,7 +210,7 @@ namespace Silex
 
     void GUI::Image(DescriptorSet* set, float width, float height)
     {
-        DescriptorSetHandle* h = set->GetHandle(0);
+        DescriptorSetHandle* h = set->GetHandle();
 
         VulkanDescriptorSet* descriptorset = VulkanCast(h);
         ImGui::Image(descriptorset->descriptorSet, { width, height });

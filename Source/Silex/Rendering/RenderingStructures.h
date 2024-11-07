@@ -1,8 +1,6 @@
 
 #pragma once
-
 #include "Rendering/RenderingCore.h"
-#include "Rendering/Renderer.h"
 
 
 namespace Silex
@@ -63,29 +61,18 @@ namespace Silex
     template<class T>
     class RenderingStructure : public Class
     {
+        // 実体化時にハッシュ値が衝突するので宣言できない（現状問題ないので使用しないことで対応）
+        // SL_CLASS(RenderingStructure, Class)
+
         friend class Renderer;
 
     public:
         
-        // 実体化時にハッシュ値が衝突するので宣言できない（現状問題ないので使用しないことで対応）
-        // SL_CLASS(RenderingStructure, Class)
-
         using ResourceType = typename RenderingTypeTraits<T>::InternalType;
-
-        RenderingStructure()
-        {
-            uint32 numFrameResouces = Renderer::Get()->GetFrameCountInFlight();
-            handle.resize(numFrameResouces);
-        }
 
         ResourceType* GetHandle(uint32 index = 0)
         {
             return handle[index];
-        }
-
-        void SetHandle(ResourceType* resource, uint32 index = 0)
-        {
-            handle[index] = resource;
         }
 
     protected:
@@ -104,6 +91,7 @@ namespace Silex
     public:
 
         SL_CLASS(Texture, RenderingStructure<Texture>)
+        Texture() = default;
 
         const TextureInfo& GetInfo()       { return textureInfo; }
         const TextureInfo& GetInfo() const { return textureInfo; }
@@ -127,7 +115,7 @@ namespace Silex
     public:
 
         SL_CLASS(Texture2D, Texture)
-        void Resize(uint32 width, uint32 height);
+        Texture2D(uint32 frames);
     };
 
     //==============================================================
@@ -140,10 +128,7 @@ namespace Silex
     public:
 
         SL_CLASS(Texture2DArray, Texture)
-
-        // 現状リサイズはサポートしていない
-        // 使用しているのはシャドウマップであり、固定サイズなので
-        //void Resize(uint32 width, uint32 height);
+        Texture2DArray(uint32 frames);
     };
 
     //==============================================================
@@ -156,10 +141,7 @@ namespace Silex
     public:
 
         SL_CLASS(TextureCube, Texture)
-
-        // 現状リサイズはサポートしていない
-        // 使用しているのは環境マップであり、固定サイズなので
-        //void Resize(uint32 width, uint32 height);
+        TextureCube(uint32 frames);
     };
 
 
@@ -175,6 +157,8 @@ namespace Silex
     public:
 
         SL_CLASS(Buffer, RenderingStructure<Buffer>)
+        Buffer() = default;
+        Buffer(uint32 frames);
 
         uint64 GetByteSize()      { return byteSize;  }
         bool   IsMapped()         { return isMapped;  }
@@ -199,6 +183,7 @@ namespace Silex
     public:
 
         SL_CLASS(VertexBuffer, Buffer)
+        VertexBuffer(uint32 frames);
 
         uint64 GetVertexCount()    { return vertexCount;    }
         uint64 GetVertexByteSize() { return vertexByteSize; }
@@ -219,6 +204,7 @@ namespace Silex
     public:
         
         SL_CLASS(IndexBuffer, Buffer)
+        IndexBuffer(uint32 frames);
 
         uint64 GetIndexCount()    { return indexCount;    }
         uint64 GetIndexByteSize() { return indexByteSize; }
@@ -239,11 +225,9 @@ namespace Silex
     public:
         
         SL_CLASS(UniformBuffer, Buffer)
+        UniformBuffer(uint32 frames);
+
         void SetData(const void* data, uint64 writeByteSize);
-
-    private:
-
-        //void* data = nullptr;
     };
 
     //==============================================================
@@ -256,12 +240,9 @@ namespace Silex
     public:
 
         SL_CLASS(StorageBuffer, Buffer)
+        StorageBuffer(uint32 frames);
 
         void SetData(const void* data, uint64 writeByteSize);
-
-    private:
-
-        //void* data = nullptr;
     };
 
 
@@ -273,6 +254,7 @@ namespace Silex
     public:
 
         SL_CLASS(TextureView, RenderingStructure<TextureView>)
+        TextureView(uint32 frames);
     };
 
     class Sampler : public RenderingStructure<Sampler>
@@ -282,6 +264,7 @@ namespace Silex
     public:
 
         SL_CLASS(Sampler, RenderingStructure<Sampler>)
+        Sampler(uint32 frames);
     };
 
 
@@ -295,20 +278,18 @@ namespace Silex
     public:
         
         SL_CLASS(DescriptorSet, RenderingStructure<DescriptorSet>)
-        DescriptorSet();
+        DescriptorSet(uint32 frames);
 
         void Flush();
 
-        //TODO: ビュー/サンプラー もラップクラスが実装後に変更する
-        void SetResource(uint32 binding, TextureViewHandle* view, SamplerHandle* sampler);
-
+        void SetResource(uint32 binding, TextureView* view, Sampler* sampler);
         void SetResource(uint32 binding, UniformBuffer* uniformBuffer);
         void SetResource(uint32 binding, StorageBuffer* storageBuffer);
 
     private:
 
         //=====================================================================================
-        // TODO: デスクリプターセットのベイクを実装
+        // TODO: デスクリプターセットの一括更新を実装（※再生成ではない手法を実装）
         //=====================================================================================
         // デスクリプターセットの構成は基本的には静的なので（シェーダーをランタイムで書き換えない限り）
         // このデスクリプターセットと依存関係を持つリソース（イメージ・バッファ）のデスクリプタをラップするクラス

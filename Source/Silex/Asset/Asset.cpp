@@ -3,7 +3,7 @@
 
 #include "Core/Random.h"
 #include "Asset/Asset.h"
-#include "Editor/SplashImage.h"
+#include "Editor/EditorSplashImage.h"
 #include "Rendering/Mesh.h"
 #include "Rendering/Environment.h"
 #include "Rendering/RenderingStructures.h"
@@ -15,16 +15,6 @@
 
 namespace Silex
 {
-    void Asset::SetupAssetProperties(const std::string& filePath, AssetType flag)
-    {
-        SetAssetType(flag);
-        SetFilePath(filePath);
-
-        std::filesystem::path path(filePath);
-        SetName(path.stem().string());
-    }
-
-
     //==================================================================================
     // ①アセットデータベースファイルの有無確認
     //----------------------------------------------------------------------------------
@@ -65,49 +55,6 @@ namespace Silex
     //==================================================================================
 
 
-#if 0
-    {
-        // メッシュ
-        //m_QuadMesh = Shared<Mesh>(MeshFactory::Quad());
-        //m_QuadMesh->SetPrimitiveType(RHI::PrimitiveType::TriangleStrip);
-        //m_QuadMesh->GetFilePath() = "Quad";
-
-        m_CubeMesh = Ref<Mesh>(MeshFactory::Cube());
-        m_CubeMesh->SetPrimitiveType(rhi::PrimitiveType::Triangle);
-        m_CubeMesh->GetFilePath() = "Cube";
-
-        m_SphereMesh = Ref<Mesh>(MeshFactory::Sphere());
-        m_SphereMesh->SetPrimitiveType(rhi::PrimitiveType::TriangleStrip);
-        m_SphereMesh->GetFilePath() = "Sphere";
-
-        // テクスチャ
-        rhi::TextureDesc desc = {};
-        desc.Filter = rhi::TextureFilter::Linear;
-        desc.Wrap = rhi::TextureWrap::Repeat;
-        desc.GenMipmap = true;
-
-        m_DefaultTexture = Texture2D::Create(desc, "Assets/Textures/default.png");
-        m_CheckerboardTexture = Texture2D::Create(desc, "Assets/Textures/checkerboard.png");
-
-        // マテリアル
-        m_DefaultMaterial = CreateShared<Material>();
-    }
-
-    void Renderer::Shutdown()
-    {
-        m_SphereMesh.Reset();
-        m_QuadMesh.Reset();
-        m_CubeMesh.Reset();
-
-        m_DefaultMaterial.Reset();
-        m_DefaultTexture.Reset();
-        m_CheckerboardTexture.Reset();
-
-        s_RendererPlatform->Shutdown();
-        m_TaskQueue.Release();
-    }
-#endif
-
     MeshAsset::MeshAsset() {}
     MeshAsset::MeshAsset(Mesh* asset) : mesh(asset) {}
     MeshAsset::~MeshAsset() { sldelete(mesh); }
@@ -137,8 +84,9 @@ namespace Silex
         SL_ASSERT(instance == nullptr)
         instance = slnew(AssetManager);
 
-        // ビルトインデータ(ID: 1 - 5 に割り当て)
-        // アセットデータベースには登録されない（メモリオンリーアセット）
+        // ビルトインデータ(ID: 1 - 256 に割り当て)
+        // アセットデータベースには登録されないが（シリアライズされず、ランタイムのみ存在するメモリオンリーアセット）
+        // メタデータとしては登録され、ランタイム中のみ情報の取得が可能
         instance->_CreateBuiltinAssets();
 
 
@@ -171,7 +119,7 @@ namespace Silex
         }
     }
 
-    bool AssetManager::HasMetadata(const std::filesystem::path& directory)
+    bool AssetManager::IsExistInMetadata(const std::filesystem::path& directory)
     {
         for (auto& [id, metadata] : metadata)
         {
@@ -215,45 +163,43 @@ namespace Silex
 
     uint64 AssetManager::GenerateAssetID()
     {
-        return Random<uint64>::Range(builtinAssetCount + 1, std::numeric_limits<uint64>::max());
+        // ビルトインアセット予約済み: 1 ~ 256
+        // 無効なアセットID        : 0
+        return Random<uint64>::Range(reservedBuiltinAssetCount + 1, std::numeric_limits<uint64>::max());
+    }
+
+    bool AssetManager::IsBuiltInAssetID(AssetID id)
+    {
+        // 1 ~ 256
+        return 1 <= id && id <= reservedBuiltinAssetCount;
     }
 
     bool AssetManager::IsValidID(AssetID id)
     {
-        return id != 0 && id > builtinAssetCount;
+        return id != 0 && !IsBuiltInAssetID(id);
     }
 
     void AssetManager::_CreateBuiltinAssets()
     {
-        Ref<Texture2DAsset> white = AssetImporter::Import<Texture2DAsset>("Assets/Editor/WhiteTexture.png");
-        white->SetAssetType(AssetType::Texture);
-        white->SetName("WhiteTexture");
-        instance->_AddToAssetAndID(1, white);
-        instance->builtinAssetCount++;
+        //---------------------------------------------------------------------------------------------------
+        // 従来のバージョンではビルトインアセットはメモリーオンリー（シリアライズされない・物理ファイルが存在しない）なので
+        // レンダラーで生成されたものを割り当てていたが、今回はビルトインアセットとして物理ファイルを扱う必要が発生した。
+        // 物理ファイルが必要なのは、vulkanパイプラインでプリミティブ型が静的になり、メッシュ間で統一する必要があることに起因する
+        // "TORIANGLE_LIST" で統一することにしたが、ランタイム生成の場合、"球" データを "TORIANGLE_LIST" で計算する方法が
+        // わからなかったので、DCCツールから出力された データを使用している。すべての基本プリミティブのデータを "TORIANGLE_LIST"
+        // 形式のデータで生成できるようになれば、外部データは不要になる。
+        // 
+        // <IsBuiltInAssetID 関数によるチェックで>
+        // _AddToMetadata 関数で新規追加されない
+        // _WriteDatabaseToFile 関数でシリアライスの対象にはならない
+        // _LoadAssetToMemory 関数でロードされない（多重ロードのため）
+        //---------------------------------------------------------------------------------------------------
 
-        Ref<Texture2DAsset> checker = AssetImporter::Import<Texture2DAsset>("Assets/Editor/CheckerboardTexture.png");
-        checker->SetAssetType(AssetType::Texture);
-        checker->SetName("CheckerboardTexture");
-        instance->_AddToAssetAndID(2, checker);
-        instance->builtinAssetCount++;
-
-        Ref<MeshAsset> cube = AssetImporter::Import<MeshAsset>("Assets/Editor/Cube.fbx");
-        cube->SetAssetType(AssetType::Mesh);
-        cube->SetName("Cube");
-        instance->_AddToAssetAndID(3, cube);
-        instance->builtinAssetCount++;
-
-        Ref<MeshAsset> sphere = AssetImporter::Import<MeshAsset>("Assets/Editor/Sphere.fbx");
-        sphere->SetAssetType(AssetType::Mesh);
-        sphere->SetName("Sphere");
-        instance->_AddToAssetAndID(4, sphere);
-        instance->builtinAssetCount++;
-
-        Ref<MaterialAsset> material = AssetImporter::Import<MaterialAsset>("Assets/Editor/DefaultMaterial.slmt");
-        material->SetAssetType(AssetType::Material);
-        material->SetName("DefaultMaterial");
-        instance->_AddToAssetAndID(5, material);
-        instance->builtinAssetCount++;
+        _LoadBuiltinAsset<Texture2DAsset>("Assets/Editor/WhiteTexture.png");
+        _LoadBuiltinAsset<Texture2DAsset>("Assets/Editor/CheckerboardTexture.png");
+        _LoadBuiltinAsset<MeshAsset>("Assets/Editor/Cube.fbx");
+        _LoadBuiltinAsset<MeshAsset>("Assets/Editor/Sphere.fbx");
+        _LoadBuiltinAsset<MaterialAsset>("Assets/Editor/DefaultMaterial.slmt");
     }
 
     void AssetManager::_DestroyBuiltinAssets()
@@ -364,15 +310,15 @@ namespace Silex
         std::replace(path.begin(), path.end(), '\\', '/');
         std::filesystem::path dir = path;
 
-        // メタデータ内に存在するなら追加しない
-        if (HasMetadata(dir))
+        // メタデータ内に存在するなら追加しない (前回読み込まれてシリアライズされたアセットや、ビルトインアセットは既に登録されている)
+        if (IsExistInMetadata(dir))
             return {};
 
         // なければ新規登録
         AssetMetadata md;
         md.id   = GenerateAssetID();
         md.path = dir;
-        md.type = FileNameToAssetType(dir);
+        md.type = Asset::FileNameToAssetType(dir);
 
         metadata[md.id] = md;
         return md;
@@ -403,11 +349,15 @@ namespace Silex
 
         for (auto& [id, metadata] : metadata)
         {
-            out << YAML::BeginMap;
-            out << YAML::Key << "id"   << YAML::Value << metadata.id;
-            out << YAML::Key << "type" << YAML::Value << (uint32)metadata.type;
-            out << YAML::Key << "path" << YAML::Value << metadata.path.string();
-            out << YAML::EndMap;
+            // ビルトインアセットはシリアライズしない
+            if (!IsBuiltInAssetID(metadata.id))
+            {
+                out << YAML::BeginMap;
+                out << YAML::Key << "id"   << YAML::Value << metadata.id;
+                out << YAML::Key << "type" << YAML::Value << (uint32)metadata.type;
+                out << YAML::Key << "path" << YAML::Value << metadata.path.string();
+                out << YAML::EndMap;
+            }
         }
 
         out << YAML::EndSeq;
@@ -426,9 +376,9 @@ namespace Silex
         INIT_PROCESS("Load Texture", 20);
 
         // テクスチャ2D: マテリアルから参照されるので、最初に読み込むこと!
-        for (auto& [ud, md] : metadata)
+        for (auto& [aid, md] : metadata)
         {
-            if (md.type == AssetType::Texture)
+            if (md.type == AssetType::Texture && !IsBuiltInAssetID(aid))
             {
                 AssetID id       = md.id;
                 std::string path = md.path.string();
@@ -443,9 +393,9 @@ namespace Silex
         INIT_PROCESS("Load EnvironmentMap", 40);
 
         // 環境マップ
-        for (auto& [ud, md] : metadata)
+        for (auto& [aid, md] : metadata)
         {
-            if (md.type == AssetType::Environment)
+            if (md.type == AssetType::Environment && !IsBuiltInAssetID(aid))
             {
                 AssetID id       = md.id;
                 std::string path = md.path.string();
@@ -458,9 +408,9 @@ namespace Silex
         INIT_PROCESS("Load Material", 60);
 
         // マテリアル
-        for (auto& [ud, md] : metadata)
+        for (auto& [aid, md] : metadata)
         {
-            if (md.type == AssetType::Material)
+            if (md.type == AssetType::Material && !IsBuiltInAssetID(aid))
             {
                 AssetID id       = md.id;
                 std::string path = md.path.string();
@@ -473,9 +423,9 @@ namespace Silex
         INIT_PROCESS("Load Mesh", 80);
 
         // メッシュ
-        for (auto& [ud, md] : metadata)
+        for (auto& [aid, md] : metadata)
         {
-            if (md.type == AssetType::Mesh)
+            if (md.type == AssetType::Mesh && !IsBuiltInAssetID(aid))
             {
                 AssetID id       = md.id;
                 std::string path = md.path.string();
