@@ -208,7 +208,7 @@ namespace Silex
         for (auto& [id, node] : directory->ChildDirectory)
         {
             std::string fileName = node->FilePath.filename().string();
-            m_CurrentDirectoryAssetItems[id] = (CreateRef<AssetBrowserItem>(AssetItemType::Directory, id, std::move(fileName), m_DirectoryIcon));
+            m_CurrentDirectoryAssetItems[id] = CreateRef<AssetBrowserItem>(AssetItemType::Directory, id, std::move(fileName), m_DirectoryIcon);
         }
 
         // アセットファイル追加
@@ -221,7 +221,7 @@ namespace Silex
             }
 
             std::string fileName = metadata.path.filename().string();
-            m_CurrentDirectoryAssetItems[id] = (CreateRef<AssetBrowserItem>(AssetItemType::Asset, id, std::move(fileName), m_AssetIcons[metadata.type]));
+            m_CurrentDirectoryAssetItems[id] = CreateRef<AssetBrowserItem>(AssetItemType::Asset, id, std::move(fileName), m_AssetIcons[metadata.type]);
         }
 
         m_CurrentDirectory = directory;
@@ -271,7 +271,8 @@ namespace Silex
                         Ref<MaterialAsset> materialAsset = AssetManager::Get()->CreateAsset<MaterialAsset>(path);
 
                         // アセットブラウザのアセットリストに追加
-                        m_CurrentDirectoryAssetItems[materialAsset->GetAssetID()] = (CreateRef<AssetBrowserItem>(AssetItemType::Asset, materialAsset->GetAssetID(), std::move(filename), m_AssetIcons[AssetType::Material]));
+                        m_CurrentDirectoryAssetItems[materialAsset->GetAssetID()] = CreateRef<AssetBrowserItem>(AssetItemType::Asset, materialAsset->GetAssetID(), std::move(filename), m_AssetIcons[AssetType::Material]);
+                        m_CurrentDirectory->Assets.push_back(materialAsset->GetAssetID());
                     }
                 }
 
@@ -338,13 +339,13 @@ namespace Silex
 
         ImGui::Separator();
 
-        Ref<MaterialAsset> material  = m_SelectAsset.As<MaterialAsset>();
+        Ref<MaterialAsset> material = m_SelectAsset.As<MaterialAsset>();
 
-        //---------------------------------------------------
-        // OpenGL　実装だったので、TextureID を渡すことを期待している
+        //-----------------------------------------------------
+        // OpenGL　実装だったので、TextureID を渡すことを期待しているが
         // Vulkan 実装では、デスクリプターセットを渡す必要がある
         // 詳細は vulkanGUI に記載
-        //---------------------------------------------------
+        //-----------------------------------------------------
         // uint32 albedoTextureThumnail = material->Get()->AlbedoMap? material->Get()->AlbedoMap->Get()->GetID() : 0;
         // DescriptorSet* albedoTextureThumnail = material->Get()->AlbedoMap? material->Get()->AlbedoMap->Get()->GetID() : 0;
 

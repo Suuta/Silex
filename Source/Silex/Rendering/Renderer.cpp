@@ -270,7 +270,7 @@ namespace Silex
         // GPU 待機
         if (frameData[frameIndex].waitingSignal)
         {
-            SL_SCOPE_PROFILE("WaitFence")
+            SL_SCOPE_PROFILE("Renderer::BeginFrame")
 
             result = api->WaitFence(frame.fence);
             SL_CHECK(!result, false);
@@ -1651,10 +1651,12 @@ namespace Silex
         return *outID;
     }
 
-    void Renderer::RESIZE(uint32 width, uint32 height)
+    void Renderer::Resize(uint32 width, uint32 height)
     {
         if (width == 0 || height == 0)
             return;
+
+        sceneFramebufferSize = {width, height};
 
         ResizeGBuffer(width, height);
         ResizeLightingBuffer(width, height);
@@ -1686,8 +1688,10 @@ namespace Silex
         }
     }
 
-    void Renderer::UpdateUBO(Camera* camera)
+    void Renderer::UpdateUBO()
     {
+        Camera* camera = Engine::Get()->GetEditor()->GetEditorCamera();
+
         {
             Test::ShadowTransformData shadowData;
             shadowData.world = glm::mat4(1.0);
@@ -1759,137 +1763,13 @@ namespace Silex
         }
     }
 
-    void Renderer::Update(Camera* camera)
-    {
-        bool isUsingCamera = Engine::Get()->GetEditor()->IsUsingEditorCamera();
-
-        ImGuiViewport* viewport = ImGui::GetMainViewport();
-        ImGui::SetNextWindowPos(viewport->Pos);
-        ImGui::SetNextWindowSize(viewport->Size);
-        ImGui::SetNextWindowViewport(viewport->ID);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-
-        ImGuiWindowFlags windowFlags = 0;
-        windowFlags |= ImGuiWindowFlags_NoDocking;
-        windowFlags |= ImGuiWindowFlags_NoTitleBar;
-        windowFlags |= ImGuiWindowFlags_NoMove;
-        windowFlags |= ImGuiWindowFlags_NoResize;
-        windowFlags |= ImGuiWindowFlags_NoCollapse;
-        windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
-        windowFlags |= ImGuiWindowFlags_NoNavFocus;
-        windowFlags |= ImGuiWindowFlags_MenuBar;
-        windowFlags |= isUsingCamera ? ImGuiWindowFlags_NoInputs : 0;
-
-        {
-            ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-            ImGui::Begin("DockSpace", nullptr, windowFlags);
-            ImGui::PopStyleVar();
-
-            ImGuiDockNodeFlags docapaceFlag = ImGuiDockNodeFlags_NoWindowMenuButton;
-            docapaceFlag |= isUsingCamera ? ImGuiDockNodeFlags_NoResize : 0;
-
-            ImGuiID dockspaceID = ImGui::GetID("Dockspace");
-            ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), docapaceFlag);
-
-            //============================
-            // メニューバー
-            //============================
-            if (ImGui::BeginMenuBar())
-            {
-                if (ImGui::BeginMenu("編集"))
-                {
-                    if (ImGui::MenuItem("終了", "Alt+F4")) Engine::Get()->Close();
-
-                    ImGui::EndMenu();
-                }
-
-                ImGui::EndMenuBar();
-            }
-
-            ImGui::End();
-        }
-
-        // シーンプロパティ
-        //m_ScenePropertyPanel.Render(&bShowOutliner, &bShowProperty);
-
-        // アセットプロパティ
-        //m_AssetBrowserPanel.Render(&bShowAssetBrowser, &bShowMaterial);
-
-        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-        ImGui::Begin("シーン", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
-
-        // ビューポートへのホバー
-        bool bHoveredViewport = ImGui::IsWindowHovered();
-
-        // ウィンドウ内のコンテンツサイズ（タブやパディングは含めないので、ImGui::GetWindowSize関数は使わない）
-        ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
-        ImVec2 contentMax = ImGui::GetWindowContentRegionMax();
-        ImVec2 content = { contentMax.x - contentMin.x, contentMax.y - contentMin.y };
-
-        // ウィンドウ左端からのオフセット
-        ImVec2 viewportOffset = ImGui::GetWindowPos();
-
-        // ImGuizmo用 相対ウィンドウ座標
-        glm::ivec2 relativeViewportRect[2];
-        relativeViewportRect[0] = { contentMin.x + viewportOffset.x, contentMin.y + viewportOffset.y };
-        relativeViewportRect[1] = { contentMax.x + viewportOffset.x, contentMax.y + viewportOffset.y };
-
-        // シーン描画
-        {
-            // エディターが有効な状態では、シーンビューポートサイズがフレームバッファサイズになる
-            if ((content.x > 0.0f && content.y > 0.0f) && (content.x != sceneFramebufferSize.x || content.y != sceneFramebufferSize.y))
-            {
-                sceneFramebufferSize.x = content.x;
-                sceneFramebufferSize.y = content.y;
-                camera->SetViewportSize(sceneFramebufferSize.x, sceneFramebufferSize.y);
-
-                SL_LOG_TRACE("Resize SceneFramebuffer: {}, {}", sceneFramebufferSize.x, sceneFramebufferSize.y);
-                RESIZE(sceneFramebufferSize.x, sceneFramebufferSize.y);
-            }
-
-            // シーン描画
-            GUI::Image(imageSet, content.x, content.y);
-        }
-
-        ImGui::End();
-        ImGui::PopStyleVar();
-
-        ImGui::Begin("Info", nullptr, isUsingCamera ? ImGuiWindowFlags_NoInputs : 0);
-        ImGui::Text("FPS: %d", Engine::Get()->GetFrameRate());
-        ImGui::SeparatorText("");
-        ImGui::Text("SceneViewport:  %d, %d", sceneFramebufferSize.x, sceneFramebufferSize.y);
-        ImGui::SeparatorText("");
-        ImGui::SliderFloat3("light", &sceneLightDir[0], -1.0, 1.0);
-        ImGui::SeparatorText("");
-        for (const auto& [profile, time] : Engine::Get()->GetPerformanceData())
-        {
-            ImGui::Text("%-*s %.2f ms", 24, profile, time);
-        }
-
-        ImGui::End();
-        ImGui::PopStyleVar(2);
-
-        UpdateUBO(camera);
-
-
-        // シーンピクセルID取得
-        if (Input::IsMouseButtonReleased(Mouse::Left) && Input::IsKeyDown(Keys::P) && bHoveredViewport)
-        {
-            glm::ivec2 mouse       = Input::GetCursorPosition();
-            glm::ivec2 viewportPos = { relativeViewportRect[0].x, relativeViewportRect[0].y };
-            glm::ivec2 windowPos   = Window::Get()->GetWindowPos();
-            glm::ivec2 diff        = viewportPos - windowPos;
-            glm::ivec2 mousediff   = mouse - diff;
-
-            int32 id = ReadPixelObjectID(mousediff.x, mousediff.y);
-            SL_LOG_DEBUG("Clicked: ID({})", id);
-        }
-    }
 
 
     void Renderer::Render(float dt)
     {
+        UpdateUBO();
+
+
         FrameData& frame = frameData[frameIndex];
         const auto& viewportSize = sceneFramebufferSize;
 
@@ -1959,11 +1839,21 @@ namespace Silex
             api->Cmd_BindDescriptorSet(frame.commandBuffer, gbuffer->transformSet->GetHandle(frameIndex), 0);
             api->Cmd_BindDescriptorSet(frame.commandBuffer, gbuffer->materialSet->GetHandle(frameIndex), 1);
 
+            //========================================================================
+            // TODO: バインドレスとインスタンシング描画のためのストレージバッファの設計までに...
+            //------------------------------------------------------------------------
+            // 設計が完了するまでは個別でドローコールすることになるので、ワールド行列はプッシュ定数で
+            // 渡すように変更する。現在は定数バッファで渡しているので、シーンで一律なカメラの
+            // ビュー・プロジェクション行列とは分離させる
+            // 
+            // ※本来は描画パス全体で使用する共通パラメータ(View/Projection)として1回だけバインド
+            //========================================================================
+            
             // スポンザ
             for (MeshSource* source : sponzaMesh->GetMeshSources())
             {
-                BufferHandle* vb        = source->GetVertexBuffer()->GetHandle();
-                BufferHandle* ib        = source->GetIndexBuffer()->GetHandle();
+                BufferHandle* vb  = source->GetVertexBuffer()->GetHandle();
+                BufferHandle* ib  = source->GetIndexBuffer()->GetHandle();
                 uint32 indexCount = source->GetIndexCount();
                 api->Cmd_BindVertexBuffer(frame.commandBuffer, vb, 0);
                 api->Cmd_BindIndexBuffer(frame.commandBuffer, ib, INDEX_BUFFER_FORMAT_UINT32, 0);
@@ -2659,6 +2549,11 @@ namespace Silex
     const DeviceInfo& Renderer::GetDeviceInfo() const
     {
         return context->GetDeviceInfo();
+    }
+
+    DescriptorSet* Renderer::GetSceneImageSet() const
+    {
+        return imageSet;
     }
 
     RenderingContext* Renderer::GetContext() const

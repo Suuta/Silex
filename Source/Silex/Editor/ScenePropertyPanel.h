@@ -44,6 +44,6 @@ namespace Silex
     private:
 
         Ref<Scene> scene;
-        Entity        selectEntity;
+        Entity     selectEntity;
     };
 }

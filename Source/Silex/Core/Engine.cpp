@@ -149,7 +149,7 @@ namespace Silex
 
             // update
             editor->Update(deltaTime);
-            renderer->Update(editor->GetEditorCamera());
+            editor->UpdateUI();
             editorUI->Update();
 
             // render

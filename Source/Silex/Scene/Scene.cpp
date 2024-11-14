@@ -4,7 +4,6 @@
 #include "Core/Random.h"
 #include "Core/Timer.h"
 #include "Scene/Scene.h"
-//#include "Scene/SceneRenderer.h"
 #include "Scene/Entity.h"
 
 #include <glm/glm.hpp>
@@ -70,7 +69,7 @@ namespace Silex
         //renderer->BeginFrame(this, &camera);
 
         {
-            SL_SCOPE_PROFILE("Update - Scene");
+            SL_SCOPE_PROFILE("Scene::Update");
 
             const auto& sky         = registry.group<SkyLightComponent>(entt::get<TransformComponent, InstanceComponent>);
             const auto& directional = registry.group<DirectionalLightComponent>(entt::get<TransformComponent, InstanceComponent>);

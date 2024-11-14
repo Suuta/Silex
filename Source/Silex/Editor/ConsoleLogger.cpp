@@ -11,5 +11,4 @@ namespace Silex
     {
         return s_ConsoleLogger;
     }
-    
 }

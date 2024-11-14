@@ -16,7 +16,7 @@ namespace Silex
         static void Finalize();
 
         static void AddTask(Task&& task);
-        static void Flush(bool removeTaskQueue = false);
+        static void WaitAll();
 
         static uint32 GetThreadCount();
         static uint32 GetWorkingThreadCount();

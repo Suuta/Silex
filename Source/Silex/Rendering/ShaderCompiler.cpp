@@ -251,7 +251,7 @@ namespace Silex
     using _SetIndex = uint32;
     using _Binding  = uint32;
 
-    // ステージ間共有バッファ保存用変数  ※リフレクション時のバッファ複数回定義を防ぐ
+    // ステージ間共有バッファ保存用変数
     static std::unordered_map<_SetIndex, std::unordered_map<_Binding, ShaderBuffer>> ExistUniformBuffers;
     static std::unordered_map<_SetIndex, std::unordered_map<_Binding, ShaderBuffer>> ExistStorageBuffers;
     static bool                                                                      IsExistPushConstant;
@@ -268,15 +268,6 @@ namespace Silex
     bool ShaderCompiler::Compile(const std::string& filePath, ShaderCompiledData& out_compiledData)
     {
         bool result = false;
-        out_compiledData.reflection.descriptorSets.clear();
-        out_compiledData.reflection.pushConstantRanges.clear();
-        out_compiledData.reflection.pushConstants.clear();
-        out_compiledData.reflection.resources.clear();
-        out_compiledData.shaderBinaries.clear();
-
-        ExistUniformBuffers.clear();
-        ExistStorageBuffers.clear();
-        IsExistPushConstant = false;
 
         // キャッシュファイルが無ければ生成
         if (!std::filesystem::exists(ShaderCacheDirectory))
@@ -322,6 +313,16 @@ namespace Silex
             // バイナリファイル書き込み（キャッシュ）
             WriteSpvBinary(spirvBinaries[stage], cachepath);
         }
+
+        out_compiledData.reflection.descriptorSets.clear();
+        out_compiledData.reflection.pushConstantRanges.clear();
+        out_compiledData.reflection.pushConstants.clear();
+        out_compiledData.reflection.resources.clear();
+        out_compiledData.shaderBinaries.clear();
+
+        ExistUniformBuffers.clear();
+        ExistStorageBuffers.clear();
+        IsExistPushConstant = false;
 
         // ステージごとにリフレクション
         for (const auto& [stage, binary] : spirvBinaries)

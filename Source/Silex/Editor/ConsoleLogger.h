@@ -12,18 +12,13 @@ namespace Silex
 
         static ConsoleLogger& Get();
 
-        void Log(const std::string& message)
-        {
-            logData += message;
-        }
-
         void Log(LogLevel level, const std::string& message)
         {
+            std::lock_guard<std::mutex> lock(mutex);
+
             // 一定サイズなら、先頭要素を消す
             if (logEntries.size() > maxLogEntory)
-            {
                 logEntries.pop_front();
-            }
 
             LogEntry entry;
             entry.level = level;
@@ -34,18 +29,8 @@ namespace Silex
 
         void Clear()
         {
-            logData.clear();
-
-            // queue に clearメンバ関数が無いので空オブジェクトとスワップ
-            //std::queue<LogEntry> empty;
-            //std::swap(m_LogEntries, empty);
-
+            std::lock_guard<std::mutex> lock(mutex);
             logEntries.clear();
-        }
-
-        const char* Data()
-        {
-            return logData.c_str();
         }
 
         void LogData()
@@ -89,7 +74,7 @@ namespace Silex
         const uint64 maxLogEntory = 1024;
 
         std::deque<LogEntry> logEntries;
-        std::string          logData;
+        std::mutex           mutex;
     };
 }
 

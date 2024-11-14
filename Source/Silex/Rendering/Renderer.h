@@ -190,6 +190,8 @@ namespace Silex
         // デバイス情報
         const DeviceInfo& GetDeviceInfo() const;
 
+        DescriptorSet* GetSceneImageSet() const;
+
         //===========================================================
         // API
         //===========================================================
@@ -304,10 +306,9 @@ namespace Silex
         //===========================================================
 
         void TEST();
-        void Update(class Camera* camera);
         void Render(float dt);
-        void RESIZE(uint32 width, uint32 height);
-        void UpdateUBO(class Camera* camera);
+        void Resize(uint32 width, uint32 height);
+        void UpdateUBO();
 
     public:
 

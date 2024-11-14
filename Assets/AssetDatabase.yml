@@ -1,58 +1,49 @@
 AssetDatabase:
-  - id: 4843792881615919161
-    type: 8
-    path: Assets/Materials/Sponza_Curtain_Blue.slmt
-  - id: 15896187807512132719
-    type: 8
-    path: Assets/Materials/PBR/M10L8.slmt
-  - id: 6180828477715495323
-    type: 8
-    path: Assets/Materials/PBR/M10L10.slmt
+  - id: 4301245066019571715
+    type: 4
+    path: Assets/Models/Sponza/textures/Sponza_Arch_normal.png
+  - id: 331369014986465042
+    type: 0
+    path: Assets/Shaders/BloomUpSampling.glsl
+  - id: 3444620090121489425
+    type: 4
+    path: Assets/Models/Sponza/textures/Sponza_Column_b_normal.png
   - id: 11482215496690449635
     type: 4
     path: Assets/Editor/File.png
-  - id: 7607807713177760019
-    type: 8
-    path: Assets/Materials/Sponza_Chain.slmt
-  - id: 16211642695138339284
-    type: 0
-    path: Assets/Shaders/Cache/DeferredPrimitive.fs.bin
+  - id: 15069519900257845900
+    type: 4
+    path: Assets/Models/Sponza/textures/Sponza_Fabric_Red_normal.png
+  - id: 11716112593240274795
+    type: 4
+    path: Assets/Models/Sponza/textures/Sponza_Bricks_a_Normal.png
+  - id: 1246449290476364910
+    type: 4
+    path: Assets/Models/Sponza/textures/Sponza_Curtain_Blue_diffuse.png
   - id: 16474159950333928465
     type: 4
     path: Assets/Editor/Material.png
-  - id: 13111695271449719157
-    type: 1
-    path: Assets/Scenes/Empty.slsc
+  - id: 16211642695138339284
+    type: 0
+    path: Assets/Shaders/Cache/DeferredPrimitive.fs.bin
   - id: 3838073853841747422
     type: 4
     path: Assets/Editor/Directory.png
-  - id: 13274481721661639100
-    type: 8
-    path: Assets/Materials/PBR/M6L4.slmt
-  - id: 3978392719017638033
-    type: 8
-    path: Assets/Materials/Sponza_Arch.slmt
   - id: 18174234976128825482
     type: 0
     path: Assets/Shaders/Environment.glsl
   - id: 13347896498705509375
     type: 4
     path: Assets/Editor/cloud.png
-  - id: 12495640304982707518
-    type: 8
-    path: Assets/Materials/Sponza_Thorn.slmt
-  - id: 8068866301031048696
-    type: 8
-    path: Assets/Materials/Sponza_Roof.slmt
+  - id: 4252743603912772286
+    type: 4
+    path: Assets/Models/Sponza/textures/Sponza_FlagPole_normal.png
+  - id: 3821708985225604929
+    type: 0
+    path: Assets/Shaders/Cache/BloomPrefiltering.vs.bin
   - id: 8502710814215542895
     type: 0
     path: Assets/Editor/imgui.ini
-  - id: 12203964952716763524
-    type: 8
-    path: Assets/Materials/PBR/M2L8.slmt
-  - id: 4881219206978887719
-    type: 8
-    path: Assets/Materials/Sponza_Vase_Round.slmt
   - id: 7056108116476392122
     type: 4
     path: Assets/Editor/Logo.png
@@ -62,174 +53,63 @@ AssetDatabase:
   - id: 4489383458104693388
     type: 2
     path: Assets/Editor/Monkey.fbx
+  - id: 8093959703443527407
+    type: 4
+    path: Assets/Models/Sponza/textures/ChainTexture_Normal.png
   - id: 6955821501913020511
     type: 4
     path: Assets/Editor/Progress.png
-  - id: 6681110590457812983
-    type: 8
-    path: Assets/Materials/PBR/M4L6.slmt
-  - id: 7633711114527026627
-    type: 8
-    path: Assets/Materials/PBR/M8L10.slmt
   - id: 16949986597745471341
     type: 4
     path: Assets/Editor/Scene.png
-  - id: 17263217756720893891
-    type: 8
-    path: Assets/Materials/PBR/M6L8.slmt
   - id: 774743883538534779
     type: 4
     path: Assets/Editor/Splash.png
-  - id: 17097242801771057577
-    type: 8
-    path: Assets/Materials/Default/aaaaa.slmt
-  - id: 13552270763291111743
-    type: 8
-    path: Assets/Materials/Sponza_Column_A.slmt
   - id: 992482701259088052
     type: 4
     path: Assets/Editor/Texture.png
-  - id: 5807658822303048910
-    type: 8
-    path: Assets/Materials/PBR/M6L2.slmt
   - id: 14480387373189092379
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Fabric_Blue_normal.png
   - id: 10595864354162617325
     type: 0
     path: Assets/Fonts/VL-Gothic-Regular.ttf
-  - id: 8589445896875204560
-    type: 8
-    path: Assets/Materials/Default/White.slmt
-  - id: 3334950948130829712
-    type: 8
-    path: Assets/Materials/Sponza_Floor.slmt
-  - id: 11375927699150402886
-    type: 8
-    path: Assets/Materials/PBR/M10L2.slmt
-  - id: 603375475246160768
-    type: 8
-    path: Assets/Materials/PBR/M2L6.slmt
-  - id: 13484940888963627468
-    type: 8
-    path: Assets/Materials/PBR/M8L4.slmt
-  - id: 8388413459681478991
-    type: 8
-    path: Assets/Materials/PBR/M10L4.slmt
   - id: 12373227902747849572
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Column_c_diffuse.png
-  - id: 7864318252291721695
-    type: 8
-    path: Assets/Materials/PBR/M10L6.slmt
-  - id: 12485863517469299018
-    type: 8
-    path: Assets/Materials/PBR/M6L10.slmt
-  - id: 1067464298667706147
-    type: 8
-    path: Assets/Materials/PBR/M2L10.slmt
-  - id: 3315317596091248917
-    type: 8
-    path: Assets/Materials/PBR/M4L10.slmt
-  - id: 751729943266296339
-    type: 8
-    path: Assets/Materials/PBR/M2L2.slmt
-  - id: 910421610251959477
-    type: 8
-    path: Assets/Materials/PBR/M8L2.slmt
-  - id: 2433087813360773465
-    type: 8
-    path: Assets/Materials/PBR/M2L4.slmt
+  - id: 18442394967146839115
+    type: 2
+    path: Assets/Models/Monkey.fbx
   - id: 17168291427282672129
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Curtain_Green_diffuse.png
   - id: 5068208639352636608
     type: 2
     path: Assets/Models/Cube.fbx
-  - id: 14626894618892203429
-    type: 8
-    path: Assets/Materials/PBR/M4L2.slmt
-  - id: 7475483962046748851
-    type: 8
-    path: Assets/Materials/PBR/M4L4.slmt
-  - id: 10279572338095350284
-    type: 8
-    path: Assets/Materials/PBR/M4L8.slmt
-  - id: 10653105876355506507
-    type: 8
-    path: Assets/Materials/PBR/M6L6.slmt
-  - id: 18217766599032293815
-    type: 8
-    path: Assets/Materials/PBR/M8L6.slmt
-  - id: 3517282847897830005
-    type: 8
-    path: Assets/Materials/PBR/M8L8.slmt
-  - id: 9433171265393426409
-    type: 8
-    path: Assets/Materials/Sponza_Column_C.slmt
-  - id: 11418491061342749387
-    type: 8
-    path: Assets/Materials/Sponza_Background.slmt
-  - id: 11598150442640184100
-    type: 8
-    path: Assets/Materials/Sponza_Fabric_Green.slmt
-  - id: 13727505537754744314
-    type: 8
-    path: Assets/Materials/Sponza_Brick.slmt
-  - id: 8309377044836010529
-    type: 8
-    path: Assets/Materials/Sponza_Ceiling.slmt
   - id: 12702453477052019980
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Column_c_normal.png
   - id: 15007608949085486944
     type: 0
     path: Assets/Shaders/Cache/Prefilter.gs.bin
-  - id: 12522880706119098174
-    type: 8
-    path: Assets/Materials/Sponza_Column_B.slmt
+  - id: 10707850046471905736
+    type: 4
+    path: Assets/Models/Sponza/textures/Sponza_Details_normal.png
   - id: 5970722828980743348
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Arch_diffuse.png
   - id: 13776514957998896608
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Thorn_normal.png
-  - id: 1439324758176578210
-    type: 8
-    path: Assets/Materials/Sponza_Curtain_Green.slmt
-  - id: 1647583883599024007
-    type: 8
-    path: Assets/Materials/Sponza_Curtain_Red.slmt
-  - id: 12548250961720565792
-    type: 8
-    path: Assets/Materials/Sponza_Details.slmt
-  - id: 17555522456835344895
-    type: 8
-    path: Assets/Materials/Sponza_Fabric_Blue.slmt
-  - id: 13756561366995585917
-    type: 8
-    path: Assets/Materials/Sponza_Fabric_Red.slmt
+  - id: 1942169413530816313
+    type: 4
+    path: Assets/Models/Sponza/textures/Sponza_Fabric_Green_diffuse.png
   - id: 14126846790721065180
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Curtain_Green_normal.png
-  - id: 2631935003099841037
-    type: 8
-    path: Assets/Materials/Sponza_Lion.slmt
-  - id: 2483781725755273311
-    type: 8
-    path: Assets/Materials/Sponza_Flagpole.slmt
-  - id: 8124177899153214
-    type: 8
-    path: Assets/Materials/Sponza_Vase.slmt
-  - id: 569565226020769020
-    type: 8
-    path: Assets/Materials/Sponza_Vase_Hanging.slmt
-  - id: 14567268213593361016
-    type: 8
-    path: Assets/Materials/Sponza_Vase_Plant.slmt
-  - id: 18442394967146839115
-    type: 2
-    path: Assets/Models/Monkey.fbx
+  - id: 13940451012394824759
+    type: 4
+    path: Assets/Models/Sponza/textures/Sponza_Curtain_Blue_normal.png
   - id: 16836264998222985955
     type: 2
     path: Assets/Models/Sphere.fbx
@@ -239,36 +119,30 @@ AssetDatabase:
   - id: 6382194794406696561
     type: 4
     path: Assets/Models/Sponza/textures/Background_Albedo.png
+  - id: 4577325622088175519
+    type: 4
+    path: Assets/Models/Sponza/textures/Sponza_Curtain_Red_diffuse.png
   - id: 8645452771865905148
     type: 4
     path: Assets/Models/Sponza/textures/Background_Normal.png
   - id: 16993161485060480445
     type: 0
     path: Assets/Shaders/Cache/BloomUpSampling.vs.bin
+  - id: 14300804139723595474
+    type: 4
+    path: Assets/Models/Sponza/textures/Sponza_Column_a_normal.png
   - id: 7692153031938324098
     type: 4
     path: Assets/Models/Sponza/textures/ChainTexture_Albedo.png
-  - id: 8093959703443527407
-    type: 4
-    path: Assets/Models/Sponza/textures/ChainTexture_Normal.png
-  - id: 3792083952214146200
-    type: 1
-    path: Assets/Scenes/Outline.slsc
   - id: 13809523016327972789
     type: 4
     path: Assets/Models/Sponza/textures/Lion_Albedo.png
   - id: 423577963125221092
     type: 4
     path: Assets/Models/Sponza/textures/Lion_Normal.png
-  - id: 4301245066019571715
-    type: 4
-    path: Assets/Models/Sponza/textures/Sponza_Arch_normal.png
   - id: 6523992237350705107
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Bricks_a_Albedo.png
-  - id: 11716112593240274795
-    type: 4
-    path: Assets/Models/Sponza/textures/Sponza_Bricks_a_Normal.png
   - id: 6606516814054076567
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Ceiling_diffuse.png
@@ -278,39 +152,15 @@ AssetDatabase:
   - id: 562112074638949740
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Column_a_diffuse.png
-  - id: 14300804139723595474
-    type: 4
-    path: Assets/Models/Sponza/textures/Sponza_Column_a_normal.png
   - id: 6799882308776887474
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Column_b_diffuse.png
-  - id: 3444620090121489425
-    type: 4
-    path: Assets/Models/Sponza/textures/Sponza_Column_b_normal.png
-  - id: 331369014986465042
-    type: 0
-    path: Assets/Shaders/BloomUpSampling.glsl
-  - id: 1246449290476364910
-    type: 4
-    path: Assets/Models/Sponza/textures/Sponza_Curtain_Blue_diffuse.png
-  - id: 13940451012394824759
-    type: 4
-    path: Assets/Models/Sponza/textures/Sponza_Curtain_Blue_normal.png
-  - id: 4577325622088175519
-    type: 4
-    path: Assets/Models/Sponza/textures/Sponza_Curtain_Red_diffuse.png
   - id: 15438877074540418882
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Details_diffuse.png
-  - id: 10707850046471905736
-    type: 4
-    path: Assets/Models/Sponza/textures/Sponza_Details_normal.png
   - id: 16104297685265183753
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Fabric_Blue_diffuse.png
-  - id: 1942169413530816313
-    type: 4
-    path: Assets/Models/Sponza/textures/Sponza_Fabric_Green_diffuse.png
   - id: 3450225602926357398
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Fabric_Green_normal.png
@@ -320,18 +170,9 @@ AssetDatabase:
   - id: 7636933207481592295
     type: 0
     path: Assets/Shaders/Bloom.glsl
-  - id: 15069519900257845900
-    type: 4
-    path: Assets/Models/Sponza/textures/Sponza_Fabric_Red_normal.png
   - id: 11306584285220393710
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_FlagPole_diffuse.png
-  - id: 4252743603912772286
-    type: 4
-    path: Assets/Models/Sponza/textures/Sponza_FlagPole_normal.png
-  - id: 3821708985225604929
-    type: 0
-    path: Assets/Shaders/Cache/BloomPrefiltering.vs.bin
   - id: 12996327183765432947
     type: 4
     path: Assets/Models/Sponza/textures/Sponza_Floor_diffuse.png
@@ -374,12 +215,6 @@ AssetDatabase:
   - id: 10652698547788677245
     type: 4
     path: Assets/Models/Sponza/textures/Vase_normal.png
-  - id: 16371758486125119484
-    type: 1
-    path: Assets/Scenes/PBR.slsc
-  - id: 4554994033640208790
-    type: 1
-    path: Assets/Scenes/Sponza.slsc
   - id: 5449933357395238357
     type: 0
     path: Assets/Shaders/BloomDownSampling.glsl

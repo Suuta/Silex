@@ -4,7 +4,6 @@
 #include "Rendering/Mesh.h"
 #include "Rendering/Renderer.h"
 #include "Asset/TextureReader.h"
-#include "Editor/SplashImage.h"
 
 
 namespace Silex

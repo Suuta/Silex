@@ -28,17 +28,17 @@ namespace Silex
 
     struct WindowsContext
     {
-        static inline std::wstring appName;
-        static inline std::wstring text[4];
-        static inline RECT         textRects[4];
-        static inline HWND         windowHandle       = NULL;
-        static inline HFONT        textFont           = NULL;
-        static inline HFONT        titleFont          = NULL;
-        static inline HBITMAP      backgroundBitmap   = NULL; // Unrealと同サイズの 720 x 370 を使用
-        static inline HBITMAP      progressBitmap     = NULL;
-        static inline int          progressPercentage = 0;
+        std::wstring appName;
+        std::wstring text[4];
+        RECT         textRects[4];
+        HWND         windowHandle       = NULL;
+        HFONT        textFont           = NULL;
+        HFONT        titleFont          = NULL;
+        HBITMAP      backgroundBitmap   = NULL; // Unrealと同サイズの 720 x 370 を使用
+        HBITMAP      progressBitmap     = NULL;
+        int          progressPercentage = 0;
 
-        static void SetText(const TextType InType, const wchar_t* InText)
+        void SetText(const TextType InType, const wchar_t* InText)
         {
             std::wstring InTextW = InText;
             bool bWasUpdated = false;
@@ -56,14 +56,15 @@ namespace Silex
             }
         }
 
-        static void SetLoadProgressPercentage(float percentage)
+        void SetLoadProgressPercentage(float percentage)
         {
             progressPercentage = 720.f * (percentage / 100.0f);
             RECT rect = { 0, 270, 720, 275 };
             InvalidateRect(windowHandle, &rect, FALSE); // WM_PAINT をトリガーさせる
         }
+    };
 
-    } context;
+    static WindowsContext context;
 
 
     int64 CALLBACK SplashScreenWindowProc(HWND hWnd, uint32 message, uint64 wParam, int64 lParam)
@@ -235,6 +236,10 @@ namespace Silex
             ::PostMessageW(context.windowHandle, WM_CLOSE, 0, 0);
             context.windowHandle = NULL;
         }
+
+        // SplashScreen スレッドを含む全スレッドを待機 
+        // エンジンの初期化完了後に呼ばれるはずだが、残っているものがあれば待機する
+        ThreadPool::WaitAll();
     }
 
     void EditorSplashImage::SetText(const wchar_t* InText, float percentage)

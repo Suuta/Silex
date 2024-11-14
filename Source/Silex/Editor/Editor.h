@@ -5,6 +5,7 @@
 #include "Core/Ref.h"
 #include "Rendering/Mesh.h"
 #include "Scene/Camera.h"
+#include "Scene/SceneRenderer.h"
 #include "Editor/ScenePropertyPanel.h"
 #include "Editor/AssetBrowserPanel.h"
 
@@ -25,7 +26,7 @@ namespace Silex
         void Init();
         void Shutdown();
         void Update(float deltaTime);
-        void Render();
+        void UpdateUI();
 
     public:
 
@@ -39,7 +40,7 @@ namespace Silex
 
     public:
 
-        const std::filesystem::path& GetAssetDirectory() const { return m_AssetDirectory; }
+        const std::filesystem::path& GetAssetDirectory() const { return assetDirectory; }
         Camera* GetEditorCamera();
 
         bool IsUsingEditorCamera() const;
@@ -57,44 +58,46 @@ namespace Silex
 
     private:
 
-        std::filesystem::path m_CurrentScenePath = "";
-        std::string           m_CurrentSceneName = "名称未指定";
+        // パス
+        std::filesystem::path currentScenePath = "";
+        std::string           currentSceneName = "名称未指定";
 
-        glm::ivec2 m_SceneViewportFramebufferSize = { 1280, 720 };
-        glm::ivec2 m_RelativeViewportRect[2];
-        glm::ivec2 m_PrevCursorPosition;
-
-        bool bUsingEditorCamera = false;
+        // シーンビューポート
+        glm::ivec2 sceneViewportFramebufferSize = { 1280, 720 };
+        glm::ivec2 relativeViewportRect[2];
+        glm::ivec2 prevCursorPosition;
 
         // カメラ
-        Camera m_EditorCamera = { glm::vec3(0.0f, 1.0f, 10.0f) };
+        bool   usingEditorCamera  = false;
+        bool   canUseEditorCamera = false;
+        Camera editorCamera       = { glm::vec3(0.0f, 1.0f, 10.0f) };
 
-    private:
+        // シーン
+        Ref<Scene>    scene;
+        SceneRenderer sceneRenderer;
 
-        Ref<Scene> m_Scene;
-        //SceneRenderer m_SceneRenderer;
+        // パネル
+        ScenePropertyPanel scenePropertyPanel;
+        AssetBrowserPanel  assetBrowserPanel;
 
-        ScenePropertyPanel m_ScenePropertyPanel;
-        AssetBrowserPanel  m_AssetBrowserPanel;
+        std::filesystem::path assetDirectory = "Assets/";
 
-        std::filesystem::path m_AssetDirectory = "Assets/";
+        // オブジェクト選択・ギズモ
+        bool                usingManipulater     = false;
+        bool                hoveredViewport      = false;
+        bool                activeGizmoForcus    = true;
+        int32               selectionID          = -1;
+        ImGuizmo::OPERATION manipulateType       = ImGuizmo::TRANSLATE;
+        ImGuizmo::MODE      manipulateMode       = ImGuizmo::LOCAL;
+        glm::vec3           selectEntityPosition = {};
 
-        // オブジェクト選択
-        bool                bUsingManipulater      = false;
-        bool                bHoveredViewport       = false;
-        bool                bActiveGizmoForcus     = true;
-        int32               m_SelectionID          = -1;
-        ImGuizmo::OPERATION m_ManipulateType       = ImGuizmo::TRANSLATE;
-        ImGuizmo::MODE      m_ManipulateMode       = ImGuizmo::LOCAL;
-        glm::vec3           m_SelectEntityPosition = {};
-
-        // UIパネルの表示フラグ
-        bool bShowScene        = true;
-        bool bShowProperty     = true;
-        bool bShowOutliner     = true;
-        bool bShowLogger       = true;
-        bool bShowStats        = true;
-        bool bShowMaterial     = true;
-        bool bShowAssetBrowser = true;
+        // パネルの表示・非表示フラグ
+        bool showScene        = true;
+        bool showProperty     = true;
+        bool showOutliner     = true;
+        bool showLogger       = true;
+        bool showStats        = true;
+        bool showMaterial     = true;
+        bool showAssetBrowser = true;
     };
 }

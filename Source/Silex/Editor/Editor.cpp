@@ -23,16 +23,16 @@ namespace Silex
         SL_LOG_TRACE("Editor::Init");
 
         // シーン生成
-        //m_Scene = CreateRef<Scene>();
-
+        scene = CreateRef<Scene>();
+        
         // アウトラウナーにシーンを登録
-        //m_ScenePropertyPanel.SetScene(m_Scene);
-        //m_ScenePropertyPanel.onEntitySelectDelegate.Bind(this, &Editor::OnClickHierarchyEntity);
+        scenePropertyPanel.SetScene(scene);
+        scenePropertyPanel.onEntitySelectDelegate.Bind(this, &Editor::OnClickHierarchyEntity);
 
-        //m_AssetBrowserPanel.Initialize();
+        assetBrowserPanel.Initialize();
 
         // シーンレンダラー初期化
-        //m_SceneRenderer.Init();
+        //sceneRenderer.Init();
 
         INIT_PROCESS("Editor Init", 100.0f);
         OS::Get()->Sleep(500);
@@ -42,47 +42,22 @@ namespace Silex
     {
         SL_LOG_TRACE("Editor::Shutdown");
 
-        //m_AssetBrowserPanel.Finalize();
-
-        //m_SceneRenderer.Shutdown();
-        //m_ScenePropertyPanel.onEntitySelectDelegate.Unbind();
+        // sceneRenderer.Shutdown();
+        assetBrowserPanel.Finalize();
+        scenePropertyPanel.onEntitySelectDelegate.Unbind();
     }
 
     void Editor::Update(float deltaTime)
     {
-        //HandleInput(deltaTime);
+        HandleInput(deltaTime);
+        editorCamera.Update(deltaTime);
 
-        m_EditorCamera.Update(deltaTime);
-
-        if (Input::IsMouseButtonDown(Mouse::Right))
-        {
-            Input::SetCursorMode(CursorMode::Disable);
-            bUsingEditorCamera = true;
-
-            if (Input::IsKeyDown(Keys::W)) m_EditorCamera.Move(CameraMovementDir::Forward,  deltaTime);
-            if (Input::IsKeyDown(Keys::S)) m_EditorCamera.Move(CameraMovementDir::Backward, deltaTime);
-            if (Input::IsKeyDown(Keys::A)) m_EditorCamera.Move(CameraMovementDir::Left,     deltaTime);
-            if (Input::IsKeyDown(Keys::D)) m_EditorCamera.Move(CameraMovementDir::Right,    deltaTime);
-            if (Input::IsKeyDown(Keys::E)) m_EditorCamera.Move(CameraMovementDir::Up,       deltaTime);
-            if (Input::IsKeyDown(Keys::Q)) m_EditorCamera.Move(CameraMovementDir::Down,     deltaTime);
-        }
-        else if(Input::IsMouseButtonReleased(Mouse::Right))
-        {
-            Input::SetCursorMode(CursorMode::Normal);
-            bUsingEditorCamera = false;
-        }
-
-        // m_Scene->Update(deltaTime, m_EditorCamera, &m_SceneRenderer);
+        scene->Update(deltaTime, editorCamera, &sceneRenderer);
     }
 
-    void Editor::Render()
+    void Editor::UpdateUI()
     {
-        SL_SCOPE_PROFILE("Render - Editor");
-
-        //-----------------------------------------------
-        // Vulkan では必要ない
-        // Renderer::Get()->SetDefaultFramebuffer();
-        //-----------------------------------------------
+        SL_SCOPE_PROFILE("Editor::UpdateUI");
 
         ImGuiViewport* viewport = ImGui::GetMainViewport();
         ImGui::SetNextWindowPos(viewport->Pos);
@@ -100,6 +75,9 @@ namespace Silex
         windowFlags |= ImGuiWindowFlags_NoBringToFrontOnFocus;
         windowFlags |= ImGuiWindowFlags_NoNavFocus;
         windowFlags |= ImGuiWindowFlags_MenuBar;
+        windowFlags |= usingEditorCamera ? ImGuiWindowFlags_NoInputs : 0;
+
+        ImGuiWindowFlags usingCameraFlag = usingEditorCamera ? ImGuiWindowFlags_NoInputs : 0;
 
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
@@ -108,7 +86,7 @@ namespace Silex
 
             ImGuiWindowFlags docapaceFlag = 0;
             docapaceFlag |= ImGuiDockNodeFlags_NoWindowMenuButton;
-            docapaceFlag |= ImGuiDockNodeFlags_None;
+            docapaceFlag |= usingEditorCamera ? ImGuiDockNodeFlags_NoResize : 0;
 
             ImGuiID dockspace_id = ImGui::GetID("Dockspace");
             ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), docapaceFlag);
@@ -129,13 +107,13 @@ namespace Silex
 
                 if (ImGui::BeginMenu("ウィンドウ"))
                 {
-                    ImGui::MenuItem("シーンビューポート", nullptr, &bShowScene);
-                    ImGui::MenuItem("アウトプットロガー", nullptr, &bShowLogger);
-                    ImGui::MenuItem("統計",            nullptr, &bShowStats);
-                    ImGui::MenuItem("アウトライナー",    nullptr, &bShowOutliner);
-                    ImGui::MenuItem("プロパティ",       nullptr, &bShowProperty);
-                    ImGui::MenuItem("マテリアル",       nullptr, &bShowMaterial);
-                    ImGui::MenuItem("アセットブラウザ",  nullptr, &bShowAssetBrowser);
+                    ImGui::MenuItem("シーンビューポート", nullptr, &showScene);
+                    ImGui::MenuItem("アウトプットロガー", nullptr, &showLogger);
+                    ImGui::MenuItem("統計",            nullptr, &showStats);
+                    ImGui::MenuItem("アウトライナー",    nullptr, &showOutliner);
+                    ImGui::MenuItem("プロパティ",       nullptr, &showProperty);
+                    ImGui::MenuItem("マテリアル",       nullptr, &showMaterial);
+                    ImGui::MenuItem("アセットブラウザ",  nullptr, &showAssetBrowser);
                     ImGui::EndMenu();
                 }
 
@@ -146,19 +124,18 @@ namespace Silex
         }
 
         // シーンプロパティ
-        m_ScenePropertyPanel.Render(&bShowOutliner, &bShowProperty);
+        scenePropertyPanel.Render(&showOutliner, &showProperty);
 
-        // アセットプロパティ
-        m_AssetBrowserPanel.Render(&bShowAssetBrowser, &bShowMaterial);
+        // アセットブラウザ
+        assetBrowserPanel.Render(&showAssetBrowser, &showMaterial);
 
-
-        if (bShowScene)
+        if (showScene)
         {
             ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-            ImGui::Begin("シーン", &bShowScene);
+            ImGui::Begin("シーン", &showScene, usingCameraFlag);
 
             // ビューポートへのホバー
-            bHoveredViewport = ImGui::IsWindowHovered();
+            hoveredViewport = ImGui::IsWindowHovered();
 
             // ウィンドウ内のコンテンツサイズ（タブやパディングは含めないので、ImGui::GetWindowSize関数は使わない）
             ImVec2 contentMin = ImGui::GetWindowContentRegionMin();
@@ -168,46 +145,50 @@ namespace Silex
             // ウィンドウ左端からのオフセット
             ImVec2 viewportOffset = ImGui::GetWindowPos();
 
-            m_RelativeViewportRect[0] = { contentMin.x + viewportOffset.x, contentMin.y + viewportOffset.y };
-            m_RelativeViewportRect[1] = { contentMax.x + viewportOffset.x, contentMax.y + viewportOffset.y };
+            relativeViewportRect[0] = { contentMin.x + viewportOffset.x, contentMin.y + viewportOffset.y };
+            relativeViewportRect[1] = { contentMax.x + viewportOffset.x, contentMax.y + viewportOffset.y };
 
             // シーン描画
             {
                 // エディターが有効な状態では、シーンビューポートサイズがフレームバッファサイズになる
-                if ((content.x > 0.0f && content.y > 0.0f) && (content.x != m_SceneViewportFramebufferSize.x || content.y != m_SceneViewportFramebufferSize.y))
+                if ((content.x > 0.0f && content.y > 0.0f) && (content.x != sceneViewportFramebufferSize.x || content.y != sceneViewportFramebufferSize.y))
                 {
-                    m_SceneViewportFramebufferSize.x = content.x;
-                    m_SceneViewportFramebufferSize.y = content.y;
+                    sceneViewportFramebufferSize.x = content.x;
+                    sceneViewportFramebufferSize.y = content.y;
 
-                    m_EditorCamera.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
-                    //m_SceneRenderer.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
+                    editorCamera.SetViewportSize(sceneViewportFramebufferSize.x, sceneViewportFramebufferSize.y);
+                    
+                    //sceneRenderer.SetViewportSize(sceneViewportFramebufferSize.x, sceneViewportFramebufferSize.y);
+                    Renderer::Get()->Resize(sceneViewportFramebufferSize.x, sceneViewportFramebufferSize.y);
                 }
 
                 // シーン描画
-                //ImGui::Image((void*)m_SceneRenderer.GetFinalRenderPassID(), content, { 0, 1 }, { 1, 0 });
+                //ImGui::Image((void*)sceneRenderer.GetFinalRenderPassID(), content, { 0, 1 }, { 1, 0 });
+                GUI::Image(Renderer::Get()->GetSceneImageSet(), content.x, content.y);
             }
 
             // ギズモ
-            if (bActiveGizmoForcus)
+            if (activeGizmoForcus)
             {
                 ImGuizmo::SetOrthographic(false);
                 ImGuizmo::SetDrawlist();
-                ImGuizmo::SetRect(m_RelativeViewportRect[0].x, m_RelativeViewportRect[0].y, content.x, content.y);
+                ImGuizmo::SetRect(relativeViewportRect[0].x, relativeViewportRect[0].y, content.x, content.y);
 
-                const float* viewMatrix       = glm::value_ptr(m_EditorCamera.GetViewMatrix());
-                const float* projectionMatrix = glm::value_ptr(m_EditorCamera.GetProjectionMatrix());
+                const float* viewMatrix       = glm::value_ptr(editorCamera.GetViewMatrix());
+                const float* projectionMatrix = glm::value_ptr(editorCamera.GetProjectionMatrix());
 
                 // ギズモ描画位置
-                Entity selectEntity = m_ScenePropertyPanel.GetSelectedEntity();
-                if (selectEntity)
+                Entity selectEntity = scenePropertyPanel.GetSelectedEntity();
+                //if (selectEntity)
+                if (selectEntity && false)
                 {
                     TransformComponent& tc = selectEntity.GetComponent<TransformComponent>();
                     glm::mat4 transform = tc.GetTransform();
 
-                    m_SelectEntityPosition = tc.position;
+                    selectEntityPosition = tc.position;
 
                     // ギズモ描画
-                    ImGuizmo::Manipulate(viewMatrix, projectionMatrix, m_ManipulateType, m_ManipulateMode, glm::value_ptr(transform));
+                    ImGuizmo::Manipulate(viewMatrix, projectionMatrix, manipulateType, manipulateMode, glm::value_ptr(transform));
 
                     // ギズモ操作（変化量加算）
                     if (ImGuizmo::IsUsing())
@@ -227,11 +208,11 @@ namespace Silex
                         tc.rotation += dtRot;
                         tc.Scale    =  scale;
 
-                        bUsingManipulater = true;
+                        usingManipulater = true;
                     }
                     else
                     {
-                        bUsingManipulater = false;
+                        usingManipulater = false;
                     }
                 }
             }
@@ -241,13 +222,12 @@ namespace Silex
         }
 
         // エディターカメラ操作中に他のウィンドウへのフォーカスを無効にする
-        if (bUsingEditorCamera)
-            ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
+        if (usingEditorCamera) ImGui::PushItemFlag(ImGuiItemFlags_Disabled, true);
 
         // アウトプットログ
-        if (bShowLogger)
+        if (showLogger)
         {
-            ImGui::Begin("アウトプットログ", &bShowLogger);
+            ImGui::Begin("アウトプットログ", &showLogger, usingCameraFlag);
 
             // Clear ボタンを右寄せするための計算
             float buttonWidth = 100.0f;
@@ -269,13 +249,17 @@ namespace Silex
         }
 
         // 統計
-        if (bShowStats)
+        if (showStats)
         {
-            ImGui::Begin("統計", &bShowStats, ImGuiWindowFlags_NoTitleBar);
+            ImGui::Begin("統計", &showStats, usingCameraFlag);
             ImGui::Text("FPS: %d (%.2f)ms", Engine::Get()->GetFrameRate(), Engine::Get()->GetDeltaTime() * 1000);
-            ImGui::Text("Resolution: %d, %d", m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
+            ImGui::Text("Resolution: %d, %d", sceneViewportFramebufferSize.x, sceneViewportFramebufferSize.y);
 
-            ImGui::SeparatorText("");
+            ImGui::Text("Camera: %.0f, %.0f, %.0f", editorCamera.GetPosition().x, editorCamera.GetPosition().y, editorCamera.GetPosition().z);
+
+            ImGui::RadioButton("hoveredViewport", hoveredViewport);
+
+            //ImGui::SeparatorText("");
 
             //SceneRenderStats stats = m_SceneRenderer.GetRenderStats();
             //ImGui::Text("GeometryDrawCall: %d", stats.numGeometryDrawCall);
@@ -301,36 +285,41 @@ namespace Silex
         }
 
         // ウィンドウへのフォーカスを有効にする
-        if (bUsingEditorCamera)
-            ImGui::PopItemFlag();
+        if (usingEditorCamera) ImGui::PopItemFlag();
 
+        // pop ImGuiStyleVar_WindowRounding
+        // pop ImGuiStyleVar_WindowBorderSize
         ImGui::PopStyleVar(2);
     }
 
     void Editor::HandleInput(float deltaTime)
     {
         // エディターカメラ操作
-        if (Input::IsMouseButtonDown(Mouse::Right) && bHoveredViewport)
+        if (Input::IsMouseButtonPressed(Mouse::Right) && hoveredViewport)
         {
             Input::SetCursorMode(CursorMode::Disable);
-            bUsingEditorCamera = true;
-
-            if (Input::IsKeyDown(Keys::W)) m_EditorCamera.Move(CameraMovementDir::Forward,  deltaTime);
-            if (Input::IsKeyDown(Keys::S)) m_EditorCamera.Move(CameraMovementDir::Backward, deltaTime);
-            if (Input::IsKeyDown(Keys::A)) m_EditorCamera.Move(CameraMovementDir::Left,     deltaTime);
-            if (Input::IsKeyDown(Keys::D)) m_EditorCamera.Move(CameraMovementDir::Right,    deltaTime);
-            if (Input::IsKeyDown(Keys::E)) m_EditorCamera.Move(CameraMovementDir::Up,       deltaTime);
-            if (Input::IsKeyDown(Keys::Q)) m_EditorCamera.Move(CameraMovementDir::Down,     deltaTime);
+            usingEditorCamera = true;
+        }
+        else if (Input::IsMouseButtonDown(Mouse::Right) && usingEditorCamera)
+        {
+            if (Input::IsKeyDown(Keys::W)) editorCamera.Move(CameraMovementDir::Forward,  deltaTime);
+            if (Input::IsKeyDown(Keys::S)) editorCamera.Move(CameraMovementDir::Backward, deltaTime);
+            if (Input::IsKeyDown(Keys::A)) editorCamera.Move(CameraMovementDir::Left,     deltaTime);
+            if (Input::IsKeyDown(Keys::D)) editorCamera.Move(CameraMovementDir::Right,    deltaTime);
+            if (Input::IsKeyDown(Keys::E)) editorCamera.Move(CameraMovementDir::Up,       deltaTime);
+            if (Input::IsKeyDown(Keys::Q)) editorCamera.Move(CameraMovementDir::Down,     deltaTime);
+        }
+        else if(Input::IsMouseButtonReleased(Mouse::Right))
+        {
+            Input::SetCursorMode(CursorMode::Normal);
+            usingEditorCamera = false;
         }
         else
         {
-            Input::SetCursorMode(CursorMode::Normal);
-            bUsingEditorCamera = false;
-
             // オブジェクト選択
-            if (Input::IsMouseButtonReleased(Mouse::Left) && !bUsingManipulater && bHoveredViewport)
+            if (Input::IsMouseButtonReleased(Mouse::Left) && !usingManipulater && hoveredViewport)
             {
-                SelectViewportEntity();
+                // SelectViewportEntity();
             }
 
             if (Input::IsKeyDown(Keys::LeftControl))
@@ -352,63 +341,69 @@ namespace Silex
             // ギズモ操作
             if (Input::IsKeyPressed(Keys::W))
             {
-                bActiveGizmoForcus = true;
-                m_ManipulateType   = ImGuizmo::TRANSLATE;
+                activeGizmoForcus = true;
+                manipulateType   = ImGuizmo::TRANSLATE;
             }
             else if (Input::IsKeyPressed(Keys::E))
             {
-                bActiveGizmoForcus = true;
-                m_ManipulateType   = ImGuizmo::ROTATE;
+                activeGizmoForcus = true;
+                manipulateType   = ImGuizmo::ROTATE;
             }
             else if (Input::IsKeyPressed(Keys::R))
             {
-                bActiveGizmoForcus = true;
-                m_ManipulateType   = ImGuizmo::SCALE;
+                activeGizmoForcus = true;
+                manipulateType   = ImGuizmo::SCALE;
             }
             else if (Input::IsKeyPressed(Keys::Q))
             {
-                m_ManipulateMode = m_ManipulateMode? ImGuizmo::LOCAL : ImGuizmo::WORLD;
+                manipulateMode = manipulateMode? ImGuizmo::LOCAL : ImGuizmo::WORLD;
             }
-            else if (Input::IsKeyPressed(Keys::F) && bActiveGizmoForcus)
+            else if (Input::IsKeyPressed(Keys::F) && activeGizmoForcus)
             {
-                m_EditorCamera.SetPosition(m_SelectEntityPosition - m_EditorCamera.GetFront() * 5.0f);
+                editorCamera.SetPosition(selectEntityPosition - editorCamera.GetFront() * 5.0f);
             }
         }
     }
 
     Camera* Editor::GetEditorCamera()
     {
-        return &m_EditorCamera;
+        return &editorCamera;
     }
 
     bool Editor::IsUsingEditorCamera() const
     {
-        return bUsingEditorCamera;
+        return usingEditorCamera;
     }
 
     void Editor::SelectViewportEntity()
     {
-        if (!bHoveredViewport)
+        if (!hoveredViewport)
             return;
 
         // ピクセルデータ読み取り
-        auto pos = Input::GetCursorPosition();
-        pos.x -= m_RelativeViewportRect[0].x;
-        pos.y -= m_RelativeViewportRect[0].y;
+        glm::ivec2 mouse       = Input::GetCursorPosition();
+        glm::ivec2 viewportPos = { relativeViewportRect[0].x, relativeViewportRect[0].y };
+        glm::ivec2 windowPos   = Window::Get()->GetWindowPos();
+        glm::ivec2 diff        = viewportPos - windowPos;
+        glm::ivec2 mousediff   = mouse - diff;
 
-        // m_SelectionID = m_SceneRenderer.ReadEntityIDFromPixcel(pos.x, pos.y);
-
-        if (m_SelectionID >= 0)
+        if (mousediff.x >= 0 && mousediff.y >= 0)
         {
-            bActiveGizmoForcus = true;
+            selectionID = Renderer::Get()->ReadPixelObjectID(mousediff.x, mousediff.y);
+            SL_LOG_DEBUG("Clicked: EntityID({}) : (x, y) = {}, {}", selectionID, mousediff.x, mousediff.y);
+        }
 
-            Entity entity = { (entt::entity)m_SelectionID, m_Scene.Get() };
-            m_ScenePropertyPanel.SetSelectedEntity(entity);
+        if (selectionID >= 0)
+        {
+            activeGizmoForcus = true;
+
+            Entity entity = { (entt::entity)selectionID, scene.Get() };
+            scenePropertyPanel.SetSelectedEntity(entity);
         }
         else
         {
-            bActiveGizmoForcus = false;
-            m_ScenePropertyPanel.SetSelectedEntity({});
+            activeGizmoForcus = false;
+            scenePropertyPanel.SetSelectedEntity({});
         }
     }
 
@@ -428,14 +423,14 @@ namespace Silex
         SceneSerializer serializer(newScene.Get());
         serializer.Deserialize(filePath);
 
-        m_Scene = newScene;
-        // m_SceneRenderer.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
+        scene = newScene;
+        // sceneRenderer.SetViewportSize(sceneViewportFramebufferSize.x, sceneViewportFramebufferSize.y);
 
-        m_ScenePropertyPanel.SetScene(m_Scene);
-        m_CurrentScenePath = filePath;
-        m_CurrentSceneName = m_CurrentScenePath.stem().string();
+        scenePropertyPanel.SetScene(scene);
+        currentScenePath = filePath;
+        currentSceneName = currentScenePath.stem().string();
 
-        Window::Get()->SetTitle(("Silex - " + m_CurrentSceneName).c_str());
+        Window::Get()->SetTitle(("Silex - " + currentSceneName).c_str());
     }
 
     void Editor::SaveScene(bool bForceSaveAs)
@@ -448,15 +443,15 @@ namespace Silex
         else
         {
             // 現在のシーンが名称未指定の場合は、新たにシーンファイルを生成して保存
-            if (m_CurrentScenePath.empty())
+            if (currentScenePath.empty())
             {
                 SaveSceneAs();
             }
             else
             {
                 // シーンファイルが生成済みなら、そこに上書き
-                SceneSerializer serializer(m_Scene.Get());
-                serializer.Serialize(m_CurrentScenePath.string());
+                SceneSerializer serializer(scene.Get());
+                serializer.Serialize(currentScenePath.string());
             }
         }
     }
@@ -465,54 +460,54 @@ namespace Silex
     {
         std::string filePath = OS::Get()->SaveFile("Silex Scene (*.slsc)\0*.slsc\0", "slsc");
 
-        SceneSerializer serializer(m_Scene.Get());
+        SceneSerializer serializer(scene.Get());
         serializer.Serialize(filePath);
 
-        m_CurrentScenePath = filePath;
-        m_CurrentSceneName = m_CurrentScenePath.stem().string();
+        currentScenePath = filePath;
+        currentSceneName = currentScenePath.stem().string();
 
-        Window::Get()->SetTitle(("Silex - " + m_CurrentSceneName).c_str());
+        Window::Get()->SetTitle(("Silex - " + currentSceneName).c_str());
     }
 
     void Editor::NewScene()
     {
         Ref<Scene> newScene = CreateRef<Scene>();
 
-        m_Scene = newScene;
-        // m_SceneRenderer.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
+        scene = newScene;
+        // sceneRenderer.SetViewportSize(m_SceneViewportFramebufferSize.x, m_SceneViewportFramebufferSize.y);
 
-        m_ScenePropertyPanel.SetScene(m_Scene);
-        m_CurrentScenePath = "";
-        m_CurrentSceneName = "名称未指定";
+        scenePropertyPanel.SetScene(scene);
+        currentScenePath = "";
+        currentSceneName = "名称未指定";
 
-        Window::Get()->SetTitle(("Silex - " + m_CurrentSceneName).c_str());
+        Window::Get()->SetTitle(("Silex - " + currentSceneName).c_str());
     }
 
     // シーンアウトライナーでエンティティがクリックされた時のイベント
     void Editor::OnClickHierarchyEntity(bool selected)
     {
-        bActiveGizmoForcus = selected;
+        activeGizmoForcus = selected;
     }
 
     void Editor::OnMouseMove(MouseMoveEvent& e)
     {
         // スクリーン座標のため、Y座標は下向きが正の値となる
-        float xoffset = e.mouseX - m_PrevCursorPosition.x;
-        float yoffset = m_PrevCursorPosition.y - e.mouseY;
+        float xoffset = e.mouseX - prevCursorPosition.x;
+        float yoffset = prevCursorPosition.y - e.mouseY;
 
-        m_PrevCursorPosition = { e.mouseX, e.mouseY };
+        prevCursorPosition = { e.mouseX, e.mouseY };
 
-        if (bUsingEditorCamera)
+        if (usingEditorCamera)
         {
-            m_EditorCamera.ProcessMouseMovement(xoffset, yoffset);
+            editorCamera.ProcessMouseMovement(xoffset, yoffset);
         }
     }
 
     void Editor::OnMouseScroll(MouseScrollEvent& e)
     {
-        //if (bHoveredViewport)
+        if (hoveredViewport)
         {
-            m_EditorCamera.ProcessMouseScroll(e.offsetY);
+            editorCamera.ProcessMouseScroll(e.offsetY);
         }
     }
 }
